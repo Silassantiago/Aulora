@@ -207,7 +207,19 @@ async function ensureSchema(db) {
       municipality_name TEXT NOT NULL DEFAULT '',
       kind TEXT NOT NULL DEFAULT '',
       queried_at TEXT NOT NULL
-    )`)
+    )`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS aulora_generation_history (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      kind TEXT NOT NULL,
+      discipline TEXT NOT NULL DEFAULT '',
+      topic TEXT NOT NULL DEFAULT '',
+      variant_id TEXT NOT NULL DEFAULT '',
+      summary TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL,
+      FOREIGN KEY(user_id) REFERENCES aulora_users(id) ON DELETE CASCADE
+    )`),
+    db.prepare(`CREATE INDEX IF NOT EXISTS idx_aulora_generation_history_user ON aulora_generation_history(user_id, kind, created_at DESC)`)
   ]);
 
   // Migra bancos D1 criados por versões anteriores do Aulora.
@@ -402,12 +414,91 @@ Regras obrigatórias:
 - Para trabalhos acadêmicos, use como referência de apresentação a ABNT NBR 14724:2024, citações a NBR 10520:2023 e referências a NBR 6023:2018, sem inventar regras institucionais específicas.
 - Não escreva citações ou referências inexistentes.`;
 }
+
+function randomChoice(items = []) {
+  if (!items.length) return '';
+  const a = new Uint32Array(1); crypto.getRandomValues(a);
+  return items[a[0] % items.length];
+}
+function shuffled(items = []) {
+  const out = [...items];
+  for (let i = out.length - 1; i > 0; i--) {
+    const a = new Uint32Array(1); crypto.getRandomValues(a);
+    const j = a[0] % (i + 1); [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+function buildGenerationVariant(kind, d) {
+  const activityProfiles = [
+    'investigação guiada por evidências', 'situação-problema contextualizada', 'aplicação prática do conteúdo',
+    'interpretação e análise', 'comparação e classificação', 'estudo de caso curto',
+    'revisão ativa com recuperação de conhecimento', 'desafio com tomada de decisão'
+  ];
+  const examProfiles = [
+    'avaliação equilibrada com progressão cognitiva', 'situações-problema', 'interpretação e análise de evidências',
+    'aplicação prática de conceitos', 'estudo de caso', 'simulado conceitual e aplicado',
+    'avaliação diagnóstica com habilidades variadas', 'comparação, inferência e justificativa'
+  ];
+  const contexts = [
+    'cotidiano do estudante', 'escola e comunidade', 'situação concreta sem dados inventados',
+    'ciência, tecnologia e sociedade quando pertinente', 'texto, fonte ou evidência curta',
+    'observação, experimento ou procedimento quando pertinente', 'dados, classificação ou representação quando pertinente'
+  ];
+  const cognitive = shuffled(['identificar com propósito','interpretar','aplicar','comparar','relacionar','analisar','justificar','produzir']).slice(0,5);
+  const requestedProfile = cleanText(kind === 'exam' ? d.examProfile : d.generationStyle, 120);
+  const autoProfile = !requestedProfile || /varia[cç][aã]o autom[aá]tica|autom[aá]tic/i.test(requestedProfile);
+  const requestedContext = cleanText(kind === 'exam' ? d.questionDesign : d.contextMode, 120);
+  const autoContext = !requestedContext || /autom[aá]tic|alta variedade/i.test(requestedContext);
+  return {
+    id: crypto.randomUUID().slice(0, 12),
+    profile: autoProfile ? randomChoice(kind === 'exam' ? examProfiles : activityProfiles) : requestedProfile,
+    context: autoContext ? randomChoice(contexts) : requestedContext,
+    cognitive,
+    diversity: cleanText(d.diversityMode || 'Alta variedade', 80),
+    version: cleanText(d.examVersion || '', 80)
+  };
+}
+function variationPromptBlock(kind, d) {
+  const v = d._variation || buildGenerationVariant(kind, d);
+  const count = Math.max(1, Math.min(20, Number(d.count) || 5));
+  const minPatterns = count >= 10 ? 5 : count >= 5 ? 3 : Math.min(2, count);
+  return `\n\nVARIAÇÃO OBRIGATÓRIA DESTA GERAÇÃO (não mostrar este bloco ao usuário):\n- ID de variação: ${v.id}.\n- Perfil pedagógico desta versão: ${v.profile}.\n- Contexto preferencial: ${v.context}.\n- Operações cognitivas sugeridas, em ordem embaralhada: ${(v.cognitive || []).join(', ')}.\n- Nível de diversidade: ${v.diversity}.\n${kind === 'exam' && v.version && !/autom[aá]tica/i.test(v.version) ? `- Versão solicitada: ${v.version}. Inclua a identificação da versão no cabeçalho da prova, sem alterar os objetivos de aprendizagem.\n` : ''}- Esta geração DEVE ser diferente de uma execução anterior com os mesmos campos. Varie enunciados, exemplos, situações, ordem das ideias, posição da alternativa correta, distratores e operações cognitivas.\n- Não siga um roteiro fixo de demonstração. É expressamente proibido repetir sempre a sequência “identificar → completar → ligar → ordenar → desenhar”.\n- Em material misto com ${count} itens, use pelo menos ${minPatterns} formas de construção cognitivamente distintas, quando isso fizer sentido para a disciplina.\n- Não force variedade artificial: cada formato precisa avaliar de verdade o conteúdo informado.\n- Não mencione o ID de variação nem diga que o material foi aleatorizado.`;
+}
+function stripHtmlForHistory(html = '') {
+  return cleanText(String(html).replace(/<style[\s\S]*?<\/style>/gi,' ').replace(/<script[\s\S]*?<\/script>/gi,' ').replace(/<[^>]+>/g,' ').replace(/&nbsp;/gi,' ').replace(/&amp;/gi,'&').replace(/\s+/g,' '), 1800);
+}
+async function recentGenerationAvoidance(env, userId, kind, discipline, topic) {
+  if (!env.DB || !userId || !['activity','exam'].includes(kind)) return '';
+  try {
+    const rows = await env.DB.prepare(`SELECT summary FROM aulora_generation_history WHERE user_id=? AND kind=? ORDER BY created_at DESC LIMIT 3`).bind(userId,kind).all();
+    const snippets = (rows.results || []).map(r=>cleanText(r.summary,650)).filter(Boolean);
+    if (!snippets.length) return '';
+    return `\n\nEVITE REPETIR AS GERAÇÕES RECENTES DESTA CONTA:\n${snippets.map((x,i)=>`${i+1}. ${x}`).join('\n')}\nCrie novos enunciados, exemplos, situações e distratores. Preserve apenas o conteúdo curricular pedido.`;
+  } catch (err) { console.warn('Aulora generation history unavailable', err?.message || err); return ''; }
+}
+async function saveGenerationHistory(env, userId, kind, d, html) {
+  if (!env.DB || !userId || !['activity','exam'].includes(kind)) return;
+  try {
+    await env.DB.prepare(`INSERT INTO aulora_generation_history(id,user_id,kind,discipline,topic,variant_id,summary,created_at) VALUES(?,?,?,?,?,?,?,?)`)
+      .bind(crypto.randomUUID(),userId,kind,cleanText(d.discipline,120),cleanText(d.topic,300),cleanText(d._variation?.id||'',40),stripHtmlForHistory(html),nowIso()).run();
+    await env.DB.prepare(`DELETE FROM aulora_generation_history WHERE user_id=? AND id NOT IN (SELECT id FROM aulora_generation_history WHERE user_id=? ORDER BY created_at DESC LIMIT 20)`).bind(userId,userId).run();
+  } catch (err) { console.warn('Aulora generation history save failed', err?.message || err); }
+}
+
 function promptFor(kind, d) {
-  const payload = JSON.stringify(d, null, 2);
-  const curriculum = d._curriculumContext ? curriculumPromptBlock(d._curriculumContext) : '';
+  const { _variation, _recentAvoidance, _curriculumContext, ...promptData } = d || {};
+  const payload = JSON.stringify(promptData, null, 2);
+  const curriculum = _curriculumContext ? curriculumPromptBlock(_curriculumContext) : '';
   if (kind === 'plan') return `${commonSystem()}\nCrie um PLANO DE AULA completo.${curriculum}\nInclua identificação, tema, objetivo geral, objetivos específicos, conhecimentos prévios, desenvolvimento em etapas com tempo aproximado, metodologia, recursos, avaliação, fechamento e adaptações quando informadas. Código BNCC só pode ser reproduzido se fornecido.\nDados:\n${payload}`;
   if (kind === 'activity') return `${commonSystem()}
-Crie uma ATIVIDADE PEDAGÓGICA FINAL, pronta para impressão e revisão do professor, com exatamente ${d.count || 10} tarefas REAIS, COMPLETAS e ESPECÍFICAS sobre o tema informado. Cada tarefa deve ficar dentro de <div class="question">.${curriculum}
+Crie uma ATIVIDADE PEDAGÓGICA FINAL, pronta para impressão e revisão do professor, com exatamente ${d.count || 10} tarefas REAIS, COMPLETAS e ESPECÍFICAS sobre o tema informado. Cada tarefa deve ficar dentro de <div class="question">.${curriculum}${variationPromptBlock('activity', d)}${d._recentAvoidance || ''}
+
+REGRA CRÍTICA DE DISCIPLINA E CONTEÚDO:
+- DISCIPLINA AUTORITATIVA: "${d.discipline || ''}".
+- CONTEÚDO/TEMA AUTORITATIVO: "${d.topic || ''}".
+- Não transforme o tema em outro componente curricular. Se a disciplina for Ciências, a atividade precisa avaliar Ciências; se for Matemática, precisa avaliar Matemática, e assim por diante.
+- Só use linguagem, textos ou situações de outras áreas como CONTEXTO quando ajudarem a avaliar o conteúdo da disciplina informada.
+- Antes de devolver, revise cada tarefa e elimine qualquer item cujo foco real pertença a outra disciplina.
 
 PADRÃO DE QUALIDADE OBRIGATÓRIO:
 - Antes de escrever, defina mentalmente UM foco de aprendizagem concreto para o tema, coerente com disciplina e turma. Todas as tarefas devem trabalhar esse foco ou habilidades diretamente relacionadas.
@@ -437,6 +528,8 @@ COMO CONSTRUIR CADA TIPO:
 - "Completar": forneça uma frase real com lacuna e, quando pedagógico, um banco de palavras real.
 - "Visual e objetiva": use poucos elementos e opções curtas, mas todas semanticamente completas.
 - "Mista inclusiva": varie modalidades APENAS quando cada modalidade fizer sentido para o tema. Não é obrigatório usar todos os tipos; prefira qualidade e coerência.
+- Se o tipo for "Questões tradicionais" ou o formato for "Mista", não use sempre a mesma receita. Alterne, conforme a disciplina, entre situação-problema, interpretação, aplicação, comparação, classificação, resposta curta, análise de evidência, escolha justificada ou produção breve.
+- Não inclua desenho, ligar/associar, recortar/colar ou sequência apenas para "variar" quando esses formatos não contribuírem para o objetivo.
 - Organização "Uma tarefa por bloco" ou perfis inclusivos: enunciados curtos, uma ação por vez e sem excesso de informação.
 - Quando objetiva, use ${d.optionCount || 3} alternativas plausíveis e somente uma correta, salvo se o enunciado disser explicitamente "marque todas".
 - Questões discursivas devem ter enunciado completo e critério objetivo de correção.
@@ -456,7 +549,7 @@ ${payload}`;
     const optionMark = d.optionStyle === 'square' ? '[   ]' : d.optionStyle === 'plain' ? '' : '(   )';
     const answerLines = Math.max(2, Math.min(8, Number(d.discursiveSpace) || 4));
     return `${commonSystem()}
-Crie uma AVALIAÇÃO ESCOLAR PROFISSIONAL, pronta para impressão e revisão do professor, com exatamente ${d.count || 10} questões REAIS e ESPECÍFICAS sobre o conteúdo informado e total de ${d.totalPoints || 10} pontos.${curriculum}
+Crie uma AVALIAÇÃO ESCOLAR PROFISSIONAL, pronta para impressão e revisão do professor, com exatamente ${d.count || 10} questões REAIS e ESPECÍFICAS sobre o conteúdo informado e total de ${d.totalPoints || 10} pontos.${curriculum}${variationPromptBlock('exam', d)}${d._recentAvoidance || ''}
 
 REGRA CRÍTICA DE DISCIPLINA E CONTEÚDO:
 - DISCIPLINA AUTORITATIVA: "${d.discipline || ''}".
@@ -561,13 +654,13 @@ function generatedMaterialValid(kind, html, d) {
     if (!/class=["']answer-key["']/i.test(text)) return false;
     if (kind === 'activity' && /Desenho guiado/i.test(String(d.activityType || '')) && !/class=["']drawing-box["']/i.test(text)) return false;
     if (kind === 'activity' && /Ligar \/ associar/i.test(String(d.activityType || '')) && !/(<table|class=["']visual-task["'])/i.test(text)) return false;
+    const genericStems = (text.match(/\b(?:qual (?:é )?a importância|descreva a importância|discuta a importância|qual é a função|fale sobre)\b/gi) || []).length;
+    if (genericStems >= 3) return false;
     if (kind === 'exam') {
       const fmt = String(d.format || '');
       const hasObjectives = !/Somente discursivas|Verdadeiro ou falso/i.test(fmt);
       if (hasObjectives && !/class=["']markable-options["']/i.test(text)) return false;
       if (/Somente discursivas/i.test(fmt) && !/class=["']response-line["']/i.test(text)) return false;
-      const genericStems = (text.match(/(?:qual (?:é )?a importância|descreva a importância|discuta a importância|qual é a função|fale sobre)/gi) || []).length;
-      if (genericStems >= 3) return false;
     }
   }
   return true;
@@ -584,7 +677,7 @@ async function runGeneration(env, kind, d, repair = false) {
     try {
       result = await env.AI.run(model, {
         messages: [{ role: 'system', content: 'Siga rigorosamente as instruções. Gere conteúdo pedagógico específico e devolva JSON válido no esquema solicitado.' }, { role: 'user', content: instruction }],
-        response_format: { type: 'json_schema', json_schema: schema }, max_tokens: kind==='exam'?7000:5000, temperature: kind==='exam'?0.18:0.25
+        response_format: { type: 'json_schema', json_schema: schema }, max_tokens: kind==='exam'?7000:5000, temperature: repair ? 0.2 : (kind==='exam'?0.42:kind==='activity'?0.5:0.3)
       });
       break;
     } catch (err) { lastError = err; console.warn('Aulora model fallback', model, err?.message || err); }
@@ -684,7 +777,7 @@ function ensureReportDisclaimer(html) {
   return `${text}<div class="pedagogical-disclaimer"><strong>Natureza do documento:</strong> Este relatório constitui registro pedagógico elaborado a partir das observações informadas pelo educador. Não substitui avaliação, laudo ou diagnóstico clínico.</div>`;
 }
 
-async function validateExamFocus(env, html, d) {
+async function validateMaterialFocus(env, kind, html, d) {
   if (!env.AI || !d?.discipline || !d?.topic) return { ok: true, reason: '' };
   const plain = cleanText(String(html || '')
     .replace(/<style[\s\S]*?<\/style>/gi, ' ')
@@ -698,15 +791,16 @@ async function validateExamFocus(env, html, d) {
     properties: {
       relevant: { type: 'boolean' },
       wrongDiscipline: { type: 'boolean' },
+      templateLike: { type: 'boolean' },
       reason: { type: 'string' }
     },
-    required: ['relevant','wrongDiscipline','reason']
+    required: ['relevant','wrongDiscipline','templateLike','reason']
   };
   try {
     const result = await env.AI.run(MODEL_FAST, {
       messages: [
-        { role: 'system', content: 'Você é um validador pedagógico estrito. Não reescreva a prova. Apenas decida se o conteúdo avalia de fato a disciplina e o tema informados. Marque wrongDiscipline=true quando a maior parte das questões pertence claramente a outro componente curricular. Seja conservador: uma questão interdisciplinar isolada não reprova a prova.' },
-        { role: 'user', content: `Disciplina: ${cleanText(d.discipline,120)}\nTema/conteúdo: ${cleanText(d.topic,300)}\nTurma: ${cleanText(d.grade,120)}\nTexto-base fornecido pelo professor: ${cleanText(d.sourceText||'',1500)}\n\nProva gerada:\n${plain}` }
+        { role: 'system', content: 'Você é um validador pedagógico estrito. Não reescreva o material. Apenas avalie qualidade mínima. Marque wrongDiscipline=true quando a maior parte das tarefas ou questões pertence claramente a outro componente curricular. Marque templateLike=true quando o material parece uma demo genérica: sequência mecânica de tarefas, enunciados que poderiam servir para qualquer tema, repetição excessiva do mesmo tipo de pergunta ou conteúdo superficial sem avaliar o foco informado. Seja conservador: um contexto interdisciplinar isolado ou repetição pedagógica justificável não reprova o material.' },
+        { role: 'user', content: `Tipo: ${kind === 'exam' ? 'avaliação' : 'atividade'}\nDisciplina: ${cleanText(d.discipline,120)}\nTema/conteúdo: ${cleanText(d.topic,300)}\nTurma: ${cleanText(d.grade,120)}\nTexto-base fornecido pelo professor: ${cleanText(d.sourceText||'',1500)}\n\nMaterial gerado:\n${plain}` }
       ],
       response_format: { type: 'json_schema', json_schema: schema },
       max_tokens: 220,
@@ -715,30 +809,42 @@ async function validateExamFocus(env, html, d) {
     let data = result?.response ?? result;
     if (result?.choices?.[0]?.message?.content) data = result.choices[0].message.content;
     if (typeof data === 'string') data = JSON.parse(data.replace(/^```(?:json)?\s*/i,'').replace(/\s*```$/,'').trim());
-    const ok = Boolean(data?.relevant) && !Boolean(data?.wrongDiscipline);
+    const ok = Boolean(data?.relevant) && !Boolean(data?.wrongDiscipline) && !Boolean(data?.templateLike);
     return { ok, reason: cleanText(data?.reason || '', 500) };
   } catch (err) {
-    console.warn('Aulora exam focus validator unavailable', err?.message || err);
+    console.warn('Aulora material focus validator unavailable', err?.message || err);
     return { ok: true, reason: '' };
   }
+}
+
+function normalizeMaterialHeading(kind, html, d) {
+  if (!['activity','exam'].includes(kind)) return html;
+  const topic = htmlEscapeEmail(cleanText(d.topic || 'Conteúdo', 220));
+  const version = kind === 'exam' && d.examVersion && !/autom[aá]tica/i.test(String(d.examVersion)) ? ` — ${htmlEscapeEmail(cleanText(d.examVersion,80))}` : '';
+  const heading = kind === 'exam' ? `AVALIAÇÃO — ${topic}${version}` : `ATIVIDADE — ${topic}`;
+  const text = String(html || '');
+  if (/<h1>[\s\S]*?<\/h1>/i.test(text)) return text.replace(/<h1>[\s\S]*?<\/h1>/i, `<h1>${heading}</h1>`);
+  return `<h1>${heading}</h1>${text}`;
 }
 
 async function generateAI(env, kind, d) {
   const meta = defaultMeta(kind, d);
   let data = await runGeneration(env, kind, d, false);
   let html = sanitizeHtml(data.html || '');
+  html = normalizeMaterialHeading(kind, html, d);
   if (kind === 'report') html = ensureReportDisclaimer(html);
   let valid = generatedMaterialValid(kind, html, d);
   let focus = { ok: true, reason: '' };
-  if (valid && kind === 'exam') focus = await validateExamFocus(env, html, d);
+  if (valid && (kind === 'activity' || kind === 'exam')) focus = await validateMaterialFocus(env, kind, html, d);
   if (!valid || !focus.ok) {
     data = await runGeneration(env, kind, d, true);
     html = sanitizeHtml(data.html || '');
+    html = normalizeMaterialHeading(kind, html, d);
     if (kind === 'report') html = ensureReportDisclaimer(html);
     valid = generatedMaterialValid(kind, html, d);
-    if (valid && kind === 'exam') focus = await validateExamFocus(env, html, d);
+    if (valid && (kind === 'activity' || kind === 'exam')) focus = await validateMaterialFocus(env, kind, html, d);
   }
-  if (!valid || (kind === 'exam' && !focus.ok)) {
+  if (!valid || ((kind === 'activity' || kind === 'exam') && !focus.ok)) {
     console.warn('Aulora quality rejection', kind, focus.reason || 'estrutura inválida');
     throw new Error('A geração não atingiu o padrão mínimo de qualidade');
   }
@@ -754,7 +860,9 @@ async function generateAI(env, kind, d) {
       throw wrapped;
     }
   }
-  return { title: cleanText(data.title || meta.title, 180), subtitle: cleanText(data.subtitle || meta.subtitle, 240), typeLabel: cleanText(data.typeLabel || meta.typeLabel, 80), html, imageGenerated, imageCount };
+  const canonicalTitle = (kind === 'activity' || kind === 'exam') ? meta.title : cleanText(data.title || meta.title, 180);
+  const canonicalSubtitle = (kind === 'activity' || kind === 'exam') ? meta.subtitle : cleanText(data.subtitle || meta.subtitle, 240);
+  return { title: canonicalTitle, subtitle: canonicalSubtitle, typeLabel: cleanText(data.typeLabel || meta.typeLabel, 80), html, imageGenerated, imageCount, variantId: cleanText(d._variation?.id || '', 40) };
 }
 
 async function mercadoPagoRequest(env, path, options = {}) {
@@ -1066,6 +1174,14 @@ Professor: ${teacherName || 'usuário do Aulora'}${location ? `; localidade cada
     }
     if (!isPro && kind === 'activity') {
       d.adaptationProfile=''; d.supportLevel='Independência predominante'; d.activityType='Questões tradicionais'; d.visualStyle='Padrão'; d.responseMode='Escrita'; d.languageStyle='Padrão escolar'; d.interests=''; d.accessNotes='';
+      d.generationStyle='Variação automática — equilibrada'; d.purpose='Atividade de aula'; d.contextMode='Variar automaticamente'; d.cognitiveMix='Equilibrado'; d.diversityMode='Alta variedade';
+    }
+    if (!isPro && kind === 'exam') {
+      d.examProfile='Variação automática — prova equilibrada'; d.questionDesign='Alta variedade automática'; d.examVersion='Versão única automática'; d.diversityMode='Alta variedade';
+    }
+    if (kind === 'activity' || kind === 'exam') {
+      d._variation = buildGenerationVariant(kind, d);
+      d._recentAvoidance = await recentGenerationAvoidance(env, auth.user.id, kind, d.discipline, d.topic);
     }
     if ((kind === 'activity' || kind === 'exam') && Number(d.count || 0) > limits.questions) {
       return json({ error: isPro ? 'O Aulora Pro permite até 20 questões por material.' : 'O Aulora Básico permite até 5 questões por atividade ou avaliação. O Pro libera até 20.', code: 'QUESTION_LIMIT', limits }, 403);
@@ -1081,6 +1197,7 @@ Professor: ${teacherName || 'usuário do Aulora'}${location ? `; localidade cada
         if (d.state || d.municipalityId) await env.DB.prepare(`INSERT INTO aulora_curriculum_queries(id,user_id,uf,municipality_ibge_id,municipality_name,kind,queried_at) VALUES(?,?,?,?,?,?,?)`).bind(crypto.randomUUID(),auth.user.id,cleanText(d.state,2).toUpperCase(),cleanText(d.municipalityId,20),cleanText(d.municipality,120),kind,nowIso()).run();
       }
       const output = await generateAI(env, kind, d);
+      if (kind === 'activity' || kind === 'exam') await saveGenerationHistory(env, auth.user.id, kind, d, output.html);
       await env.DB.prepare(`INSERT INTO aulora_usage_monthly(user_id,month,ai_count) VALUES(?,?,1) ON CONFLICT(user_id,month) DO UPDATE SET ai_count=ai_count+1`).bind(auth.user.id, usage.month).run();
       if (ctx && hasProAccess(auth.user,env) && emailDeliveryEnabled(env)) ctx.waitUntil(sendMaterialCopy(env,auth.user,{type:kind,typeLabel:output.typeLabel,title:output.title,html:output.html},'generated').catch(err=>console.warn('Aulora generated email failed',err?.message||err)));
       const after = await usageFor(env, auth.user); return json({ ...output, usage: after, emailQueued: hasProAccess(auth.user,env) && emailDeliveryEnabled(env) && safeEmailPrefs(auth.user.email_prefs_json).generated });

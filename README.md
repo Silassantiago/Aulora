@@ -118,3 +118,7 @@ Cópias automáticas por e-mail são recurso Pro. Sem essas duas configurações
 
 ## Administração
 A conta administrativa é definida pela variável `ADMIN_EMAILS` no Worker. O administrador entra com a própria conta normal do Aulora e recebe acesso completo aos recursos, além do painel de usuários, planos e receita aprovada. Veja `ADMINISTRACAO.md`.
+
+
+## Motor de variedade pedagógica
+Atividades e avaliações agora recebem uma variante interna única em cada geração. O Aulora combina perfis pedagógicos, contexto e operações cognitivas diferentes e mantém um histórico curto das últimas gerações da conta para reduzir repetição de enunciados e estruturas. O plano Pro também oferece perfis avançados e versões A/B/C de avaliações.

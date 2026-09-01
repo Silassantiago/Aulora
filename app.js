@@ -479,7 +479,8 @@
 
   function previewShell(material){
     const studentActions=['activity','exam'].includes(material.type)?`<button class="mini-button" data-action="studentdoc">Aluno Word</button><button class="mini-button" data-action="studentprint">Aluno PDF</button>`:'';
-    return `<div class="preview-header"><div><span class="eyebrow">PRÉVIA</span><h3>${esc(material.title)}</h3></div><div class="preview-actions"><button class="mini-button" data-action="edit">Editar texto</button>${studentActions}<button class="mini-button" data-action="doc">Word</button><button class="mini-button" data-action="print">PDF</button><button class="mini-button primary" data-action="save">Salvar</button></div></div><div class="edit-hint" hidden>Modo de edição ativo. Clique no documento e faça os ajustes necessários antes de salvar ou exportar.</div><div class="document ${material.type==='abnt'?'abnt-doc':''}">${material.html}</div>`;
+    const versionAction=['activity','exam'].includes(material.type)?'<button class="mini-button version-button" data-action="regenerate">✦ Nova versão</button>':'';
+    return `<div class="preview-header"><div><span class="eyebrow">PRÉVIA</span><h3>${esc(material.title)}</h3></div><div class="preview-actions">${versionAction}<button class="mini-button" data-action="edit">Editar texto</button>${studentActions}<button class="mini-button" data-action="doc">Word</button><button class="mini-button" data-action="print">PDF</button><button class="mini-button primary" data-action="save">Salvar</button></div></div><div class="edit-hint" hidden>Modo de edição ativo. Clique no documento e faça os ajustes necessários antes de salvar ou exportar.</div><div class="document ${material.type==='abnt'?'abnt-doc':''}">${material.html}</div>`;
   }
   function bindPreview(preview, material){
     material.html=sanitizeHtml(material.html); preview.classList.remove('empty'); preview.innerHTML=previewShell(material);
@@ -493,6 +494,8 @@
     $('[data-action="save"]',preview).onclick=()=>saveMaterial(sync());
     $('[data-action="doc"]',preview).onclick=()=>exportDoc(sync());
     $('[data-action="print"]',preview).onclick=()=>printMaterial(sync());
+    const regen=$('[data-action="regenerate"]',preview);
+    if(regen) regen.onclick=()=>generateSmart(material.type,{...material.data});
     const sd=$('[data-action="studentdoc"]',preview), sp=$('[data-action="studentprint"]',preview);
     if(sd) sd.onclick=()=>{sync();exportDoc(material,stripAnswerKey(material.html),'aluno');};
     if(sp) sp.onclick=()=>{sync();printMaterial(material,stripAnswerKey(material.html));};

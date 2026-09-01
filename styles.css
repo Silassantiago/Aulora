@@ -779,3 +779,10 @@ body:not([data-view="admin"]) .admin-users-card{display:block}.plan-basic-mode [
 @media(max-width:900px){.admin-stats-grid{grid-template-columns:repeat(2,1fr)}.admin-user-row{grid-template-columns:42px 1fr}.admin-user-plan,.admin-user-actions{grid-column:2}.admin-user-actions{justify-content:flex-start}.auth-signup-grid{grid-template-columns:1fr}.auth-signup-grid .auth-full{grid-column:auto}}
 @media(max-width:520px){.access-gate-card{padding:26px 20px;border-radius:24px}.access-gate h1{font-size:34px}.access-gate-actions{grid-template-columns:1fr}.admin-stats-grid{grid-template-columns:1fr}.admin-toolbar{grid-template-columns:1fr}#authDialog .auth-shell{padding:24px 18px}}
 #accountAdminItem[hidden],#adminNavBtn[hidden]{display:none!important}
+
+/* Motor de variedade pedagógica */
+.form-section-title.ai-variety-title{padding:12px 14px!important;border:1px solid rgba(87,118,255,.30)!important;border-radius:14px!important;background:linear-gradient(135deg,rgba(36,91,196,.16),rgba(116,57,217,.13))!important;margin-top:10px!important}
+.form-section-title.ai-variety-title>span{background:linear-gradient(135deg,#1ddbd2,#6d4dff)!important;color:#fff!important;box-shadow:0 6px 18px rgba(66,93,255,.24)}
+
+.version-button{border-color:rgba(72,225,218,.45)!important;background:linear-gradient(135deg,rgba(20,151,190,.16),rgba(99,72,255,.16))!important;color:#7df3e8!important;font-weight:800!important}
+.version-button:hover{border-color:#47e1d7!important;background:linear-gradient(135deg,rgba(20,151,190,.27),rgba(99,72,255,.27))!important}
