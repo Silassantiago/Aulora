@@ -76,6 +76,34 @@
     if(!res.ok){const err=new Error(payload.error||'Não foi possível concluir a operação.');err.code=payload.code;err.payload=payload;throw err;}
     return payload;
   }
+
+  const municipalityCache=new Map();
+  async function loadStatesAndMunicipalities(){
+    const stateSelects=$$('[data-state-select]');
+    if(!stateSelects.length)return;
+    let states=[];
+    try{const data=await apiFetch('/api/locations/states',{cache:'force-cache'});states=data.states||[];}catch(err){console.warn('Estados indisponíveis',err);}
+    const options='<option value="">Selecione o estado</option>'+states.map(s=>`<option value="${esc(s.sigla)}">${esc(s.nome)} (${esc(s.sigla)})</option>`).join('');
+    stateSelects.forEach(sel=>{const current=sel.value;sel.innerHTML=options;if(current)sel.value=current;sel.addEventListener('change',()=>loadMunicipalitiesForForm(sel.closest('form')));});
+    $$('[data-city-select]').forEach(sel=>sel.addEventListener('change',()=>{const form=sel.closest('form');const opt=sel.selectedOptions[0];const hidden=$('[data-city-id]',form);if(hidden)hidden.value=opt?.dataset?.id||'';refreshCurriculumStatus(form);}));
+    for(const form of $$('.generator-form')){const state=$('[data-state-select]',form);if(state?.value)await loadMunicipalitiesForForm(form);}
+  }
+  async function loadMunicipalitiesForForm(form){
+    if(!form)return;const state=$('[data-state-select]',form),city=$('[data-city-select]',form),hidden=$('[data-city-id]',form);if(!state||!city)return;
+    const uf=state.value;if(hidden)hidden.value='';
+    if(!uf){city.disabled=true;city.innerHTML='<option value="">Selecione o estado</option>';refreshCurriculumStatus(form);return;}
+    city.disabled=true;city.innerHTML='<option value="">Carregando municípios...</option>';
+    try{let cities=municipalityCache.get(uf);if(!cities){const data=await apiFetch(`/api/locations/municipalities?uf=${encodeURIComponent(uf)}`,{cache:'force-cache'});cities=data.municipalities||[];municipalityCache.set(uf,cities);}
+      city.innerHTML='<option value="">Selecione o município</option>'+cities.map(c=>`<option value="${esc(c.nome)}" data-id="${esc(c.id)}">${esc(c.nome)}</option>`).join('');city.disabled=false;
+    }catch(err){city.innerHTML='<option value="">Não foi possível carregar</option>';toast('Não foi possível carregar os municípios agora.');}
+    refreshCurriculumStatus(form);
+  }
+  async function refreshCurriculumStatus(form){
+    if(!form)return;const status=$('[data-curriculum-status]',form),state=$('[data-state-select]',form),city=$('[data-city-select]',form),hidden=$('[data-city-id]',form);if(!status||!state?.value||!city?.value){if(status)status.textContent='Selecione estado e município para consultar a base curricular cadastrada.';return;}
+    status.classList.add('loading');status.textContent='Consultando base curricular do território...';
+    try{const qs=new URLSearchParams({uf:state.value,municipality:city.value,municipalityId:hidden?.value||''});const data=await apiFetch(`/api/curriculum/context?${qs}`,{cache:'no-store'});const local=(data.sources||[]).filter(s=>s.scope==='municipal').length;const estadual=(data.sources||[]).filter(s=>s.scope==='state').length;status.textContent=local?`✓ ${local} fonte(s) curricular(es) municipal(is) cadastrada(s). O Aulora usará essas fontes na geração.`:estadual?`○ Sem currículo municipal confirmado no banco. ${estadual} fonte(s) estadual(is) disponível(is); a geração usará estado + BNCC e avisará o professor.`:'○ Currículo municipal/estadual ainda não cadastrado no Aulora. A geração usará a referência informada pelo professor e BNCC em nível geral, sem inventar códigos ou regras locais.';status.classList.toggle('ok',local>0);}
+    catch{status.textContent='Não foi possível consultar a base curricular agora. O Aulora não presumirá regras municipais sem fonte confirmada.';}finally{status.classList.remove('loading');}
+  }
   function setAuthError(panel,message=''){
     const el=$(panel==='signup'?'#signupError':'#loginError');
     if(!el)return; el.textContent=message; el.hidden=!message;
@@ -485,7 +513,7 @@
 
   function exportDoc(material,htmlOverride=null,suffix=''){
     if(!material)return;const isAbnt=material.type==='abnt';const style=isAbnt?`@page{size:A4;margin:3cm 2cm 2cm 3cm}body{font-family:'Times New Roman',serif;font-size:12pt;line-height:1.5;text-align:justify}`:`@page{size:A4;margin:2cm}body{font-family:Arial,sans-serif;font-size:11pt;line-height:1.4}`;
-    const content=`<!doctype html><html><head><meta charset="UTF-8"><style>${style}h1{text-align:center;font-size:14pt}h2{font-size:12pt;margin-top:18pt}.meta{padding:8pt;background:#f4f4f4}.answer-key{page-break-before:always}.cover{min-height:22cm;text-align:center;display:flex;flex-direction:column;justify-content:space-between}.question{margin:12pt 0}.response-line{height:22pt;border-bottom:1px solid #bbb}</style></head><body>${sanitizeHtml(htmlOverride??material.html)}</body></html>`;
+    const content=`<!doctype html><html><head><meta charset="UTF-8"><style>${style}h1{text-align:center;font-size:14pt}h2{font-size:12pt;margin-top:18pt}.meta{padding:8pt;background:#f4f4f4}.answer-key{page-break-before:always}.cover{min-height:22cm;text-align:center;display:flex;flex-direction:column;justify-content:space-between}.question{margin:12pt 0}.generated-figure{margin:12pt auto;text-align:center;page-break-inside:avoid}.generated-figure img{max-width:100%;max-height:11cm;object-fit:contain}.generated-figure figcaption{font-size:9pt;color:#666}.response-line{height:22pt;border-bottom:1px solid #bbb}</style></head><body>${sanitizeHtml(htmlOverride??material.html)}</body></html>`;
     downloadBlob(`${slug(material.title)}${suffix?'-'+suffix:''}.doc`,'\ufeff'+content,'application/msword');toast('Arquivo para Word gerado.');
   }
   function printMaterial(material,htmlOverride=null){
@@ -514,5 +542,6 @@
   const billingState=new URLSearchParams(location.search).get('billing');
   if(billingState){history.replaceState({},'',location.pathname+location.hash);setTimeout(()=>toast(billingState==='success'?'Pagamento concluído. Atualizando seu plano…':'Pagamento cancelado.'),300);}
   applyProfile();updateStats();renderMaterials();
+  loadStatesAndMunicipalities();
   Promise.allSettled([checkSmartStatus(),loadAccount()]).then(()=>{if(billingState==='success')setTimeout(()=>loadAccount(),1800);});
 })();

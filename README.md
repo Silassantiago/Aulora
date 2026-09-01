@@ -76,3 +76,13 @@ O módulo de Atividade possui presets e controles pedagógicos para TEA/autismo,
 
 ## Relatórios pedagógicos
 O Aulora inclui gerador de relatório pedagógico individual, parecer descritivo, evolução, AEE, coordenação, família, adaptação escolar, alfabetização e acompanhamento. Contextos como TEA, TDAH, dislexia, disgrafia, discalculia e deficiências são usados somente como informações pedagógicas fornecidas pelo educador. O gerador não realiza diagnóstico clínico e inclui aviso de natureza pedagógica no documento final.
+
+
+## Base curricular por Estado e Município
+O Aulora consulta a API de Localidades do IBGE para listar UFs e municípios. A geração cruza o território selecionado com a tabela D1 `aulora_curriculum_sources`. O motor só afirma alinhamento municipal/estadual quando existe trecho de fonte oficial cadastrado; caso contrário, sinaliza fallback e não inventa códigos ou regras locais.
+
+## Figuras em atividades e provas
+Atividades e avaliações podem gerar uma imagem de apoio ou um painel de três cenas pelo Workers AI (`@cf/black-forest-labs/flux-1-schnell`). A imagem entra nas versões do aluno e do professor.
+
+## Cadastro de fontes curriculares
+Existe o endpoint administrativo `POST /api/curriculum/source`, protegido pela variável secreta `CURRICULUM_ADMIN_TOKEN`. Cadastre somente trechos conferidos de documentos oficiais.

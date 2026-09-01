@@ -145,13 +145,21 @@
                 <label>Escola / instituição<input name="school" data-profile="school" placeholder="Nome da escola" /></label>
                 <label>Disciplina<input name="discipline" required placeholder="Ex.: Ciências" /></label>
                 <label>Ano / turma<input name="grade" required placeholder="Ex.: 7º ano A" /></label>
+
+                <div class="form-section-title full curriculum-section"><span>🌎</span><div><strong>Base curricular e território</strong><small>O Aulora cruza município, estado e as fontes curriculares cadastradas no banco. Quando não houver fonte local confirmada, ele informa o fallback e não inventa alinhamento municipal.</small></div></div>
+                <label>Rede de ensino<select name="network"><option>Municipal</option><option>Estadual</option><option>Privada</option><option>Federal</option><option>Outra</option></select></label>
+                <label>Base curricular<select name="curriculumMode"><option selected>BNCC + currículo local disponível</option><option>BNCC como base nacional</option><option>Priorizar currículo estadual</option><option>Priorizar currículo municipal</option><option>Planejamento próprio da escola</option></select></label>
+                <label>Estado<select name="state" data-state-select required><option value="">Carregando estados...</option></select></label>
+                <label>Município<select name="municipality" data-city-select required disabled><option value="">Selecione o estado</option></select><input type="hidden" name="municipalityId" data-city-id /></label>
+                <label class="full">Habilidade / objetivo curricular já conferido (opcional)<input name="curricularSkill" placeholder="Ex.: código/habilidade da BNCC ou do currículo local já conferido pelo professor" /></label>
+                <div class="curriculum-status full" data-curriculum-status>Selecione estado e município para consultar a base curricular cadastrada.</div>
                 <label>Etapa de ensino<select name="stage" data-profile="stage"><option>Educação Infantil</option><option>Anos iniciais do Ensino Fundamental</option><option selected>Anos finais do Ensino Fundamental</option><option>Ensino Médio</option><option>EJA</option><option>Ensino Superior</option><option>Outro</option></select></label>
                 <label>Data da aula<input name="date" type="date" /></label>
                 <label class="full">Tema da aula<input name="topic" required placeholder="Ex.: Sistema Solar" /></label>
                 <label>Duração<select name="duration"><option>45 minutos</option><option selected>50 minutos</option><option>1 hora</option><option>1h30</option><option>2 aulas</option><option>3 aulas</option></select></label>
                 <label>Modalidade<select name="modality"><option>Presencial</option><option>Híbrida</option><option>Remota</option></select></label>
                 <label class="full">Objetivo principal<textarea name="objective" rows="3" placeholder="O que os alunos deverão compreender ou desenvolver?"></textarea></label>
-                <label class="full">Habilidade / código BNCC (opcional)<input name="bncc" placeholder="Informe somente um código já conferido. O Aulora não inventa códigos BNCC." /></label>
+                <label class="full">Código BNCC conferido (opcional)<input name="bncc" placeholder="Informe somente um código já conferido. O Aulora não inventa códigos BNCC." /></label>
                 <label class="full">Conhecimentos prévios (opcional)<textarea name="prior" rows="2" placeholder="O que a turma já precisa saber?"></textarea></label>
                 <label>Estratégia principal<select name="strategy"><option>Exposição dialogada</option><option>Aprendizagem baseada em problemas</option><option>Rotação por estações</option><option>Trabalho em grupos</option><option>Estudo de caso</option><option>Projeto / investigação</option><option>Oficina prática</option></select></label>
                 <label>Forma de avaliação<select name="assessment"><option>Avaliação formativa</option><option>Atividade individual</option><option>Atividade em grupo</option><option>Produção escrita</option><option>Apresentação / seminário</option><option>Quiz / verificação rápida</option></select></label>
@@ -187,6 +195,14 @@
                 <label>Escola / instituição<input name="school" data-profile="school" placeholder="Nome da escola" /></label>
                 <label>Disciplina<input name="discipline" required placeholder="Ex.: Língua Portuguesa" /></label>
                 <label>Ano / turma<input name="grade" required placeholder="Ex.: 5º ano A" /></label>
+
+                <div class="form-section-title full curriculum-section"><span>🌎</span><div><strong>Base curricular e território</strong><small>O Aulora cruza município, estado e as fontes curriculares cadastradas no banco. Quando não houver fonte local confirmada, ele informa o fallback e não inventa alinhamento municipal.</small></div></div>
+                <label>Rede de ensino<select name="network"><option>Municipal</option><option>Estadual</option><option>Privada</option><option>Federal</option><option>Outra</option></select></label>
+                <label>Base curricular<select name="curriculumMode"><option selected>BNCC + currículo local disponível</option><option>BNCC como base nacional</option><option>Priorizar currículo estadual</option><option>Priorizar currículo municipal</option><option>Planejamento próprio da escola</option></select></label>
+                <label>Estado<select name="state" data-state-select required><option value="">Carregando estados...</option></select></label>
+                <label>Município<select name="municipality" data-city-select required disabled><option value="">Selecione o estado</option></select><input type="hidden" name="municipalityId" data-city-id /></label>
+                <label class="full">Habilidade / objetivo curricular já conferido (opcional)<input name="curricularSkill" placeholder="Ex.: código/habilidade da BNCC ou do currículo local já conferido pelo professor" /></label>
+                <div class="curriculum-status full" data-curriculum-status>Selecione estado e município para consultar a base curricular cadastrada.</div>
                 <label>Etapa de ensino<select name="stage" data-profile="stage"><option>Educação Infantil</option><option>Anos iniciais do Ensino Fundamental</option><option selected>Anos finais do Ensino Fundamental</option><option>Ensino Médio</option><option>EJA</option><option>Outro</option></select></label>
                 <label>Dificuldade<select name="difficulty"><option>Bem acessível</option><option>Fácil</option><option selected>Intermediária</option><option>Avançada</option></select></label>
                 <label class="full">Conteúdo / tema<input name="topic" required placeholder="Ex.: Interpretação de texto" /></label>
@@ -204,6 +220,7 @@
                 <label class="full">Evitar / considerar (opcional)<textarea name="accessNotes" rows="3" placeholder="Ex.: evitar excesso de texto; oferecer exemplo resolvido; não usar linguagem infantilizada; permitir resposta por desenho."></textarea></label>
 
                 <div class="form-section-title full"><span>3</span><div><strong>Estrutura e entrega</strong><small>Quantidade, formato e critérios.</small></div></div>
+                <label>Imagens na atividade<select name="imageMode"><option>Sem imagens</option><option selected>1 imagem de apoio pedagógico</option><option>Painel visual com 3 cenas</option></select><small class="field-hint">As figuras são geradas sem texto e entram na versão do aluno e do professor.</small></label>
                 <label>Quantidade de questões / tarefas<select name="count"><option>3</option><option>5</option><option selected>10</option><option value="15" data-pro-only>15 — Pro</option><option value="20" data-pro-only>20 — Pro</option></select><small class="field-hint">Grátis: até 10 • Pro: até 20. Para atividades inclusivas, menos tarefas pode ser mais adequado.</small></label>
                 <label>Formato acadêmico<select name="format"><option>Mista</option><option>Objetivas</option><option>Discursivas</option><option>Verdadeiro ou falso</option><option>Adaptado ao tipo escolhido acima</option></select></label>
                 <label>Espaço para resposta<select name="answerSpace"><option value="1">Curto</option><option value="2" selected>Médio</option><option value="4">Amplo</option><option value="6">Muito amplo / desenho</option></select></label>
@@ -230,9 +247,18 @@
                 <label>Escola / instituição<input name="school" data-profile="school" placeholder="Nome da escola" /></label>
                 <label>Disciplina<input name="discipline" required placeholder="Ex.: História" /></label>
                 <label>Ano / turma<input name="grade" required placeholder="Ex.: 8º ano A" /></label>
+
+                <div class="form-section-title full curriculum-section"><span>🌎</span><div><strong>Base curricular e território</strong><small>O Aulora cruza município, estado e as fontes curriculares cadastradas no banco. Quando não houver fonte local confirmada, ele informa o fallback e não inventa alinhamento municipal.</small></div></div>
+                <label>Rede de ensino<select name="network"><option>Municipal</option><option>Estadual</option><option>Privada</option><option>Federal</option><option>Outra</option></select></label>
+                <label>Base curricular<select name="curriculumMode"><option selected>BNCC + currículo local disponível</option><option>BNCC como base nacional</option><option>Priorizar currículo estadual</option><option>Priorizar currículo municipal</option><option>Planejamento próprio da escola</option></select></label>
+                <label>Estado<select name="state" data-state-select required><option value="">Carregando estados...</option></select></label>
+                <label>Município<select name="municipality" data-city-select required disabled><option value="">Selecione o estado</option></select><input type="hidden" name="municipalityId" data-city-id /></label>
+                <label class="full">Habilidade / objetivo curricular já conferido (opcional)<input name="curricularSkill" placeholder="Ex.: código/habilidade da BNCC ou do currículo local já conferido pelo professor" /></label>
+                <div class="curriculum-status full" data-curriculum-status>Selecione estado e município para consultar a base curricular cadastrada.</div>
                 <label class="full">Conteúdo avaliado<input name="topic" required placeholder="Ex.: Revolução Industrial" /></label>
                 <label>Data<input name="date" type="date" /></label>
                 <label>Duração prevista<select name="duration"><option>45 minutos</option><option selected>50 minutos</option><option>1 hora</option><option>1h30</option><option>2 aulas</option></select></label>
+                <label>Imagens na prova<select name="imageMode"><option>Sem imagens</option><option selected>1 imagem de apoio pedagógico</option><option>Painel visual com 3 cenas</option></select><small class="field-hint">A imagem é incluída na prova do aluno e no gabarito do professor.</small></label>
                 <label>Nº de questões<select name="count"><option>5</option><option selected>10</option><option value="15" data-pro-only>15 — Pro</option><option value="20" data-pro-only>20 — Pro</option></select><small class="field-hint">Grátis: até 10 questões • Pro: até 20</small></label>
                 <label>Valor total<input name="totalPoints" type="number" min="1" max="100" step="0.5" value="10" /></label>
                 <label>Dificuldade<select name="difficulty"><option>Fácil</option><option selected>Intermediária</option><option>Avançada</option></select></label>

@@ -88,3 +88,22 @@ Recomendado:
 - e-mail de recuperação/verificação de conta;
 - monitoramento de consumo do Workers AI;
 - testes de cobrança em modo teste antes de usar chaves de produção.
+
+
+## Base curricular local
+Defina um segredo `CURRICULUM_ADMIN_TOKEN` no Worker para habilitar a importação de fontes curriculares oficiais. O D1 cria automaticamente as tabelas `aulora_curriculum_sources` e `aulora_curriculum_queries`.
+
+Exemplo de corpo JSON para `POST /api/curriculum/source`:
+```json
+{
+  "scope": "municipal",
+  "uf": "SC",
+  "municipalityId": "4218905",
+  "municipalityName": "Urubici",
+  "title": "Currículo/Documento curricular oficial",
+  "sourceUrl": "https://...",
+  "sourceExcerpt": "Trecho conferido do documento oficial...",
+  "verifiedAt": "2026-09-01"
+}
+```
+O Aulora nunca deve inferir que segue um currículo municipal quando não há fonte oficial cadastrada.

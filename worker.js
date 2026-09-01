@@ -1,5 +1,7 @@
 const MODEL_FAST = '@cf/meta/llama-3.1-8b-instruct-fast';
 const MODEL_QUALITY = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
+const MODEL_IMAGE = '@cf/black-forest-labs/flux-1-schnell';
+const IBGE_BASE = 'https://servicodados.ibge.gov.br/api/v1/localidades';
 const SESSION_COOKIE = 'aulora_session';
 const SESSION_DAYS = 30;
 const FREE_AI_LIMIT = 5;
@@ -141,6 +143,29 @@ async function ensureSchema(db) {
       ai_count INTEGER NOT NULL DEFAULT 0,
       PRIMARY KEY(user_id, month),
       FOREIGN KEY(user_id) REFERENCES aulora_users(id) ON DELETE CASCADE
+    )`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS aulora_curriculum_sources (
+      id TEXT PRIMARY KEY,
+      scope TEXT NOT NULL,
+      uf TEXT NOT NULL DEFAULT '',
+      municipality_ibge_id TEXT NOT NULL DEFAULT '',
+      municipality_name TEXT NOT NULL DEFAULT '',
+      title TEXT NOT NULL,
+      source_url TEXT NOT NULL DEFAULT '',
+      source_excerpt TEXT NOT NULL DEFAULT '',
+      source_type TEXT NOT NULL DEFAULT 'curriculum',
+      verified_at TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL
+    )`),
+    db.prepare(`CREATE INDEX IF NOT EXISTS idx_curriculum_geo ON aulora_curriculum_sources(scope,uf,municipality_ibge_id)`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS aulora_curriculum_queries (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL DEFAULT '',
+      uf TEXT NOT NULL DEFAULT '',
+      municipality_ibge_id TEXT NOT NULL DEFAULT '',
+      municipality_name TEXT NOT NULL DEFAULT '',
+      kind TEXT NOT NULL DEFAULT '',
+      queried_at TEXT NOT NULL
     )`)
   ]);
 
@@ -221,6 +246,41 @@ async function requireUser(request, env) {
   return user ? { user } : { response: json({ error: 'Faça login para continuar.', code: 'AUTH_REQUIRED' }, 401) };
 }
 
+async function fetchIbge(path) {
+  const response = await fetch(`${IBGE_BASE}${path}`, { headers: { 'accept': 'application/json' }, cf: { cacheTtl: 86400, cacheEverything: true } });
+  if (!response.ok) throw new Error(`IBGE ${response.status}`);
+  return response.json();
+}
+async function curriculumSources(env, d) {
+  if (!env.DB) return [];
+  const uf = cleanText(d.state || d.uf, 2).toUpperCase();
+  const mid = cleanText(d.municipalityId, 20);
+  const city = cleanText(d.municipality, 120);
+  if (!uf && !mid && !city) return [];
+  const rows = await env.DB.prepare(`SELECT scope,uf,municipality_ibge_id,municipality_name,title,source_url,source_excerpt,source_type,verified_at
+    FROM aulora_curriculum_sources
+    WHERE scope='national' OR (scope='state' AND uf=?) OR (scope='municipal' AND uf=? AND (municipality_ibge_id=? OR lower(municipality_name)=lower(?)))
+    ORDER BY CASE scope WHEN 'municipal' THEN 1 WHEN 'state' THEN 2 ELSE 3 END, verified_at DESC
+    LIMIT 8`).bind(uf, uf, mid, city).all();
+  return rows.results || [];
+}
+async function curriculumContext(env, d) {
+  const sources = await curriculumSources(env, d);
+  const local = sources.filter(s => s.scope === 'municipal' && s.source_excerpt).map(s => ({...s, source_excerpt: cleanText(s.source_excerpt, 7000)}));
+  const state = sources.filter(s => s.scope === 'state' && s.source_excerpt).map(s => ({...s, source_excerpt: cleanText(s.source_excerpt, 7000)}));
+  const national = sources.filter(s => s.scope === 'national' && s.source_excerpt).map(s => ({...s, source_excerpt: cleanText(s.source_excerpt, 7000)}));
+  return {
+    location: { state: cleanText(d.state, 2).toUpperCase(), municipality: cleanText(d.municipality, 120), municipalityId: cleanText(d.municipalityId, 20), network: cleanText(d.network, 40) },
+    mode: cleanText(d.curriculumMode, 120),
+    suppliedSkill: cleanText(d.curricularSkill || d.skill || d.bncc, 800),
+    sources: [...local, ...state, ...national],
+    status: local.length ? 'municipal-confirmed' : state.length ? 'state-confirmed' : 'no-local-source'
+  };
+}
+function curriculumPromptBlock(ctx) {
+  const src = (ctx.sources || []).map((s,i)=>`FONTE ${i+1} [${s.scope}] ${s.title}${s.verified_at?` (verificada em ${s.verified_at})`:''}\nTrecho cadastrado: ${s.source_excerpt}`).join('\n\n');
+  return `\nCONTEXTO CURRICULAR VERIFICÁVEL DO AULORA:\nTerritório: ${ctx.location.municipality || 'não informado'} / ${ctx.location.state || 'não informado'}; rede: ${ctx.location.network || 'não informada'}.\nPreferência: ${ctx.mode || 'BNCC + currículo local disponível'}.\nHabilidade/referência fornecida pelo professor: ${ctx.suppliedSkill || 'nenhuma'}.\nStatus da base local: ${ctx.status}.\n${src || 'Nenhum trecho curricular estadual/municipal está cadastrado no banco para este território.'}\nREGRA: use SOMENTE os trechos acima e a referência fornecida pelo professor para afirmar alinhamento específico. Se não houver fonte local, NÃO diga que a atividade segue o currículo municipal/estadual e NÃO invente código, habilidade ou documento. Nesse caso, diga apenas que o material foi produzido em alinhamento pedagógico geral e que o professor deve validar a referência local. Inclua no HTML uma <div class="curricular-ref"><strong>Base curricular usada:</strong> ...</div> curta e transparente.`;
+}
 function commonSystem() {
   return `Você é o motor pedagógico do Aulora, uma ferramenta brasileira para professores. Responda em português do Brasil, com correção gramatical, adequação à etapa de ensino e conteúdo pedagógico utilizável.
 Regras obrigatórias:
@@ -236,9 +296,10 @@ Regras obrigatórias:
 }
 function promptFor(kind, d) {
   const payload = JSON.stringify(d, null, 2);
-  if (kind === 'plan') return `${commonSystem()}\nCrie um PLANO DE AULA completo. Inclua identificação, tema, objetivo geral, objetivos específicos, conhecimentos prévios, desenvolvimento em etapas com tempo aproximado, metodologia, recursos, avaliação, fechamento e adaptações quando informadas. Código BNCC só pode ser reproduzido se fornecido.\nDados:\n${payload}`;
+  const curriculum = d._curriculumContext ? curriculumPromptBlock(d._curriculumContext) : '';
+  if (kind === 'plan') return `${commonSystem()}\nCrie um PLANO DE AULA completo.${curriculum}\nInclua identificação, tema, objetivo geral, objetivos específicos, conhecimentos prévios, desenvolvimento em etapas com tempo aproximado, metodologia, recursos, avaliação, fechamento e adaptações quando informadas. Código BNCC só pode ser reproduzido se fornecido.\nDados:\n${payload}`;
   if (kind === 'activity') return `${commonSystem()}
-Crie uma ATIVIDADE PEDAGÓGICA FINAL, pronta para impressão e revisão do professor, com exatamente ${d.count || 10} tarefas REAIS, COMPLETAS e ESPECÍFICAS sobre o tema informado. Cada tarefa deve ficar dentro de <div class="question">.
+Crie uma ATIVIDADE PEDAGÓGICA FINAL, pronta para impressão e revisão do professor, com exatamente ${d.count || 10} tarefas REAIS, COMPLETAS e ESPECÍFICAS sobre o tema informado. Cada tarefa deve ficar dentro de <div class="question">.${curriculum}
 
 PADRÃO DE QUALIDADE OBRIGATÓRIO:
 - Antes de escrever, defina mentalmente UM foco de aprendizagem concreto para o tema, coerente com disciplina e turma. Todas as tarefas devem trabalhar esse foco ou habilidades diretamente relacionadas.
@@ -278,11 +339,13 @@ PROIBIÇÕES:
 - Não escreva sequência formada apenas por números sem as etapas reais.
 - Não inclua opção religiosa, política ou moral sem relação necessária com o conteúdo pedagógico informado.
 
+Se imageMode não for 'Sem imagens', produza também no campo JSON imagePrompt uma descrição visual curta, segura e pedagógica, em português, SEM texto/letras dentro da figura. Se for 'Painel visual com 3 cenas', descreva uma única ilustração em três quadros coerentes com o tema. A imagem deve apoiar a compreensão, não entregar a resposta.
+
 Ao final inclua <div class="answer-key"><h2>GABARITO / ORIENTAÇÕES DE CORREÇÃO</h2>...</div> com resposta correspondente a TODAS as tarefas. Se uma resposta for aberta, forneça critérios claros. Quando houver adaptação, inclua <div class="teacher-support"><strong>Sugestões de mediação</strong>...</div> com sugestões específicas ao tipo de tarefa, sem orientações clínicas genéricas.
 Dados:
 ${payload}`;
   if (kind === 'exam') return `${commonSystem()}
-Crie uma AVALIAÇÃO FINAL, pronta para revisão do professor, com exatamente ${d.count || 10} questões REAIS e ESPECÍFICAS sobre o tema informado e total de ${d.totalPoints || 10} pontos. Cada questão deve ficar dentro de <div class="question">. Distribua a pontuação de modo que a soma seja exatamente o total. Respeite disciplina, etapa/turma, formato e dificuldade. Se houver texto-base, use-o de forma efetiva. Se não houver, use conhecimento geral consolidado e apropriado ao nível escolar, sem inventar fontes ou dados. Questões objetivas devem ter exatamente 4 alternativas A-D plausíveis e somente uma correta; discursivas devem ter enunciado completo e critério de correção. Não escreva placeholders, colchetes para preencher, 'personalize', 'defina a alternativa', 'insira aqui' ou qualquer questão genérica do tipo 'fale sobre o tema'. Inclua <div class="answer-key"><h2>GABARITO / CRITÉRIOS DE CORREÇÃO</h2>...</div> com resposta correspondente a TODAS as questões e pontuação coerente.
+Crie uma AVALIAÇÃO FINAL, pronta para revisão do professor, com exatamente ${d.count || 10} questões REAIS e ESPECÍFICAS sobre o tema informado e total de ${d.totalPoints || 10} pontos.${curriculum} Cada questão deve ficar dentro de <div class="question">. Distribua a pontuação de modo que a soma seja exatamente o total. Respeite disciplina, etapa/turma, formato e dificuldade. Se houver texto-base, use-o de forma efetiva. Se não houver, use conhecimento geral consolidado e apropriado ao nível escolar, sem inventar fontes ou dados. Questões objetivas devem ter exatamente 4 alternativas A-D plausíveis e somente uma correta; discursivas devem ter enunciado completo e critério de correção. Não escreva placeholders, colchetes para preencher, 'personalize', 'defina a alternativa', 'insira aqui' ou qualquer questão genérica do tipo 'fale sobre o tema'. Se imageMode não for 'Sem imagens', produza também no campo JSON imagePrompt uma descrição visual curta, segura e pedagógica, em português, SEM texto/letras dentro da figura. A imagem não pode revelar diretamente a resposta das questões. Se for painel, descreva três cenas em uma única imagem. Inclua <div class="answer-key"><h2>GABARITO / CRITÉRIOS DE CORREÇÃO</h2>...</div> com resposta correspondente a TODAS as questões e pontuação coerente.
 Dados:
 ${payload}`;
   if (kind === 'report') return `${commonSystem()}
@@ -348,20 +411,41 @@ function generatedMaterialValid(kind, html, d) {
   return true;
 }
 async function runGeneration(env, kind, d, repair = false) {
-  const schema = { type: 'object', properties: { title: { type: 'string' }, subtitle: { type: 'string' }, typeLabel: { type: 'string' }, html: { type: 'string' } }, required: ['title', 'subtitle', 'typeLabel', 'html'] };
+  const schema = { type: 'object', properties: { title: { type: 'string' }, subtitle: { type: 'string' }, typeLabel: { type: 'string' }, html: { type: 'string' }, imagePrompt: { type: 'string' } }, required: ['title', 'subtitle', 'typeLabel', 'html'] };
   const instruction = repair
     ? `${promptFor(kind, d)}\nATENÇÃO: a tentativa anterior foi rejeitada por qualidade insuficiente. Refaça DO ZERO. Verifique uma a uma: nenhuma tabela vazia; nenhum rótulo do tipo Palavra 1/Etapa 1; nenhuma sequência sem conteúdo; enunciados sem ambiguidade; gabarito compatível; exatamente a quantidade pedida; adaptação coerente com o tema. Não reaproveite a formulação rejeitada.`
     : promptFor(kind, d);
-  const model = (kind === 'activity' || kind === 'exam' || kind === 'report') ? MODEL_QUALITY : MODEL_FAST;
-  const result = await env.AI.run(model, {
-    messages: [{ role: 'system', content: 'Siga rigorosamente as instruções. Gere conteúdo pedagógico específico e devolva JSON válido no esquema solicitado.' }, { role: 'user', content: instruction }],
-    response_format: { type: 'json_schema', json_schema: schema }, max_tokens: 5000, temperature: 0.25
-  });
+  const preferred = (kind === 'activity' || kind === 'exam' || kind === 'report') ? MODEL_QUALITY : MODEL_FAST;
+  const models = preferred === MODEL_FAST ? [MODEL_FAST] : [preferred, MODEL_FAST];
+  let result, lastError;
+  for (const model of models) {
+    try {
+      result = await env.AI.run(model, {
+        messages: [{ role: 'system', content: 'Siga rigorosamente as instruções. Gere conteúdo pedagógico específico e devolva JSON válido no esquema solicitado.' }, { role: 'user', content: instruction }],
+        response_format: { type: 'json_schema', json_schema: schema }, max_tokens: 5000, temperature: 0.25
+      });
+      break;
+    } catch (err) { lastError = err; console.warn('Aulora model fallback', model, err?.message || err); }
+  }
+  if (!result) throw lastError || new Error('Nenhum modelo respondeu');
   let data = result?.response ?? result;
   if (result?.choices?.[0]?.message?.content) data = result.choices[0].message.content;
   if (typeof data === 'string') data = JSON.parse(data.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim());
   if (!data || typeof data !== 'object') throw new Error('Resposta inválida do modelo');
   return data;
+}
+async function generateEducationalImage(env, prompt, mode) {
+  if (!prompt || !env.AI || mode === 'Sem imagens') return '';
+  const refined = `${cleanText(prompt, 1400)}. Ilustração pedagógica limpa, apropriada para ambiente escolar brasileiro, sem palavras, sem letras, sem números escritos, sem logotipos, sem marca d'água. Fundo claro, elementos fáceis de reconhecer.`;
+  const response = await env.AI.run(MODEL_IMAGE, { prompt: refined, steps: 4, seed: Math.floor(Math.random()*2147483647) });
+  if (!response?.image) return '';
+  return `data:image/jpeg;base64,${response.image}`;
+}
+function attachImage(html, dataUri, caption='Imagem de apoio pedagógico') {
+  if (!dataUri) return html;
+  const figure = `<figure class="generated-figure"><img src="${dataUri}" alt="${caption}"><figcaption>${caption}</figcaption></figure>`;
+  const idx = html.indexOf('</h1>');
+  return idx >= 0 ? html.slice(0, idx+5) + figure + html.slice(idx+5) : figure + html;
 }
 async function generateAI(env, kind, d) {
   const meta = defaultMeta(kind, d);
@@ -372,7 +456,11 @@ async function generateAI(env, kind, d) {
     html = sanitizeHtml(data.html || '');
   }
   if (!generatedMaterialValid(kind, html, d)) throw new Error('A geração não atingiu o padrão mínimo de qualidade');
-  return { title: cleanText(data.title || meta.title, 180), subtitle: cleanText(data.subtitle || meta.subtitle, 240), typeLabel: cleanText(data.typeLabel || meta.typeLabel, 80), html };
+  let imageGenerated = false;
+  if ((kind === 'activity' || kind === 'exam') && d.imageMode && d.imageMode !== 'Sem imagens') {
+    try { const uri = await generateEducationalImage(env, cleanText(data.imagePrompt || `${d.discipline}: ${d.topic}`, 1400), d.imageMode); if (uri) { html = attachImage(html, uri, d.imageMode === 'Painel visual com 3 cenas' ? 'Painel visual de apoio' : 'Imagem de apoio pedagógico'); imageGenerated = true; } } catch (err) { console.warn('Aulora image generation failed', err?.message || err); }
+  }
+  return { title: cleanText(data.title || meta.title, 180), subtitle: cleanText(data.subtitle || meta.subtitle, 240), typeLabel: cleanText(data.typeLabel || meta.typeLabel, 80), html, imageGenerated };
 }
 
 async function stripeRequest(env, path, params) {
@@ -511,6 +599,26 @@ async function api(request, env, url) {
     await env.DB.prepare('DELETE FROM aulora_materials WHERE id=? AND user_id=?').bind(id, auth.user.id).run(); return json({ ok: true });
   }
 
+  if (path === '/api/locations/states' && request.method === 'GET') {
+    try { const rows = await fetchIbge('/estados?orderBy=nome'); return json({ states: rows.map(r => ({ id: String(r.id), sigla: r.sigla, nome: r.nome })) }, 200, { 'cache-control': 'public, max-age=86400' }); }
+    catch { return json({ error: 'Não foi possível consultar os estados agora.' }, 502); }
+  }
+  if (path === '/api/locations/municipalities' && request.method === 'GET') {
+    const uf = cleanText(url.searchParams.get('uf'), 2).toUpperCase(); if (!/^[A-Z]{2}$/.test(uf)) return json({ error: 'UF inválida.' }, 400);
+    try { const rows = await fetchIbge(`/estados/${encodeURIComponent(uf)}/municipios?orderBy=nome`); return json({ municipalities: rows.map(r => ({ id: String(r.id), nome: r.nome })) }, 200, { 'cache-control': 'public, max-age=86400' }); }
+    catch { return json({ error: 'Não foi possível consultar os municípios agora.' }, 502); }
+  }
+  if (path === '/api/curriculum/context' && request.method === 'GET') {
+    const d = { state: url.searchParams.get('uf'), municipality: url.searchParams.get('municipality'), municipalityId: url.searchParams.get('municipalityId') };
+    const ctx = await curriculumContext(env, d); return json({ status: ctx.status, location: ctx.location, sources: ctx.sources.map(s => ({ scope:s.scope, title:s.title, sourceUrl:s.source_url, verifiedAt:s.verified_at })) });
+  }
+  if (path === '/api/curriculum/source' && request.method === 'POST') {
+    if (!env.CURRICULUM_ADMIN_TOKEN) return json({ error: 'Importação curricular ainda não configurada.' }, 503);
+    if (request.headers.get('authorization') !== `Bearer ${env.CURRICULUM_ADMIN_TOKEN}`) return json({ error: 'Não autorizado.' }, 401);
+    const b = await request.json().catch(()=>({})); const scope=cleanText(b.scope,20); if(!['national','state','municipal','school'].includes(scope)) return json({error:'Escopo inválido.'},400);
+    const id=crypto.randomUUID(), ts=nowIso(); await env.DB.prepare(`INSERT INTO aulora_curriculum_sources(id,scope,uf,municipality_ibge_id,municipality_name,title,source_url,source_excerpt,source_type,verified_at,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)`).bind(id,scope,cleanText(b.uf,2).toUpperCase(),cleanText(b.municipalityId,20),cleanText(b.municipalityName,120),cleanText(b.title,220),cleanText(b.sourceUrl,900),cleanText(b.sourceExcerpt,30000),cleanText(b.sourceType,40)||'curriculum',cleanText(b.verifiedAt,30)||ts.slice(0,10),ts).run(); return json({ok:true,id});
+  }
+
   if (path === '/api/generate' && request.method === 'POST') {
     if (!mutationOriginAllowed(request)) return json({ error: 'Origem não autorizada.' }, 403);
     const auth = await requireUser(request, env); if (auth.response) return auth.response;
@@ -528,11 +636,15 @@ async function api(request, env, url) {
     if (!env.AI) return json({ error: 'Geração inteligente não configurada.' }, 503);
     const usage = await usageFor(env, auth.user); if (usage.ai >= usage.limits.ai) return json({ error: 'Seu limite mensal de gerações inteligentes foi atingido.', code: 'AI_LIMIT', usage }, 429);
     try {
+      if (['plan','activity','exam'].includes(kind)) {
+        d._curriculumContext = await curriculumContext(env, d);
+        if (d.state || d.municipalityId) await env.DB.prepare(`INSERT INTO aulora_curriculum_queries(id,user_id,uf,municipality_ibge_id,municipality_name,kind,queried_at) VALUES(?,?,?,?,?,?,?)`).bind(crypto.randomUUID(),auth.user.id,cleanText(d.state,2).toUpperCase(),cleanText(d.municipalityId,20),cleanText(d.municipality,120),kind,nowIso()).run();
+      }
       const output = await generateAI(env, kind, d);
       await env.DB.prepare(`INSERT INTO aulora_usage_monthly(user_id,month,ai_count) VALUES(?,?,1) ON CONFLICT(user_id,month) DO UPDATE SET ai_count=ai_count+1`).bind(auth.user.id, usage.month).run();
       const after = await usageFor(env, auth.user); return json({ ...output, usage: after });
     } catch (err) {
-      console.error('Aulora generation error', err); return json({ error: 'Não foi possível gerar o material agora. Tente novamente em instantes.' }, 503);
+      console.error('Aulora generation error', err); return json({ error: 'A geração não foi concluída. Tente novamente; se persistir, use menos questões ou escolha uma imagem de apoio.', code: 'GENERATION_RETRY' }, 503);
     }
   }
 
