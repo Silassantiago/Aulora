@@ -1,4 +1,5 @@
-const MODEL = '@cf/meta/llama-3.1-8b-instruct-fast';
+const MODEL_FAST = '@cf/meta/llama-3.1-8b-instruct-fast';
+const MODEL_QUALITY = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
 const SESSION_COOKIE = 'aulora_session';
 const SESSION_DAYS = 30;
 const FREE_AI_LIMIT = 5;
@@ -228,6 +229,8 @@ Regras obrigatórias:
 - Use somente div, h1, h2, h3, p, ul, ol, li, strong, em, span, table, thead, tbody, tr, th, td e br.
 - Não use links, imagens, scripts, estilos, atributos on*, formulários ou conteúdo executável.
 - O professor sempre deve revisar o material antes da aplicação.
+- Todo conteúdo deve ser AUTOSSUFICIENTE: o aluno precisa conseguir entender o que fazer sem o professor completar palavras, alternativas, etapas, tabelas ou exemplos que ficaram faltando.
+- Não produza exercícios cuja resposta seja discutível por falta de contexto. Se houver mais de uma resposta defensável, reescreva o enunciado.
 - Para trabalhos acadêmicos, use como referência de apresentação a ABNT NBR 14724:2024, citações a NBR 10520:2023 e referências a NBR 6023:2018, sem inventar regras institucionais específicas.
 - Não escreva citações ou referências inexistentes.`;
 }
@@ -235,29 +238,47 @@ function promptFor(kind, d) {
   const payload = JSON.stringify(d, null, 2);
   if (kind === 'plan') return `${commonSystem()}\nCrie um PLANO DE AULA completo. Inclua identificação, tema, objetivo geral, objetivos específicos, conhecimentos prévios, desenvolvimento em etapas com tempo aproximado, metodologia, recursos, avaliação, fechamento e adaptações quando informadas. Código BNCC só pode ser reproduzido se fornecido.\nDados:\n${payload}`;
   if (kind === 'activity') return `${commonSystem()}
-Crie uma ATIVIDADE PEDAGÓGICA FINAL, pronta para revisão do professor, com exatamente ${d.count || 10} tarefas REAIS e ESPECÍFICAS sobre o tema informado. Cada tarefa deve ficar dentro de <div class="question">.
+Crie uma ATIVIDADE PEDAGÓGICA FINAL, pronta para impressão e revisão do professor, com exatamente ${d.count || 10} tarefas REAIS, COMPLETAS e ESPECÍFICAS sobre o tema informado. Cada tarefa deve ficar dentro de <div class="question">.
+
+PADRÃO DE QUALIDADE OBRIGATÓRIO:
+- Antes de escrever, defina mentalmente UM foco de aprendizagem concreto para o tema, coerente com disciplina e turma. Todas as tarefas devem trabalhar esse foco ou habilidades diretamente relacionadas.
+- Não use títulos vagos como "o poder de..." se o tema informado permitir um foco mais concreto.
+- O objetivo deve ser observável e específico (por exemplo: identificar, comparar, ordenar, localizar, completar, produzir), nunca apenas "desenvolver compreensão".
+- Cada tarefa deve conter TODO o material necessário para o aluno responder. Nunca deixe tabela, lista, pares, frases ou cartões vazios.
+- É proibido usar rótulos substitutos como "Palavra 1", "Palavra 2", "Etapa 1", "Frase 1", "Item 1", "Exemplo 1" ou equivalentes no lugar do conteúdo real.
+- Não crie opções com interpretação subjetiva quando o gabarito exigir resposta única. Se a tarefa permitir várias respostas, diga claramente "resposta pessoal" e forneça CRITÉRIOS de correção, não uma resposta única arbitrária.
+- O gabarito deve ser conferido contra o enunciado. Nunca marque como errada uma alternativa que também possa responder corretamente ao que foi perguntado.
 
 REGRAS PEDAGÓGICAS:
 - Respeite disciplina, etapa/turma, dificuldade, tipo de atividade, forma de resposta, linguagem e organização visual escolhidos.
 - Se houver texto-base, use-o de forma efetiva. Se não houver, use conhecimento geral consolidado e apropriado ao nível escolar, sem inventar fontes ou dados.
 - Se houver perfil de apoio pedagógico, trate-o como necessidade de ACESSO PEDAGÓGICO, sem diagnosticar, rotular, infantilizar ou presumir incapacidade.
 - Para Estudante autista / TEA: priorize previsibilidade, linguagem literal, instruções curtas, uma demanda por vez, baixa carga visual e alternativas de resposta. Não presuma nível de suporte clínico, sensibilidade sensorial ou comunicação; use somente o que foi informado.
-- Para Educação especial — apoio ampliado: reduza carga de escrita quando solicitado, ofereça respostas por marcar, ligar, apontar, desenhar ou oralidade mediada e inclua exemplos simples quando ajudarem.
-- Para Alfabetização / pré-leitor: use palavras frequentes, comandos muito curtos, apoio por símbolos simples e tarefas de identificação, associação, completar, traçar ou desenho.
+- Para Educação especial — apoio ampliado: reduza carga de escrita quando solicitado, permita marcar, ligar, apontar, desenhar ou oralidade mediada e use exemplos simples somente quando ajudarem a compreender a tarefa.
+- Para Alfabetização / pré-leitor: use palavras frequentes, comandos muito curtos e tarefas de identificação, associação, completar, traçar ou desenho.
 - Interesses informados podem contextualizar a atividade, mas não devem dominar nem estereotipar o estudante.
-- Em qualquer adaptação, preserve o objetivo curricular sempre que possível e registre no gabarito sugestões de mediação, não respostas clínicas.
+- Em qualquer adaptação, preserve o objetivo curricular sempre que possível.
 
-REGRAS DE FORMATO:
-- Tipo "Desenho guiado": inclua instrução concreta e um <div class="drawing-box"></div> em cada tarefa que exija desenho.
-- Tipo "Ligar / associar": use tabelas simples ou blocos <div class="visual-task"> com pares claramente identificados; não dependa de imagens externas.
-- Tipo "Pintar / marcar": use símbolos, palavras, formas ou opções textuais simples; pode usar <span class="visual-symbol">●</span>, ★, ▲, ■ ou emojis comuns quando pedagógico.
-- Tipo "Sequência visual / ordenar": use <div class="sequence-box"><div>1</div><div>2</div><div>3</div></div> ou tabela simples com etapas curtas.
-- Tipo "Recortar e colar — imprimível": crie itens curtos em blocos separados, próprios para impressão e recorte, sem imagens externas.
-- Organização "Uma tarefa por bloco" ou perfis inclusivos: deixe enunciados curtos e sem excesso de informação.
-- Quando a tarefa for objetiva, use ${d.optionCount || 3} alternativas plausíveis e somente uma correta. Não force 4 alternativas se o professor escolheu 2 ou 3.
+COMO CONSTRUIR CADA TIPO:
+- "Desenho guiado": dê uma instrução concreta relacionada ao conteúdo e inclua <div class="drawing-box"></div>. No gabarito, use critérios do que deve aparecer, sem exigir desenho idêntico.
+- "Ligar / associar": forneça TODOS os elementos dos dois grupos. Use uma tabela com coluna A e coluna B, embaralhando a ordem. Nenhuma célula pode ficar vazia. O gabarito deve listar pares exatos, como A2-B4.
+- "Pintar / marcar": forneça opções reais. Diga "marque UMA" quando houver uma correta ou "marque TODAS" quando houver várias; o gabarito deve corresponder exatamente.
+- "Sequência visual / ordenar": apresente 3 a 5 ETAPAS REAIS fora de ordem, identificadas por letras A, B, C...; o aluno informa a ordem. Não mostre apenas caixas 1,2,3 vazias.
+- "Recortar e colar — imprimível": forneça palavras, frases curtas ou cartões REAIS em blocos separados; jamais use "Palavra 1/2/3".
+- "Completar": forneça uma frase real com lacuna e, quando pedagógico, um banco de palavras real.
+- "Visual e objetiva": use poucos elementos e opções curtas, mas todas semanticamente completas.
+- "Mista inclusiva": varie modalidades APENAS quando cada modalidade fizer sentido para o tema. Não é obrigatório usar todos os tipos; prefira qualidade e coerência.
+- Organização "Uma tarefa por bloco" ou perfis inclusivos: enunciados curtos, uma ação por vez e sem excesso de informação.
+- Quando objetiva, use ${d.optionCount || 3} alternativas plausíveis e somente uma correta, salvo se o enunciado disser explicitamente "marque todas".
 - Questões discursivas devem ter enunciado completo e critério objetivo de correção.
-- Não escreva placeholders, colchetes para preencher, 'personalize', 'defina a alternativa', 'insira aqui' ou instruções para o professor no corpo das tarefas.
-- Ao final inclua <div class="answer-key"><h2>GABARITO / ORIENTAÇÕES DE CORREÇÃO</h2>...</div> com resposta correspondente a TODAS as tarefas e, quando houver adaptação, uma seção <div class="teacher-support"><strong>Sugestões de mediação</strong>...</div>.
+
+PROIBIÇÕES:
+- Não escreva placeholders, colchetes para preencher, "personalize", "defina a alternativa", "insira aqui", "Palavra 1", "Etapa 1" ou qualquer conteúdo que dependa de o professor completar depois.
+- Não use tabelas vazias.
+- Não escreva sequência formada apenas por números sem as etapas reais.
+- Não inclua opção religiosa, política ou moral sem relação necessária com o conteúdo pedagógico informado.
+
+Ao final inclua <div class="answer-key"><h2>GABARITO / ORIENTAÇÕES DE CORREÇÃO</h2>...</div> com resposta correspondente a TODAS as tarefas. Se uma resposta for aberta, forneça critérios claros. Quando houver adaptação, inclua <div class="teacher-support"><strong>Sugestões de mediação</strong>...</div> com sugestões específicas ao tipo de tarefa, sem orientações clínicas genéricas.
 Dados:
 ${payload}`;
   if (kind === 'exam') return `${commonSystem()}
@@ -276,6 +297,10 @@ function generatedMaterialValid(kind, html, d) {
   const text = String(html || '');
   if (text.length < 300) return false;
   if (/\[(?:preencha|insira|resposta|alternativa|quest[aã]o|conte[uú]do)[^\]]*\]|preencha a alternativa|defina a alternativa|personalize (?:a|as|o|os) quest|insira aqui/i.test(text)) return false;
+  if (/\b(?:Palavra|Frase|Etapa|Item|Exemplo|Op[cç][aã]o)\s*[1-9]\b/i.test(text)) return false;
+  if (/<(?:td|th)>\s*(?:&nbsp;)?\s*<\/(?:td|th)>/i.test(text)) return false;
+  if (/<div>\s*[1-5]\s*<\/div>\s*<div>\s*[1-5]\s*<\/div>/i.test(text)) return false;
+  if (/complete a tabela abaixo[^<]{0,120}<table/i.test(text) && /<td>\s*<\/td>/i.test(text)) return false;
   if (kind === 'activity' || kind === 'exam') {
     const expected = Math.max(1, Math.min(20, Number(d.count) || 10));
     const questions = (text.match(/class=["']question["']/gi) || []).length;
@@ -289,9 +314,10 @@ function generatedMaterialValid(kind, html, d) {
 async function runGeneration(env, kind, d, repair = false) {
   const schema = { type: 'object', properties: { title: { type: 'string' }, subtitle: { type: 'string' }, typeLabel: { type: 'string' }, html: { type: 'string' } }, required: ['title', 'subtitle', 'typeLabel', 'html'] };
   const instruction = repair
-    ? `${promptFor(kind, d)}\nATENÇÃO: a tentativa anterior foi rejeitada por estar incompleta, genérica ou não respeitar a adaptação escolhida. Refaça do zero, cumpra exatamente a quantidade de tarefas, o tipo de atividade inclusiva e não use nenhum placeholder.`
+    ? `${promptFor(kind, d)}\nATENÇÃO: a tentativa anterior foi rejeitada por qualidade insuficiente. Refaça DO ZERO. Verifique uma a uma: nenhuma tabela vazia; nenhum rótulo do tipo Palavra 1/Etapa 1; nenhuma sequência sem conteúdo; enunciados sem ambiguidade; gabarito compatível; exatamente a quantidade pedida; adaptação coerente com o tema. Não reaproveite a formulação rejeitada.`
     : promptFor(kind, d);
-  const result = await env.AI.run(MODEL, {
+  const model = (kind === 'activity' || kind === 'exam') ? MODEL_QUALITY : MODEL_FAST;
+  const result = await env.AI.run(model, {
     messages: [{ role: 'system', content: 'Siga rigorosamente as instruções. Gere conteúdo pedagógico específico e devolva JSON válido no esquema solicitado.' }, { role: 'user', content: instruction }],
     response_format: { type: 'json_schema', json_schema: schema }, max_tokens: 5000, temperature: 0.25
   });
