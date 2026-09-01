@@ -580,6 +580,31 @@
   $('#installBtn').addEventListener('click',async()=>{if(!app.deferredInstall)return;app.deferredInstall.prompt();await app.deferredInstall.userChoice;app.deferredInstall=null;$('#installBtn').hidden=true;});
   if('serviceWorker' in navigator && location.protocol.startsWith('http'))window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
 
+  // Henry Ribeiro — assistente de navegação do Aulora.
+  const henryHelpPanel=$('#henryHelpPanel');
+  const henryHelpToggle=$('#henryHelpToggle');
+  function henryGreeting(){
+    const h=new Date().getHours();
+    return h<12?'Olá, bom dia!':h<18?'Olá, boa tarde!':'Olá, boa noite!';
+  }
+  function setHenryGreeting(){
+    const text=henryGreeting();
+    if($('#henryGreeting')) $('#henryGreeting').textContent=text;
+    if($('#henryPanelGreeting')) $('#henryPanelGreeting').textContent=text;
+  }
+  function setHenryHelp(open){
+    if(!henryHelpPanel||!henryHelpToggle)return;
+    henryHelpPanel.hidden=!open;
+    henryHelpToggle.setAttribute('aria-expanded',String(open));
+  }
+  setHenryGreeting();
+  henryHelpToggle?.addEventListener('click',e=>{e.stopPropagation();setHenryHelp(henryHelpPanel?.hidden!==false);});
+  $('#henryHelpClose')?.addEventListener('click',()=>setHenryHelp(false));
+  $('#heroHelpBtn')?.addEventListener('click',()=>setHenryHelp(true));
+  $$('#henryHelp [data-help-go]').forEach(btn=>btn.addEventListener('click',()=>{go(btn.dataset.helpGo);setHenryHelp(false);}));
+  document.addEventListener('click',e=>{if($('#henryHelp')&&!$('#henryHelp').contains(e.target))setHenryHelp(false);});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape')setHenryHelp(false);});
+
   const billingState=new URLSearchParams(location.search).get('billing');
   if(billingState){history.replaceState({},'',location.pathname+location.hash);setTimeout(()=>toast(billingState==='success'?'Pagamento concluído. Atualizando seu plano…':'Pagamento cancelado.'),300);}
   applyProfile();updateStats();renderMaterials();

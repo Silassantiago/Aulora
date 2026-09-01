@@ -109,22 +109,19 @@
               </div>
             </div>
 
-            <div class="home-hero-stage" aria-hidden="true">
-              <div class="stage-glow stage-glow-a"></div>
-              <div class="stage-glow stage-glow-b"></div>
-              <div class="stage-card stage-main">
-                <div class="stage-top"><span class="stage-logo">A</span><div><strong>Nova atividade</strong><small>5º ano • Língua Portuguesa</small></div><span class="stage-status">PRONTO</span></div>
-                <div class="stage-pills"><span>10 questões</span><span>Com imagens</span><span>BNCC + local</span></div>
-                <div class="stage-preview">
-                  <div class="stage-image"><span>🖼</span></div>
-                  <div class="stage-lines"><i></i><i></i><i class="mid"></i><i class="short"></i></div>
-                </div>
-                <div class="stage-question"><b>1</b><div><i></i><i class="short"></i></div><span>A B C D</span></div>
-                <div class="stage-footer"><span>Versão do aluno</span><span>Gabarito do professor</span></div>
+            <div class="home-hero-stage henry-stage">
+              <div class="henry-orbit henry-orbit-one"></div>
+              <div class="henry-orbit henry-orbit-two"></div>
+              <img class="henry-robot" src="henry-robot.png" alt="Henry, assistente virtual do Aulora, acenando" />
+              <span class="henry-wave" aria-hidden="true">👋</span>
+              <div class="henry-bubble">
+                <span class="henry-bubble-kicker">ASSISTENTE AULORA</span>
+                <strong id="henryGreeting">Olá!</strong>
+                <p>Meu nome é <b>Henry Ribeiro</b>. Estou aqui para ajudar você a criar materiais, provas, relatórios e atividades inclusivas.</p>
+                <button type="button" id="heroHelpBtn">Precisa de ajuda? <span>→</span></button>
               </div>
-              <div class="stage-float stage-float-one"><span>🧩</span><div><strong>TEA / AEE</strong><small>Adaptação pronta</small></div></div>
-              <div class="stage-float stage-float-two"><span>✦</span><div><strong>Geração inteligente</strong><small>Conteúdo completo</small></div></div>
-              <div class="stage-float stage-float-three"><span>📄</span><div><strong>Word + PDF</strong><small>Pronto para imprimir</small></div></div>
+              <div class="henry-mini-card henry-mini-one"><span>✦</span><div><strong>Geração inteligente</strong><small>Conteúdo pedagógico completo</small></div></div>
+              <div class="henry-mini-card henry-mini-two"><span>🧩</span><div><strong>Inclusão</strong><small>TEA, AEE e apoio visual</small></div></div>
             </div>
           </div>
 
@@ -530,6 +527,31 @@
           </div>
         </section>
       </main>
+    </div>
+  </div>
+
+  <div class="henry-help" id="henryHelp">
+    <button class="henry-help-toggle" id="henryHelpToggle" type="button" aria-expanded="false" aria-controls="henryHelpPanel" title="Abrir ajuda do Henry">
+      <img src="henry-robot.png" alt="" aria-hidden="true" />
+      <span><b>Henry</b><small>Precisa de ajuda?</small></span>
+      <i>?</i>
+    </button>
+    <div class="henry-help-panel" id="henryHelpPanel" hidden>
+      <div class="henry-help-head">
+        <div class="henry-help-avatar"><img src="henry-robot.png" alt="Henry, assistente do Aulora" /></div>
+        <div><strong id="henryPanelGreeting">Olá!</strong><small>Meu nome é Henry Ribeiro. Como posso ajudar?</small></div>
+        <button type="button" id="henryHelpClose" aria-label="Fechar ajuda">×</button>
+      </div>
+      <div class="henry-help-body">
+        <p>Escolha uma opção e eu levo você direto ao lugar certo.</p>
+        <div class="henry-help-actions">
+          <button type="button" data-help-go="activity"><span>✎</span><div><strong>Criar atividade</strong><small>Regular, inclusiva ou com imagens</small></div></button>
+          <button type="button" data-help-go="exam"><span>✓</span><div><strong>Criar prova</strong><small>Avaliação com gabarito e figuras</small></div></button>
+          <button type="button" data-help-go="plan"><span>▤</span><div><strong>Plano de aula</strong><small>Objetivos, metodologia e avaliação</small></div></button>
+          <button type="button" data-help-go="reports"><span>📋</span><div><strong>Relatórios</strong><small>Pareceres e acompanhamento</small></div></button>
+        </div>
+        <button class="henry-help-profile" type="button" data-help-go="settings">⚙ Perfil, senha e preferências</button>
+      </div>
     </div>
   </div>
 
