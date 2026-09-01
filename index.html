@@ -38,13 +38,13 @@
         </div>
         <button class="nav-item" data-view="exam"><span>✓</span> Avaliação</button>
         <button class="nav-item" data-view="reports"><span>📋</span> Relatórios</button>
-        <button class="nav-item" data-view="abnt"><span>¶</span> Acadêmico / ABNT</button>
+        <button class="nav-item" data-view="abnt"><span>¶</span> Acadêmico / ABNT <em class="nav-pro-badge">PRO</em></button>
         <button class="nav-item" data-view="materials"><span>▣</span> Meus materiais</button>
         <button class="nav-item" data-view="settings"><span>⚙</span> Perfil e dados</button>
       </nav>
 
       <div class="sidebar-bottom">
-        <div class="plan-mini" id="planMini"><span id="planMiniBadge">COMECE GRÁTIS</span><strong id="planMiniTitle">Crie sua conta gratuita</strong><small id="planMiniUsage">5 gerações inteligentes por mês no plano gratuito.</small></div>
+        <div class="plan-mini" id="planMini"><span id="planMiniBadge">COMECE GRÁTIS</span><strong id="planMiniTitle">Crie sua conta gratuita</strong><small id="planMiniUsage">3 gerações inteligentes por mês no Plano Básico.</small></div>
         <div class="status-card">
           <div class="status-line"><span class="status-dot" id="aiDot"></span><strong>Serviços Aulora</strong></div>
           <small id="aiStatus">Verificando serviços…</small>
@@ -77,7 +77,7 @@
                 <span class="account-menu-avatar" id="accountMenuAvatar">A</span>
                 <div><strong id="accountMenuName">Conta</strong><small id="accountMenuEmail"></small></div>
               </div>
-              <div class="account-menu-plan"><span id="accountMenuPlan">Grátis</span><small id="accountMenuUsage">0 / 5 gerações</small></div>
+              <div class="account-menu-plan"><span id="accountMenuPlan">Básico</span><small id="accountMenuUsage">0 / 3 gerações</small></div>
               <button type="button" role="menuitem" data-account-action="profile"><span>⚙</span><div><strong>Perfil e dados</strong><small>Escola, cidade e preferências</small></div></button>
               <button type="button" role="menuitem" data-account-action="password"><span>🔐</span><div><strong>Alterar senha</strong><small>Atualize sua senha com segurança</small></div></button>
               <button type="button" role="menuitem" data-account-action="email"><span>✉</span><div><strong>Cópias por e-mail</strong><small>Materiais e avisos da conta</small></div></button>
@@ -229,7 +229,7 @@
               </div>
               <div class="draft-status" id="planDraftStatus">Rascunho salvo automaticamente neste dispositivo.</div>
               <div class="form-actions split-actions"><button type="reset" class="ghost-button">Limpar</button><div><button class="ghost-button" type="button" data-local="plan">Montar modelo manual</button><button class="primary-button smart-action" type="submit"><span>✦</span> Gerar plano completo</button></div></div>
-              <small class="account-required-hint" data-guest-only>🔒 Geração inteligente requer conta gratuita. O plano Grátis inclui 5 gerações por mês.</small>
+              <small class="account-required-hint" data-guest-only>🔒 O Plano Básico inclui 3 gerações inteligentes por mês. O Pro amplia os limites e libera recursos avançados.</small>
             </form>
             <div class="preview-card empty" id="planPreview"><div class="empty-state preview-empty"><span>▤</span><strong>Seu plano de aula aparecerá aqui</strong><p>Preencha os campos e gere com o Aulora ou monte um modelo manual para editar.</p></div></div>
           </div>
@@ -280,8 +280,8 @@
                 <label class="full">Evitar / considerar (opcional)<textarea name="accessNotes" rows="3" placeholder="Ex.: evitar excesso de texto; oferecer exemplo resolvido; não usar linguagem infantilizada; permitir resposta por desenho."></textarea></label>
 
                 <div class="form-section-title full"><span>3</span><div><strong>Estrutura e entrega</strong><small>Quantidade, formato e critérios.</small></div></div>
-                <label>Imagens na atividade<select name="imageMode"><option>Sem imagens</option><option selected>1 imagem de apoio pedagógico</option><option>Imagens em até 3 questões</option><option>Imagem em todas as questões</option><option>Painel visual com 3 cenas</option></select><small class="field-hint">Quando solicitado, o Aulora só conclui o material se conseguir inserir as figuras na versão do aluno e do professor.</small></label>
-                <label>Quantidade de questões / tarefas<select name="count"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option selected>10</option><option value="15" data-pro-only>15 — Pro</option><option value="20" data-pro-only>20 — Pro</option></select><small class="field-hint">Escolha de 1 a 10 no Grátis • Pro também libera 15 e 20. Para atividades inclusivas, menos tarefas pode ser mais adequado.</small></label>
+                <label>Imagens na atividade<select name="imageMode"><option selected>Sem imagens</option><option value="1 imagem de apoio pedagógico" data-pro-only>1 imagem de apoio pedagógico — Pro</option><option value="Imagens em até 3 questões" data-pro-only>Imagens em até 3 questões — Pro</option><option value="Imagem em todas as questões" data-pro-only>Imagem em todas as questões — Pro</option><option value="Painel visual com 3 cenas" data-pro-only>Painel visual com 3 cenas — Pro</option></select><small class="field-hint">Básico: sem geração de imagens • Pro: figuras pedagógicas inseridas na versão do aluno e do professor.</small></label>
+                <label>Quantidade de questões / tarefas<select name="count"><option>1</option><option>2</option><option>3</option><option>4</option><option selected>5</option><option data-pro-only>6</option><option data-pro-only>7</option><option data-pro-only>8</option><option data-pro-only>9</option><option data-pro-only>10</option><option value="15" data-pro-only>15 — Pro</option><option value="20" data-pro-only>20 — Pro</option></select><small class="field-hint">Básico: até 5 tarefas • Pro: até 20. Para atividades inclusivas, menos tarefas pode ser mais adequado.</small></label>
                 <label>Formato acadêmico<select name="format"><option>Mista</option><option>Objetivas</option><option>Discursivas</option><option>Verdadeiro ou falso</option><option>Adaptado ao tipo escolhido acima</option></select></label>
                 <label>Espaço para resposta<select name="answerSpace"><option value="1">Curto</option><option value="2" selected>Médio</option><option value="4">Amplo</option><option value="6">Muito amplo / desenho</option></select></label>
                 <label>Quantidade de alternativas<select name="optionCount"><option value="2">2 alternativas</option><option value="3" selected>3 alternativas</option><option value="4">4 alternativas</option></select></label>
@@ -292,7 +292,7 @@
               <div class="inclusive-note"><strong>Educação inclusiva:</strong> o material deve ser revisado pelo professor e, quando houver, pela equipe pedagógica/AEE. O Aulora adapta atividades; não define necessidades clínicas nem substitui planejamento individualizado.</div>
               <div class="draft-status" id="activityDraftStatus">Rascunho salvo automaticamente neste dispositivo.</div>
               <div class="form-actions"><button type="reset" class="ghost-button">Limpar</button><button class="primary-button smart-action" type="submit"><span>✦</span> Gerar atividade completa</button></div>
-              <small class="account-required-hint" data-guest-only>🔒 Requer conta gratuita. O plano Grátis gera atividades de até 10 tarefas.</small>
+              <small class="account-required-hint" data-guest-only>🔒 Plano Básico: até 5 tarefas e sem imagens geradas por IA. Pro: até 20 tarefas e imagens.</small>
             </form>
             <div class="preview-card empty" id="activityPreview"><div class="empty-state preview-empty"><span>✎</span><strong>Sua atividade aparecerá aqui</strong><p>Escolha um modelo tradicional ou inclusivo. O Aulora criará enunciados, espaços visuais, gabarito e sugestões de mediação conforme as opções selecionadas.</p></div></div>
           </div>
@@ -318,8 +318,8 @@
                 <label class="full">Conteúdo avaliado<input name="topic" required placeholder="Ex.: Revolução Industrial" /></label>
                 <label>Data<input name="date" type="date" /></label>
                 <label>Duração prevista<select name="duration"><option>45 minutos</option><option selected>50 minutos</option><option>1 hora</option><option>1h30</option><option>2 aulas</option></select></label>
-                <label>Imagens na prova<select name="imageMode"><option>Sem imagens</option><option selected>1 imagem de apoio pedagógico</option><option>Imagens em até 3 questões</option><option>Imagem em todas as questões</option><option>Painel visual com 3 cenas</option></select><small class="field-hint">Se escolher imagens, a prova só será concluída quando as figuras forem realmente inseridas na versão do aluno e do professor.</small></label>
-                <label>Nº de questões<select name="count"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option selected>10</option><option value="15" data-pro-only>15 — Pro</option><option value="20" data-pro-only>20 — Pro</option></select><small class="field-hint">Grátis: escolha de 1 a 10 questões • Pro: também 15 ou 20</small></label>
+                <label>Imagens na prova<select name="imageMode"><option selected>Sem imagens</option><option value="1 imagem de apoio pedagógico" data-pro-only>1 imagem de apoio pedagógico — Pro</option><option value="Imagens em até 3 questões" data-pro-only>Imagens em até 3 questões — Pro</option><option value="Imagem em todas as questões" data-pro-only>Imagem em todas as questões — Pro</option><option value="Painel visual com 3 cenas" data-pro-only>Painel visual com 3 cenas — Pro</option></select><small class="field-hint">Básico: sem geração de imagens • Pro: provas com imagens inseridas e gabarito.</small></label>
+                <label>Nº de questões<select name="count"><option>1</option><option>2</option><option>3</option><option>4</option><option selected>5</option><option data-pro-only>6</option><option data-pro-only>7</option><option data-pro-only>8</option><option data-pro-only>9</option><option data-pro-only>10</option><option value="15" data-pro-only>15 — Pro</option><option value="20" data-pro-only>20 — Pro</option></select><small class="field-hint">Básico: até 5 questões • Pro: até 20 questões</small></label>
                 <label>Valor total<input name="totalPoints" type="number" min="1" max="100" step="0.5" value="10" /></label>
                 <label>Dificuldade<select name="difficulty"><option>Fácil</option><option selected>Intermediária</option><option>Avançada</option></select></label>
                 <label>Composição<select name="format"><option>70% objetivas + 30% discursivas</option><option>Somente objetivas</option><option>50% objetivas + 50% discursivas</option><option>Somente discursivas</option><option>Verdadeiro ou falso</option></select></label>
@@ -330,7 +330,7 @@
               </div>
               <div class="draft-status" id="examDraftStatus">Rascunho salvo automaticamente neste dispositivo.</div>
               <div class="form-actions"><button type="reset" class="ghost-button">Limpar</button><button class="primary-button smart-action" type="submit"><span>✦</span> Gerar avaliação completa</button></div>
-              <small class="account-required-hint" data-guest-only>🔒 Requer conta gratuita. Grátis: até 10 questões • Pro: até 20 questões.</small>
+              <small class="account-required-hint" data-guest-only>🔒 Plano Básico: até 5 questões e sem imagens geradas por IA • Pro: até 20 questões e imagens.</small>
             </form>
             <div class="preview-card empty" id="examPreview"><div class="empty-state preview-empty"><span>✓</span><strong>Sua avaliação aparecerá aqui</strong><p>O Aulora criará questões reais, pontuação e gabarito conforme o conteúdo informado.</p></div></div>
           </div>
@@ -456,20 +456,21 @@
               <div class="stack-actions account-actions"><button class="primary-button" id="settingsLoginBtn" type="button">Criar conta grátis</button><button class="ghost-button" id="settingsEnterBtn" type="button">Já tenho conta</button><button class="ghost-button" id="syncCloudBtn" type="button" hidden>Atualizar da nuvem</button><button class="ghost-button" id="logoutBtn" type="button" hidden>Sair da conta</button></div>
             </div>
             <div class="form-card plan-card plan-comparison-card">
-              <div class="card-heading"><div><span class="eyebrow">PLANOS</span><h2>Grátis ou Pro</h2></div><span class="price-tag">Pro R$ 14,90 / 30 dias</span></div>
+              <div class="card-heading"><div><span class="eyebrow">PLANOS</span><h2>Básico ou Pro</h2></div><span class="price-tag">Pro R$ 14,90 / 30 dias</span></div>
               <div class="plan-comparison">
                 <article class="plan-option free-option">
-                  <div class="plan-option-head"><div><span>PARA COMEÇAR</span><h3>Aulora Grátis</h3></div><strong>R$ 0</strong></div>
-                  <ul class="feature-list"><li>5 gerações inteligentes por mês</li><li>Até 25 materiais sincronizados</li><li>Plano de aula, atividade, avaliação, relatórios e Acadêmico/ABNT</li><li>Atividades e provas com até 10 questões</li><li>Exportação Word/PDF e backup local</li></ul>
-                  <button class="ghost-button" id="freePlanSignupBtn" type="button">Criar conta grátis</button>
+                  <div class="plan-option-head"><div><span>PARA TESTAR</span><h3>Aulora Básico</h3></div><strong>R$ 0</strong></div>
+                  <ul class="feature-list basic-feature-list"><li><strong>3</strong> gerações inteligentes por mês</li><li>Até <strong>5</strong> materiais sincronizados</li><li>Plano de aula, atividade e avaliação</li><li>Atividades e provas com até <strong>5 questões</strong></li><li>Sem imagens geradas por IA</li><li>Henry em modo de orientação básica</li></ul>
+                  <button class="ghost-button" id="freePlanSignupBtn" type="button">Começar grátis</button>
                 </article>
                 <article class="plan-option pro-option">
-                  <div class="plan-option-head"><div><span>PARA USO FREQUENTE</span><h3>Aulora Pro</h3></div><strong>R$ 14,90<small>/30 dias</small></strong></div>
-                  <ul class="feature-list"><li>200 gerações inteligentes por mês</li><li>Até 1.000 materiais sincronizados</li><li>Atividades e provas com até 20 questões</li><li>Acesso aos materiais em qualquer dispositivo</li><li>Todos os recursos atuais do Aulora com limites ampliados</li></ul>
-                  <div class="stack-actions"><button class="primary-button" id="upgradeBtn" type="button">Pagar com Pix</button><button class="ghost-button" id="manageBillingBtn" type="button" hidden>Gerenciar assinatura</button></div>
+                  <div class="plan-option-head"><div><span>MAIS COMPLETO</span><h3>Aulora Pro <b class="recommended-badge">RECOMENDADO</b></h3></div><strong>R$ 14,90<small>/30 dias</small></strong></div>
+                  <ul class="feature-list"><li><strong>200</strong> gerações inteligentes por mês</li><li>Até <strong>1.000</strong> materiais sincronizados</li><li>Atividades e provas com até <strong>20 questões</strong></li><li>Imagens pedagógicas geradas por IA</li><li>Relatórios pedagógicos e Acadêmico/ABNT com IA</li><li>Henry com assistência pedagógica completa</li><li>Acesso aos materiais em qualquer dispositivo</li></ul>
+                  <div class="payment-choice"><button class="primary-button" id="upgradeBtn" type="button"><span>◆</span> Pagar com Pix</button><button class="ghost-button card-pay-button" id="cardCheckoutBtn" type="button"><span>▣</span> Pagar com cartão</button></div>
+                  <small class="payment-choice-note">Pagamento único de R$ 14,90 libera 30 dias de Pro. Sem renovação automática.</small><button class="ghost-button" id="manageBillingBtn" type="button" hidden>Ver situação do Pro</button>
                 </article>
               </div>
-              <small class="billing-note" id="billingNote">A conta gratuita inclui 5 gerações inteligentes por mês, 25 materiais na nuvem e até 10 questões por atividade ou avaliação.</small>
+              <small class="billing-note" id="billingNote">O Básico serve para conhecer o Aulora: 3 gerações/mês, 5 materiais e até 5 questões. O Pro libera o conjunto completo de recursos.</small>
             </div>
             <form class="form-card" id="profileForm">
               <div class="card-heading"><div><span class="eyebrow">PERFIL</span><h2>Dados do professor</h2></div></div>
@@ -570,7 +571,7 @@
         <div class="auth-error" id="signupError" role="alert" hidden></div>
         <button class="primary-button" type="submit">Criar conta gratuita</button>
       </form>
-      <p class="auth-foot">Plano gratuito: 5 gerações inteligentes/mês e até 25 materiais sincronizados.</p>
+      <p class="auth-foot">Plano Básico: 3 gerações inteligentes/mês, até 5 materiais e 5 questões por atividade ou avaliação.</p>
     </div>
   </dialog>
 
@@ -592,7 +593,7 @@
   <dialog id="pixDialog" class="auth-dialog pix-dialog">
     <div class="pix-shell">
       <button class="icon-button auth-close" id="pixCloseBtn" type="button" aria-label="Fechar">×</button>
-      <div class="pix-brand-row"><div class="pix-brand-icon">◆</div><div><span class="eyebrow">PAGAMENTO SEGURO</span><h2>Aulora Pro via Pix</h2><p>R$ 14,90 libera o Pro por 30 dias após a confirmação do pagamento.</p></div></div>
+      <div class="pix-brand-row"><div class="pix-brand-icon">◆</div><div><span class="eyebrow">PAGAMENTO SEGURO</span><h2>Aulora Pro — Pix</h2><p>R$ 14,90 libera o Pro por 30 dias após a confirmação do pagamento.</p></div></div>
       <div class="pix-loading" id="pixLoading"><div class="spinner"></div><strong>Gerando seu Pix…</strong><small>Aguarde alguns segundos.</small></div>
       <div class="pix-content" id="pixContent" hidden>
         <div class="pix-status" id="pixStatus"><span></span><div><strong>Aguardando pagamento</strong><small>O plano será ativado automaticamente.</small></div></div>

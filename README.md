@@ -22,9 +22,9 @@ Aulora é uma aplicação web/PWA para professores com planejamento de aula, ati
 ## Planos definidos no código
 
 ### Gratuito
-- 5 gerações inteligentes por mês
-- 25 materiais na nuvem
-- Atividades e avaliações com até 10 questões
+- 3 gerações inteligentes por mês
+- 5 materiais na nuvem
+- Atividades e avaliações com até 5 questões
 - Plano de aula, atividade, avaliação e Acadêmico/ABNT
 - Exportação Word/PDF e backup local
 

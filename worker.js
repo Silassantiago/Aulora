@@ -4,9 +4,9 @@ const MODEL_IMAGE = '@cf/black-forest-labs/flux-1-schnell';
 const IBGE_BASE = 'https://servicodados.ibge.gov.br/api/v1/localidades';
 const SESSION_COOKIE = 'aulora_session';
 const SESSION_DAYS = 30;
-const FREE_AI_LIMIT = 5;
+const FREE_AI_LIMIT = 3;
 const PRO_AI_LIMIT = 200;
-const FREE_MATERIAL_LIMIT = 25;
+const FREE_MATERIAL_LIMIT = 5;
 const PRO_MATERIAL_LIMIT = 1000;
 const PASSWORD_KDF_ITERATIONS = 10000;
 const PRO_PIX_PRICE_CENTS = 1490;
@@ -62,7 +62,7 @@ function nowIso() { return new Date().toISOString(); }
 function monthKey() { return new Date().toISOString().slice(0, 7); }
 function planLimits(plan) {
   const pro = plan === 'pro';
-  return { ai: pro ? PRO_AI_LIMIT : FREE_AI_LIMIT, materials: pro ? PRO_MATERIAL_LIMIT : FREE_MATERIAL_LIMIT, questions: pro ? 20 : 10 };
+  return { ai: pro ? PRO_AI_LIMIT : FREE_AI_LIMIT, materials: pro ? PRO_MATERIAL_LIMIT : FREE_MATERIAL_LIMIT, questions: pro ? 20 : 5 };
 }
 function parseCookies(request) {
   const raw = request.headers.get('cookie') || '';
@@ -314,7 +314,7 @@ async function userPayload(env, user) {
     id: user.id, email: user.email, name: user.name, plan: user.plan, planStatus: user.plan_status,
     profile: safeProfile(user.profile_json), emailPrefs: safeEmailPrefs(user.email_prefs_json), usage,
     emailDelivery: { enabled: emailDeliveryEnabled(env) },
-    billing: { enabled: Boolean(env.MERCADO_PAGO_ACCESS_TOKEN), provider: 'mercadopago', method: 'pix', customer: false, expiresAt: user.pro_expires_at || null, priceCents: PRO_PIX_PRICE_CENTS, periodDays: PRO_PIX_DAYS }
+    billing: { enabled: Boolean(env.MERCADO_PAGO_ACCESS_TOKEN), provider: 'mercadopago', method: 'pix_card', methods: ['pix','card'], customer: false, expiresAt: user.pro_expires_at || null, priceCents: PRO_PIX_PRICE_CENTS, periodDays: PRO_PIX_DAYS }
   };
 }
 async function requireUser(request, env) {
@@ -855,7 +855,10 @@ async function api(request, env, url, ctx) {
     const profile = safeProfile(auth.user.profile_json);
     const teacherName = cleanText(auth.user.name || profile.teacher || '', 100);
     const location = [cleanText(profile.city || profile.municipality || '', 100), cleanText(profile.state || '', 2).toUpperCase()].filter(Boolean).join(' / ');
-    const system = `Você é Henry Ribeiro, assistente educacional do Aulora. Responda em português do Brasil, de forma clara, cordial, prática e normalmente curta.\n\nSeu papel:\n- orientar o professor a usar os módulos do Aulora: Plano de aula, Atividade, Avaliação, Relatórios, Acadêmico/ABNT, Meus materiais, Perfil e dados;\n- tirar dúvidas pedagógicas e ajudar a estruturar ideias para aulas, exercícios, avaliações, inclusão e relatórios;\n- sugerir que o usuário abra o módulo apropriado quando quiser gerar/salvar um material completo;\n- não inventar códigos da BNCC, currículos municipais, leis, fontes ou recursos que não tenham sido fornecidos; se uma norma oficial específica for necessária, diga para conferir a fonte oficial/rede de ensino;\n- em educação inclusiva, ofereça adaptações pedagógicas, mas não faça diagnóstico clínico nem prescrição;\n- não diga que executou, salvou, enviou, publicou ou alterou algo se você apenas estiver conversando;\n- nunca peça senha, token, chave de API ou dado financeiro.\n\nProfessor: ${teacherName || 'usuário do Aulora'}${location ? `; localidade cadastrada: ${location}` : ''}.`;
+    const system = `Você é Henry Ribeiro, assistente educacional do Aulora. Responda em português do Brasil, de forma clara, cordial, prática e normalmente curta.\n\nSeu papel:\n- orientar o professor a usar os módulos do Aulora: Plano de aula, Atividade, Avaliação, Relatórios, Acadêmico/ABNT, Meus materiais, Perfil e dados;\n- tirar dúvidas pedagógicas e ajudar a estruturar ideias para aulas, exercícios, avaliações, inclusão e relatórios;\n- sugerir que o usuário abra o módulo apropriado quando quiser gerar/salvar um material completo;\n- não inventar códigos da BNCC, currículos municipais, leis, fontes ou recursos que não tenham sido fornecidos; se uma norma oficial específica for necessária, diga para conferir a fonte oficial/rede de ensino;\n- em educação inclusiva, ofereça adaptações pedagógicas, mas não faça diagnóstico clínico nem prescrição;\n- não diga que executou, salvou, enviou, publicou ou alterou algo se você apenas estiver conversando;\n- nunca peça senha, token, chave de API ou dado financeiro.\n\nPlano da conta: ${auth.user.plan === 'pro' ? 'Aulora Pro' : 'Aulora Básico (grátis)'}.
+${auth.user.plan === 'pro' ? '- Como usuário Pro, você pode aprofundar orientações e ajudar a estruturar materiais completos, sempre sugerindo o módulo adequado para gerar e salvar.' : '- Como usuário do plano Básico, responda com orientação curta, exemplos pequenos e ajuda de navegação. Não entregue atividades, provas, relatórios ou trabalhos completos no chat; explique que a geração completa e recursos avançados ficam no Pro.'}
+
+Professor: ${teacherName || 'usuário do Aulora'}${location ? `; localidade cadastrada: ${location}` : ''}.`;
     try {
       const result = await env.AI.run(MODEL_FAST, {
         messages: [{ role: 'system', content: system }, ...history, { role: 'user', content: message }],
@@ -881,8 +884,15 @@ async function api(request, env, url, ctx) {
     if (!['plan', 'activity', 'exam', 'report', 'abnt'].includes(kind)) return json({ error: 'Tipo de material inválido.' }, 400);
     const d = sanitizeData(body.data || {});
     const limits = planLimits(auth.user.plan);
+    const isPro = auth.user.plan === 'pro';
+    if (!isPro && ['report','abnt'].includes(kind)) {
+      return json({ error: kind === 'report' ? 'Relatórios pedagógicos com IA fazem parte do Aulora Pro.' : 'Acadêmico / ABNT com IA faz parte do Aulora Pro.', code: 'PRO_REQUIRED', feature: kind, limits }, 403);
+    }
+    if (!isPro && (kind === 'activity' || kind === 'exam') && d.imageMode && d.imageMode !== 'Sem imagens') {
+      return json({ error: 'Imagens geradas por IA em atividades e avaliações fazem parte do Aulora Pro.', code: 'PRO_REQUIRED', feature: 'images', limits }, 403);
+    }
     if ((kind === 'activity' || kind === 'exam') && Number(d.count || 0) > limits.questions) {
-      return json({ error: auth.user.plan === 'pro' ? 'O Aulora Pro permite até 20 questões por material.' : 'O Aulora Grátis permite até 10 questões por atividade ou avaliação. Assine o Pro para criar até 20.', code: 'QUESTION_LIMIT', limits }, 403);
+      return json({ error: isPro ? 'O Aulora Pro permite até 20 questões por material.' : 'O Aulora Básico permite até 5 questões por atividade ou avaliação. O Pro libera até 20.', code: 'QUESTION_LIMIT', limits }, 403);
     }
     if (!['abnt','report'].includes(kind) && (!d.topic || !d.discipline || !d.grade)) return json({ error: 'Preencha tema, disciplina e turma.' }, 400);
     if (kind === 'report' && (!d.studentName || !d.grade || !d.strengths || !d.progress)) return json({ error: 'Preencha estudante, turma, pontos fortes e evolução observada.' }, 400);
@@ -909,7 +919,7 @@ async function api(request, env, url, ctx) {
   if (path === '/api/billing/checkout' && request.method === 'POST') {
     if (!mutationOriginAllowed(request)) return json({ error: 'Origem não autorizada.' }, 403);
     const auth = await requireUser(request, env); if (auth.response) return auth.response;
-    if (!env.MERCADO_PAGO_ACCESS_TOKEN) return json({ error: 'Pagamento via Pix ainda não configurado.', code: 'BILLING_NOT_CONFIGURED' }, 503);
+    if (!env.MERCADO_PAGO_ACCESS_TOKEN) return json({ error: 'Pagamentos ainda não configurados.', code: 'BILLING_NOT_CONFIGURED' }, 503);
     const expires = new Date(Date.now() + 30 * 60_000).toISOString();
     const payload = {
       transaction_amount: PRO_PIX_PRICE_CENTS / 100,
@@ -945,6 +955,53 @@ async function api(request, env, url, ctx) {
       return json({ status:result.status, approved:result.status==='approved', user:await userPayload(env,fresh) });
     } catch(err) { return json({error:cleanText(err.message,300)||'Não foi possível consultar o Pix.',code:err.code||'PAYMENT_STATUS_FAILED'}, err.status===404?404:502); }
   }
+  if (path === '/api/billing/card/checkout' && request.method === 'POST') {
+    if (!mutationOriginAllowed(request)) return json({ error: 'Origem não autorizada.' }, 403);
+    const auth = await requireUser(request, env); if (auth.response) return auth.response;
+    if (!env.MERCADO_PAGO_ACCESS_TOKEN) return json({ error: 'Pagamentos ainda não configurados.', code: 'BILLING_NOT_CONFIGURED' }, 503);
+    const payload = {
+      items: [{
+        id: 'aulora-pro-30d',
+        title: `Aulora Pro - ${PRO_PIX_DAYS} dias`,
+        description: 'Acesso ao Aulora Pro por 30 dias',
+        quantity: 1,
+        currency_id: 'BRL',
+        unit_price: PRO_PIX_PRICE_CENTS / 100
+      }],
+      payer: { email: auth.user.email },
+      external_reference: auth.user.id,
+      notification_url: `${url.origin}/api/billing/mercadopago/webhook`,
+      back_urls: {
+        success: `${url.origin}/?billing=success`,
+        pending: `${url.origin}/?billing=pending`,
+        failure: `${url.origin}/?billing=failure`
+      },
+      auto_return: 'approved',
+      payment_methods: {
+        excluded_payment_methods: [{ id: 'pix' }],
+        excluded_payment_types: [{ id: 'ticket' }],
+        installments: 1
+      },
+      statement_descriptor: 'AULORA'
+    };
+    try {
+      const preference = await mercadoPagoRequest(env, '/checkout/preferences', { method:'POST', body:payload, idempotencyKey:crypto.randomUUID() });
+      const checkoutUrl = cleanText(preference?.init_point || preference?.sandbox_init_point || '', 1000);
+      if (!checkoutUrl) throw new Error('O Mercado Pago não retornou a página de pagamento.');
+      return json({ provider:'mercadopago', method:'card', preferenceId:String(preference.id || ''), checkoutUrl, amount:PRO_PIX_PRICE_CENTS/100, periodDays:PRO_PIX_DAYS });
+    } catch (err) {
+      return json({ error: cleanText(err.message,300) || 'Não foi possível abrir o pagamento por cartão.', code:err.code || 'CARD_CHECKOUT_FAILED' }, err.status===400?400:502);
+    }
+  }
+  if (path === '/api/billing/card/status' && request.method === 'GET') {
+    const auth = await requireUser(request, env); if (auth.response) return auth.response;
+    const paymentId = cleanText(url.searchParams.get('id'),80); if (!paymentId) return json({error:'Pagamento não informado.'},400);
+    try {
+      const result = await syncMercadoPagoPayment(env,paymentId,auth.user.id);
+      const fresh = await env.DB.prepare(`SELECT * FROM aulora_users WHERE id=?`).bind(auth.user.id).first();
+      return json({ status:result.status, approved:result.status==='approved', user:await userPayload(env,fresh) });
+    } catch(err) { return json({error:cleanText(err.message,300)||'Não foi possível confirmar o pagamento.',code:err.code||'PAYMENT_STATUS_FAILED'}, err.status===404?404:502); }
+  }
   if (path === '/api/billing/mercadopago/webhook' && request.method === 'POST') {
     if (!env.MERCADO_PAGO_ACCESS_TOKEN) return json({ received:true });
     const body = await request.json().catch(()=>({}));
@@ -955,7 +1012,7 @@ async function api(request, env, url, ctx) {
     return json({ received:true });
   }
   if (path === '/api/billing/portal' && request.method === 'POST') {
-    return json({ error: 'O Pix do Aulora Pro é uma compra de 30 dias e não possui portal de assinatura.', code:'PIX_NO_PORTAL' }, 409);
+    return json({ error: 'O Aulora Pro é liberado por 30 dias por pagamento. Não há renovação automática nesta modalidade.', code:'NO_SUBSCRIPTION_PORTAL' }, 409);
   }
 
   if (path === '/api/admin/set-plan' && request.method === 'POST') {

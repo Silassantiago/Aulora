@@ -1,4 +1,4 @@
-# Aulora Pro — pagamento via Pix
+# Aulora Pro — pagamento via Pix ou cartão
 
 O projeto usa Mercado Pago no backend do Cloudflare Worker.
 

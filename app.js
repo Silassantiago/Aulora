@@ -120,8 +120,8 @@
   $('#authCloseBtn').addEventListener('click',closeAuth);
   $('#authDialog').addEventListener('click',e=>{if(e.target===$('#authDialog'))closeAuth();});
 
-  function planName(user){return user?.plan==='pro'?'Pro':user?'Grátis':'Sem conta';}
-  function planChipName(user){return user?.plan==='pro'?'Plano Pro':user?'Plano Grátis':'Sem conta';}
+  function planName(user){return user?.plan==='pro'?'Pro':user?'Básico':'Sem conta';}
+  function planChipName(user){return user?.plan==='pro'?'Plano Pro':user?'Plano Básico':'Sem conta';}
   function formatDisplayName(value){
     return String(value||'').trim().replace(/\s+/g,' ').toLowerCase().replace(/(^|[\s-])([\p{L}])/gu,(m,p1,p2)=>p1+p2.toUpperCase());
   }
@@ -148,9 +148,9 @@
     } else { $('#accountMenu').hidden=true; $('#accountBtn').setAttribute('aria-expanded','false'); }
     $$('[data-guest-only]').forEach(el=>el.hidden=Boolean(user));
     $$('[data-pro-only]').forEach(option=>{ option.disabled=Boolean(user)&&!isPro || !user; option.classList.toggle('option-pro-locked',!isPro); });
-    [$('#activityForm'),$('#examForm')].forEach(form=>{ if(form && !isPro && Number(form.elements.count?.value||0)>10) form.elements.count.value='10'; });
+    [$('#activityForm'),$('#examForm')].forEach(form=>{ if(form && !isPro){ if(Number(form.elements.count?.value||0)>5) form.elements.count.value='5'; if(form.elements.imageMode && form.elements.imageMode.value!=='Sem imagens') form.elements.imageMode.value='Sem imagens'; } });
     $('#planMiniBadge').textContent=user?'PLANO ATIVO':'COMECE GRÁTIS'; $('#planMiniBadge').className=isPro?'plan-pro':user?'plan-free':'';
-    $('#planMiniTitle').textContent=user?(isPro?'Aulora Pro ativo':'Aulora Grátis ativo'):'Crie sua conta gratuita';
+    $('#planMiniTitle').textContent=user?(isPro?'Aulora Pro ativo':'Aulora Básico ativo'):'Crie sua conta gratuita';
     $('#planMiniUsage').textContent=user&&app.usage?`${app.usage.ai}/${app.usage.limits.ai} gerações inteligentes usadas neste mês.`:'Geração inteligente exige uma conta gratuita.';
     $('#settingsAccountTitle').textContent=user?(displayName||user.email):'Você ainda não entrou';
     $('#settingsPlanBadge').textContent=plan.toUpperCase(); $('#settingsPlanBadge').className=`plan-badge ${isPro?'plan-pro':user?'plan-free':''}`;
@@ -158,10 +158,10 @@
     $('#settingsAiUsage').textContent=user&&app.usage?`${app.usage.ai} / ${app.usage.limits.ai}`:'—';
     $('#settingsCloudCount').textContent=user?String(app.materials.length):'—';
     $('#settingsLoginBtn').hidden=Boolean(user); $('#settingsEnterBtn').hidden=Boolean(user); $('#syncCloudBtn').hidden=!user; $('#logoutBtn').hidden=!user;
-    $('#freePlanSignupBtn').hidden=Boolean(user); $('#upgradeBtn').hidden=!user||isPro; $('#manageBillingBtn').hidden=!user||!isPro||!user.billing?.customer;
+    $('#freePlanSignupBtn').hidden=Boolean(user); $('#upgradeBtn').hidden=!user||isPro; if($('#cardCheckoutBtn')) $('#cardCheckoutBtn').hidden=!user||isPro; $('#manageBillingBtn').hidden=!user||!isPro;
     const proExpiry=user?.billing?.expiresAt?new Date(user.billing.expiresAt):null;
     const expiryText=proExpiry&&!Number.isNaN(proExpiry.getTime())?proExpiry.toLocaleDateString('pt-BR'):'';
-    $('#billingNote').textContent=isPro?`Plano Pro ativo${expiryText?' até '+expiryText:''}: 200 gerações/mês, até 1.000 materiais e avaliações/atividades com até 20 questões.`:user?'Aulora Grátis: pague R$ 14,90 via Pix para liberar o Pro por 30 dias, com 200 gerações/mês, até 1.000 materiais e até 20 questões.':'Crie uma conta grátis para usar 5 gerações/mês. O Pro pode ser ativado por Pix.';
+    $('#billingNote').textContent=isPro?`Plano Pro ativo${expiryText?' até '+expiryText:''}: 200 gerações/mês, até 1.000 materiais, imagens, relatórios e avaliações/atividades com até 20 questões.`:user?'Aulora Básico: 3 gerações/mês, 5 materiais e até 5 questões. Ative o Pro por Pix ou cartão para liberar todos os recursos por 30 dias.':'Crie uma conta no Básico para testar. O Pro pode ser ativado por Pix ou cartão.';
     $('#libraryStorageMode').textContent=user?'Materiais sincronizados com sua conta. Uma cópia local fica neste dispositivo para acesso rápido.':'Materiais salvos somente neste dispositivo. Entre para sincronizar na nuvem.';
     $('#settingsStorageCopy').textContent=user?'Seus materiais ficam no banco do Aulora e também em cache neste navegador. Você pode baixar um backup a qualquer momento.':'Sem entrar, os materiais ficam somente neste navegador. Com uma conta gratuita, o Aulora também mantém uma cópia sincronizada na nuvem.';
     $$('.smart-action').forEach(btn=>btn.classList.toggle('locked',!user));
@@ -292,8 +292,23 @@
       error.textContent=err.code==='BILLING_NOT_CONFIGURED'?'O Pix ainda precisa ser conectado ao Mercado Pago no Cloudflare.':(err.message||'Não foi possível gerar o Pix.');
     }
   }
+  async function openCardCheckout(){
+    if(!app.user){openAuth('signup');return;}
+    const btn=$('#cardCheckoutBtn');
+    const original=btn?.innerHTML;
+    if(btn){btn.disabled=true;btn.textContent='Abrindo Mercado Pago…';}
+    try{
+      const r=await apiFetch('/api/billing/card/checkout',{method:'POST'});
+      if(!r.checkoutUrl)throw new Error('Página de pagamento não disponível.');
+      location.href=r.checkoutUrl;
+    }catch(err){
+      toast(err.code==='BILLING_NOT_CONFIGURED'?'Os pagamentos ainda precisam ser conectados ao Mercado Pago no Cloudflare.':(err.message||'Não foi possível abrir o pagamento por cartão.'));
+      if(btn){btn.disabled=false;btn.innerHTML=original||'Pagar com cartão';}
+    }
+  }
   $('#upgradeBtn').addEventListener('click',openPixCheckout);
-  $('#manageBillingBtn').addEventListener('click',()=>toast('O pagamento via Pix libera 30 dias de Pro. A renovação pode ser feita novamente por Pix.'));
+  $('#cardCheckoutBtn')?.addEventListener('click',openCardCheckout);
+  $('#manageBillingBtn').addEventListener('click',()=>toast('Seu Pro é válido por 30 dias após cada pagamento. Quando vencer, você pode renovar por Pix ou cartão.'));
   $('#pixCloseBtn')?.addEventListener('click',closePixDialog);
   $('#pixDialog')?.addEventListener('click',e=>{if(e.target===$('#pixDialog'))closePixDialog();});
   $('#pixDialog')?.addEventListener('close',()=>{if(pixPollTimer){clearInterval(pixPollTimer);pixPollTimer=null;}});
@@ -421,7 +436,7 @@
       dot.classList.toggle('online',app.smartOnline);dot.classList.toggle('offline',!app.smartOnline);
       status.textContent=app.smartOnline?'IA ativa • Banco ativo':'Modo local disponível';
       detail.textContent=app.smartOnline?'Imagens • Relatórios • Sincronização disponíveis':'A geração inteligente está indisponível agora. Os modelos locais continuam funcionando.';
-      badge.textContent=app.user?(app.user.plan==='pro'?'Pro':'Grátis'):'Conta opcional'; badge.className=`smart-badge ${app.smartOnline?'online':'offline'}`;
+      badge.textContent=app.user?(app.user.plan==='pro'?'Pro':'Básico'):'Conta opcional'; badge.className=`smart-badge ${app.smartOnline?'online':'offline'}`;
     }catch{
       app.smartOnline=false; dot.classList.add('offline'); dot.classList.remove('online'); status.textContent='Modo local disponível'; detail.textContent='Não foi possível conectar aos serviços do Aulora agora.'; badge.textContent='Modo local'; badge.className='smart-badge offline';
     }
@@ -511,8 +526,18 @@
       toast('Crie sua conta grátis ou entre para gerar materiais com o Aulora.');
       return;
     }
-    if((kind==='activity'||kind==='exam') && app.user.plan!=='pro' && Number(d.count||0)>10){
-      toast('No Aulora Grátis, atividades e avaliações podem ter até 10 questões. O Pro libera até 20.');
+    if(app.user.plan!=='pro' && ['report','abnt'].includes(kind)){
+      toast(kind==='report'?'Relatórios pedagógicos com IA fazem parte do Aulora Pro.':'Acadêmico / ABNT com IA faz parte do Aulora Pro.');
+      go('settings');
+      return;
+    }
+    if((kind==='activity'||kind==='exam') && app.user.plan!=='pro' && d.imageMode && d.imageMode!=='Sem imagens'){
+      toast('Imagens geradas por IA fazem parte do Aulora Pro.');
+      go('settings');
+      return;
+    }
+    if((kind==='activity'||kind==='exam') && app.user.plan!=='pro' && Number(d.count||0)>5){
+      toast('No Aulora Básico, atividades e avaliações podem ter até 5 questões. O Pro libera até 20.');
       go('settings');
       return;
     }
@@ -524,7 +549,10 @@
       bindPreview(previewFor(kind),material); toast(payload.emailQueued?'Material gerado. Uma cópia está sendo enviada ao seu e-mail.':'Material gerado. Revise, edite e salve quando estiver pronto.');
     }catch(err){
       if(err.code==='AI_LIMIT'){
-        toast('Seu limite mensal de gerações foi atingido. Nenhum conteúdo genérico foi colocado no lugar da prova.');
+        toast('Seu limite mensal de gerações foi atingido. Conheça o Aulora Pro para continuar criando.');
+        go('settings');
+      } else if(err.code==='PRO_REQUIRED' || err.code==='QUESTION_LIMIT'){
+        toast(err.message||'Este recurso faz parte do Aulora Pro.');
         go('settings');
       } else if(err.status===401 || err.code==='AUTH_REQUIRED'){
         app.user=null; updateAccountUI(); openAuth('login'); toast('Sua sessão expirou. Entre novamente para gerar.');
@@ -753,9 +781,24 @@
 
   document.body.dataset.view='dashboard';
 
-  const billingState=new URLSearchParams(location.search).get('billing');
-  if(billingState){history.replaceState({},'',location.pathname+location.hash);setTimeout(()=>toast(billingState==='success'?'Pagamento concluído. Atualizando seu plano…':'Pagamento cancelado.'),300);}
+  const billingParams=new URLSearchParams(location.search);
+  const billingState=billingParams.get('billing');
+  const returnedPaymentId=billingParams.get('payment_id')||billingParams.get('collection_id')||'';
+  if(billingState){
+    const cleanUrl=location.pathname+location.hash;
+    history.replaceState({},'',cleanUrl);
+    setTimeout(()=>toast(billingState==='success'?'Pagamento concluído. Confirmando seu Aulora Pro…':billingState==='pending'?'Pagamento pendente. Assim que for aprovado, o Pro será ativado.':'Pagamento não concluído.'),300);
+  }
+  async function verifyReturnedCard(){
+    if(billingState!=='success'||!returnedPaymentId||!app.user)return;
+    try{
+      const r=await apiFetch(`/api/billing/card/status?id=${encodeURIComponent(returnedPaymentId)}`,{cache:'no-store'});
+      if(r.user)applyUser(r.user);
+      if(r.approved)toast('Pagamento aprovado! Seu Aulora Pro está ativo. ✨');
+      else toast('Pagamento recebido e ainda em processamento.');
+    }catch(err){console.warn('Card return verification',err);setTimeout(()=>loadAccount(),1800);}
+  }
   applyProfile();updateStats();renderMaterials();
   loadStatesAndMunicipalities();
-  Promise.allSettled([checkSmartStatus(),loadAccount()]).then(()=>{if(billingState==='success')setTimeout(()=>loadAccount(),1800);});
+  Promise.allSettled([checkSmartStatus(),loadAccount()]).then(()=>{verifyReturnedCard();if(billingState==='success')setTimeout(()=>loadAccount(),2200);});
 })();

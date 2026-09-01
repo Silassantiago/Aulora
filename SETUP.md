@@ -119,3 +119,8 @@ Para ativar o envio real de e-mails, configure no Worker da Cloudflare:
 - `EMAIL_FROM` como variável/secret com um remetente autorizado, por exemplo `Aulora <noreply@seudominio.com>`.
 
 Sem essas duas configurações, as preferências continuam salvas, mas o sistema informa que o envio ainda não está configurado e não bloqueia a geração de materiais.
+
+
+## Cartão de crédito / débito
+
+O cartão usa o Checkout Pro do Mercado Pago e o mesmo secret `MERCADO_PAGO_ACCESS_TOKEN`. Não é necessário colocar dados de cartão no frontend do Aulora. Consulte também `PAGAMENTOS.md`.
