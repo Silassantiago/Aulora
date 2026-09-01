@@ -566,3 +566,41 @@ body[data-view="dashboard"] .henry-help-toggle{display:none!important}body[data-
 @media(max-width:800px){.sidebar{transform:translateX(-100%);transition:transform .2s ease}.sidebar.open{transform:translateX(0);box-shadow:24px 0 60px rgba(0,0,0,.4)}.main-column{margin-left:0!important;width:100%!important}.content{padding:16px 14px 100px!important}.topbar{padding:0 12px!important}.aulora-grok-hero{padding:26px 18px!important;grid-template-columns:1fr!important}.aulora-grok-hero h1{font-size:42px!important}.henry-stage-clean{grid-template-columns:minmax(230px,1fr) 190px!important;min-height:315px!important;gap:8px!important}.henry-visual{min-height:315px}.henry-stage-clean .henry-robot{width:300px!important;max-height:315px!important}.henry-message-column{margin-top:24px}.henry-stage-clean .henry-bubble{padding:13px!important}.henry-stage-clean .henry-bubble strong{font-size:15px!important}.henry-stage-clean .henry-bubble p{font-size:10.5px!important}.henry-mini-card{display:none!important}.grok-tool-grid{grid-template-columns:repeat(2,1fr)!important}.dashboard-bottom-grid{grid-template-columns:1fr!important}.account-chip strong#accountName{max-width:110px!important}.account-chip #accountPlan{font-size:9px!important;padding:4px 7px!important}}
 @media(max-width:560px){.topbar-copy span{display:none!important}.aulora-grok-hero h1{font-size:34px!important;letter-spacing:-.035em!important}.henry-stage-clean{grid-template-columns:1fr!important;min-height:auto!important}.henry-visual{min-height:270px}.henry-stage-clean .henry-robot{width:270px!important;max-height:275px!important}.henry-message-column{margin:0!important;max-width:100%!important}.henry-stage-clean .henry-bubble:after{display:none!important}.henry-help-hero-button{min-height:42px}.grok-tool-grid{grid-template-columns:1fr!important}.grok-stats-row{grid-template-columns:1fr 1fr!important}.dashboard-panel{padding:14px}.home-feature-grid.grok-secondary-grid{grid-template-columns:1fr!important}.account-chip #accountPlan{display:none!important}.account-chip strong#accountName{max-width:100px!important}}
 @media(max-width:390px){.grok-stats-row{grid-template-columns:1fr!important}.aulora-grok-hero{padding:22px 15px!important}.aulora-grok-hero h1{font-size:31px!important}.hero-trust-row{display:none!important}}
+
+/* ===== Henry full-body asset fix =====
+   The previous PNG ended at the hips. This override uses the complete mascot
+   and sizes it by height so the full body remains visible without distortion. */
+.henry-stage-clean .henry-visual{
+  min-height:405px!important;
+  overflow:visible!important;
+  align-items:flex-end!important;
+}
+.henry-stage-clean .henry-robot{
+  width:auto!important;
+  height:405px!important;
+  max-width:100%!important;
+  max-height:none!important;
+  object-fit:contain!important;
+  object-position:center bottom!important;
+  margin:0 auto!important;
+  transform:none;
+}
+.henry-stage-clean .henry-mini-one{bottom:14%!important;left:-1%!important}
+.henry-stage-clean .henry-mini-two{bottom:4%!important;right:-1%!important}
+
+@media(max-width:1380px){
+  .henry-stage-clean .henry-visual{min-height:385px!important}
+  .henry-stage-clean .henry-robot{height:385px!important;width:auto!important}
+}
+@media(max-width:1120px){
+  .henry-stage-clean .henry-visual{min-height:370px!important}
+  .henry-stage-clean .henry-robot{height:370px!important;width:auto!important}
+}
+@media(max-width:800px){
+  .henry-stage-clean .henry-visual{min-height:315px!important}
+  .henry-stage-clean .henry-robot{height:315px!important;width:auto!important;max-height:none!important}
+}
+@media(max-width:560px){
+  .henry-stage-clean .henry-visual{min-height:275px!important}
+  .henry-stage-clean .henry-robot{height:275px!important;width:auto!important;max-height:none!important}
+}
