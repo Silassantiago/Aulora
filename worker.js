@@ -5,6 +5,7 @@ const FREE_AI_LIMIT = 5;
 const PRO_AI_LIMIT = 200;
 const FREE_MATERIAL_LIMIT = 25;
 const PRO_MATERIAL_LIMIT = 1000;
+const PASSWORD_KDF_ITERATIONS = 10000;
 const jsonHeaders = {
   'content-type': 'application/json; charset=utf-8',
   'cache-control': 'no-store',
@@ -84,24 +85,25 @@ function constantTimeEqual(a, b) {
   if (a.length !== b.length) return false;
   let diff = 0; for (let i = 0; i < a.length; i++) diff |= a[i] ^ b[i]; return diff === 0;
 }
-async function hashPassword(password, saltBytes = crypto.getRandomValues(new Uint8Array(16))) {
+async function hashPassword(password, saltBytes = crypto.getRandomValues(new Uint8Array(16)), iterations = PASSWORD_KDF_ITERATIONS) {
   const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveBits']);
-  const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt: saltBytes, iterations: 120000, hash: 'SHA-256' }, key, 256);
-  return { salt: bytesToBase64(saltBytes), hash: bytesToBase64(new Uint8Array(bits)) };
+  const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt: saltBytes, iterations, hash: 'SHA-256' }, key, 256);
+  return { salt: bytesToBase64(saltBytes), hash: bytesToBase64(new Uint8Array(bits)), iterations };
 }
-async function verifyPassword(password, salt, expected) {
-  const derived = await hashPassword(password, base64ToBytes(salt));
+async function verifyPassword(password, salt, expected, iterations = PASSWORD_KDF_ITERATIONS) {
+  const derived = await hashPassword(password, base64ToBytes(salt), Number(iterations) || PASSWORD_KDF_ITERATIONS);
   return constantTimeEqual(base64ToBytes(derived.hash), base64ToBytes(expected));
 }
 async function ensureSchema(db) {
   if (schemaReady) return;
   await db.batch([
-    db.prepare(`CREATE TABLE IF NOT EXISTS users (
+    db.prepare(`CREATE TABLE IF NOT EXISTS aulora_users (
       id TEXT PRIMARY KEY,
       email TEXT NOT NULL UNIQUE,
       name TEXT NOT NULL DEFAULT '',
       password_hash TEXT NOT NULL,
       password_salt TEXT NOT NULL,
+      password_iterations INTEGER NOT NULL DEFAULT 10000,
       plan TEXT NOT NULL DEFAULT 'free',
       plan_status TEXT NOT NULL DEFAULT 'active',
       profile_json TEXT NOT NULL DEFAULT '{}',
@@ -110,15 +112,15 @@ async function ensureSchema(db) {
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     )`),
-    db.prepare(`CREATE TABLE IF NOT EXISTS sessions (
+    db.prepare(`CREATE TABLE IF NOT EXISTS aulora_sessions (
       token_hash TEXT PRIMARY KEY,
       user_id TEXT NOT NULL,
       expires_at TEXT NOT NULL,
       created_at TEXT NOT NULL,
-      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+      FOREIGN KEY(user_id) REFERENCES aulora_users(id) ON DELETE CASCADE
     )`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id)`),
-    db.prepare(`CREATE TABLE IF NOT EXISTS materials (
+    db.prepare(`CREATE INDEX IF NOT EXISTS idx_aulora_sessions_user ON aulora_sessions(user_id)`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS aulora_materials (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL,
       type TEXT NOT NULL,
@@ -129,15 +131,15 @@ async function ensureSchema(db) {
       html TEXT NOT NULL DEFAULT '',
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
-      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+      FOREIGN KEY(user_id) REFERENCES aulora_users(id) ON DELETE CASCADE
     )`),
-    db.prepare(`CREATE INDEX IF NOT EXISTS idx_materials_user_updated ON materials(user_id, updated_at DESC)`),
-    db.prepare(`CREATE TABLE IF NOT EXISTS usage_monthly (
+    db.prepare(`CREATE INDEX IF NOT EXISTS idx_aulora_materials_user_updated ON aulora_materials(user_id, updated_at DESC)`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS aulora_usage_monthly (
       user_id TEXT NOT NULL,
       month TEXT NOT NULL,
       ai_count INTEGER NOT NULL DEFAULT 0,
       PRIMARY KEY(user_id, month),
-      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+      FOREIGN KEY(user_id) REFERENCES aulora_users(id) ON DELETE CASCADE
     )`)
   ]);
 
@@ -150,8 +152,9 @@ async function ensureSchema(db) {
       if (!names.has(name)) await db.prepare(`ALTER TABLE ${table} ADD COLUMN ${name} ${definition}`).run();
     }
   }
-  await addMissingColumns('users', [
+  await addMissingColumns('aulora_users', [
     ['name', "TEXT NOT NULL DEFAULT ''"],
+    ['password_iterations', 'INTEGER NOT NULL DEFAULT 120000'],
     ['plan', "TEXT NOT NULL DEFAULT 'free'"],
     ['plan_status', "TEXT NOT NULL DEFAULT 'active'"],
     ['profile_json', "TEXT NOT NULL DEFAULT '{}'"],
@@ -160,7 +163,7 @@ async function ensureSchema(db) {
     ['created_at', "TEXT NOT NULL DEFAULT ''"],
     ['updated_at', "TEXT NOT NULL DEFAULT ''"]
   ]);
-  await addMissingColumns('materials', [
+  await addMissingColumns('aulora_materials', [
     ['type_label', "TEXT NOT NULL DEFAULT ''"],
     ['subtitle', "TEXT NOT NULL DEFAULT ''"],
     ['data_json', "TEXT NOT NULL DEFAULT '{}'"],
@@ -179,7 +182,7 @@ async function prepareSession(request) {
 }
 async function createSession(db, userId, request) {
   const session = await prepareSession(request);
-  await db.prepare('INSERT INTO sessions(token_hash,user_id,expires_at,created_at) VALUES(?,?,?,?)')
+  await db.prepare('INSERT INTO aulora_sessions(token_hash,user_id,expires_at,created_at) VALUES(?,?,?,?)')
     .bind(session.hash, userId, session.expiresAt, session.createdAt).run();
   return session;
 }
@@ -187,7 +190,7 @@ async function currentUser(request, env) {
   if (!env.DB) return null;
   const token = parseCookies(request)[SESSION_COOKIE]; if (!token) return null;
   const hash = bytesToHex(await sha256(token));
-  const row = await env.DB.prepare(`SELECT u.* FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>?`).bind(hash, nowIso()).first();
+  const row = await env.DB.prepare(`SELECT u.* FROM aulora_sessions s JOIN aulora_users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>?`).bind(hash, nowIso()).first();
   return row || null;
 }
 function safeProfile(value) {
@@ -201,7 +204,7 @@ function safeProfile(value) {
 }
 async function usageFor(env, user) {
   const month = monthKey();
-  const row = await env.DB.prepare('SELECT ai_count FROM usage_monthly WHERE user_id=? AND month=?').bind(user.id, month).first();
+  const row = await env.DB.prepare('SELECT ai_count FROM aulora_usage_monthly WHERE user_id=? AND month=?').bind(user.id, month).first();
   return { month, ai: Number(row?.ai_count || 0), limits: planLimits(user.plan) };
 }
 async function userPayload(env, user) {
@@ -336,7 +339,7 @@ async function api(request, env, url) {
   const path = url.pathname;
 
   if (path === '/api/health' && request.method === 'GET') {
-    return json({ ok: true, ai: Boolean(env.AI), db: true, billing: Boolean(env.STRIPE_SECRET_KEY && env.STRIPE_PRICE_PRO), service: 'Aulora' });
+    return json({ ok: true, ai: Boolean(env.AI), db: true, billing: Boolean(env.STRIPE_SECRET_KEY && env.STRIPE_PRICE_PRO), auth: 'pbkdf2-sha256', authIterations: PASSWORD_KDF_ITERATIONS, service: 'Aulora' });
   }
   if (path === '/api/auth/signup' && request.method === 'POST') {
     if (!mutationOriginAllowed(request)) return json({ error: 'Origem não autorizada.', code: 'ORIGIN_BLOCKED' }, 403);
@@ -345,41 +348,56 @@ async function api(request, env, url) {
     if (!name) return json({ error: 'Informe seu nome.', code: 'NAME_REQUIRED' }, 400);
     if (!isEmail(email)) return json({ error: 'Informe um e-mail válido.', code: 'EMAIL_INVALID' }, 400);
     if (password.length < 8 || password.length > 128) return json({ error: 'A senha deve ter entre 8 e 128 caracteres.', code: 'PASSWORD_INVALID' }, 400);
-    const existing = await env.DB.prepare('SELECT id FROM users WHERE email=?').bind(email).first();
+    const existing = await env.DB.prepare('SELECT id FROM aulora_users WHERE email=?').bind(email).first();
     if (existing) return json({ error: 'Já existe uma conta com este e-mail. Use a opção Entrar.', code: 'EMAIL_EXISTS' }, 409);
+    let signupStage = 'HASH';
     try {
-      const id = crypto.randomUUID(), hp = await hashPassword(password), ts = nowIso();
+      const id = crypto.randomUUID(), ts = nowIso();
+      const hp = await hashPassword(password);
+      signupStage = 'INSERT';
       const profile = JSON.stringify({ teacher: name, school: '', city: '', stage: 'Anos finais do Ensino Fundamental' });
-      await env.DB.prepare('INSERT INTO users(id,email,name,password_hash,password_salt,plan,plan_status,profile_json,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)')
-        .bind(id, email, name, hp.hash, hp.salt, 'free', 'active', profile, ts, ts).run();
-      const user = await env.DB.prepare('SELECT * FROM users WHERE id=?').bind(id).first();
-      if (!user) return json({ error: 'A conta não pôde ser confirmada após o cadastro. Tente novamente.', code: 'SIGNUP_CONFIRM_FAILED' }, 500);
+      await env.DB.prepare('INSERT INTO aulora_users(id,email,name,password_hash,password_salt,password_iterations,plan,plan_status,profile_json,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)')
+        .bind(id, email, name, hp.hash, hp.salt, hp.iterations, 'free', 'active', profile, ts, ts).run();
+      signupStage = 'CONFIRM';
+      const user = await env.DB.prepare('SELECT * FROM aulora_users WHERE id=?').bind(id).first();
+      if (!user) return json({ error: 'A conta foi gravada, mas não pôde ser confirmada. Tente entrar com o mesmo e-mail e senha.', code: 'SIGNUP_CONFIRM_FAILED' }, 500);
+      signupStage = 'SESSION';
       try {
         const session = await createSession(env.DB, id, request);
-        return json({ user: await userPayload(env, user) }, 201, { 'set-cookie': session.cookie });
+        signupStage = 'PAYLOAD';
+        const payload = await userPayload(env, user);
+        return json({ user: payload }, 201, { 'set-cookie': session.cookie });
       } catch (sessionErr) {
         console.error('Aulora signup session error', sessionErr);
         return json({ accountCreated: true, loginRequired: true, email }, 201);
       }
     } catch (err) {
-      console.error('Aulora signup error', err);
+      console.error(`Aulora signup error at ${signupStage}`, err);
       const message = String(err?.message || '');
-      if (/unique|users\.email/i.test(message)) return json({ error: 'Já existe uma conta com este e-mail. Use a opção Entrar.', code: 'EMAIL_EXISTS' }, 409);
-      return json({ error: 'Não foi possível criar a conta agora. Tente novamente. Se continuar, use a opção Entrar caso esta seja uma segunda tentativa.', code: 'SIGNUP_FAILED' }, 500);
+      if (/unique|aulora_users\.email|users\.email/i.test(message)) return json({ error: 'Já existe uma conta com este e-mail. Use a opção Entrar.', code: 'EMAIL_EXISTS' }, 409);
+      const code = `SIGNUP_${signupStage}_FAILED`;
+      const friendly = signupStage === 'HASH'
+        ? 'Falha ao proteger a senha para criar a conta.'
+        : signupStage === 'INSERT'
+          ? 'Falha ao gravar a conta no banco de dados.'
+          : signupStage === 'CONFIRM'
+            ? 'A conta não pôde ser confirmada no banco.'
+            : 'A conta foi criada, mas houve uma falha ao iniciar a sessão.';
+      return json({ error: `${friendly} Tente novamente.`, code }, 500);
     }
   }
   if (path === '/api/auth/login' && request.method === 'POST') {
     if (!mutationOriginAllowed(request)) return json({ error: 'Origem não autorizada.' }, 403);
     const body = await request.json().catch(() => ({}));
     const email = cleanEmail(body.email), password = String(body.password || '');
-    const user = await env.DB.prepare('SELECT * FROM users WHERE email=?').bind(email).first();
-    if (!user || !(await verifyPassword(password, user.password_salt, user.password_hash))) return json({ error: 'E-mail ou senha incorretos.' }, 401);
+    const user = await env.DB.prepare('SELECT * FROM aulora_users WHERE email=?').bind(email).first();
+    if (!user || !(await verifyPassword(password, user.password_salt, user.password_hash, user.password_iterations || 120000))) return json({ error: 'E-mail ou senha incorretos.' }, 401);
     const session = await createSession(env.DB, user.id, request);
     return json({ user: await userPayload(env, user) }, 200, { 'set-cookie': session.cookie });
   }
   if (path === '/api/auth/logout' && request.method === 'POST') {
     const token = parseCookies(request)[SESSION_COOKIE];
-    if (token) await env.DB.prepare('DELETE FROM sessions WHERE token_hash=?').bind(bytesToHex(await sha256(token))).run();
+    if (token) await env.DB.prepare('DELETE FROM aulora_sessions WHERE token_hash=?').bind(bytesToHex(await sha256(token))).run();
     return json({ ok: true }, 200, { 'set-cookie': clearSessionCookie(request) });
   }
   if (path === '/api/me' && request.method === 'GET') {
@@ -391,14 +409,14 @@ async function api(request, env, url) {
     const auth = await requireUser(request, env); if (auth.response) return auth.response;
     const body = await request.json().catch(() => ({})); const profile = safeProfile(body.profile || {});
     const name = cleanText(body.name || profile.teacher || auth.user.name, 120);
-    await env.DB.prepare('UPDATE users SET name=?, profile_json=?, updated_at=? WHERE id=?').bind(name, JSON.stringify(profile), nowIso(), auth.user.id).run();
-    const user = await env.DB.prepare('SELECT * FROM users WHERE id=?').bind(auth.user.id).first();
+    await env.DB.prepare('UPDATE aulora_users SET name=?, profile_json=?, updated_at=? WHERE id=?').bind(name, JSON.stringify(profile), nowIso(), auth.user.id).run();
+    const user = await env.DB.prepare('SELECT * FROM aulora_users WHERE id=?').bind(auth.user.id).first();
     return json({ user: await userPayload(env, user) });
   }
 
   if (path === '/api/materials' && request.method === 'GET') {
     const auth = await requireUser(request, env); if (auth.response) return auth.response;
-    const rows = await env.DB.prepare('SELECT id,type,type_label,title,subtitle,data_json,html,created_at,updated_at FROM materials WHERE user_id=? ORDER BY updated_at DESC LIMIT 1000').bind(auth.user.id).all();
+    const rows = await env.DB.prepare('SELECT id,type,type_label,title,subtitle,data_json,html,created_at,updated_at FROM aulora_materials WHERE user_id=? ORDER BY updated_at DESC LIMIT 1000').bind(auth.user.id).all();
     return json({ materials: (rows.results || []).map(r => ({ id: r.id, type: r.type, typeLabel: r.type_label, title: r.title, subtitle: r.subtitle, data: (() => { try { return JSON.parse(r.data_json); } catch { return {}; } })(), html: r.html, createdAt: r.created_at, updatedAt: r.updated_at })) });
   }
   if (path === '/api/materials' && request.method === 'POST') {
@@ -407,28 +425,28 @@ async function api(request, env, url) {
     const body = await request.json().catch(() => ({})), m = body.material || {};
     const id = cleanText(m.id, 100) || crypto.randomUUID(), type = cleanText(m.type, 30), title = cleanText(m.title, 220);
     if (!type || !title) return json({ error: 'Material inválido.' }, 400);
-    const existing = await env.DB.prepare('SELECT user_id FROM materials WHERE id=?').bind(id).first();
+    const existing = await env.DB.prepare('SELECT user_id FROM aulora_materials WHERE id=?').bind(id).first();
     if (existing && existing.user_id !== auth.user.id) return json({ error: 'Material não pertence a esta conta.' }, 403);
     if (!existing) {
-      const count = await env.DB.prepare('SELECT COUNT(*) AS n FROM materials WHERE user_id=?').bind(auth.user.id).first();
+      const count = await env.DB.prepare('SELECT COUNT(*) AS n FROM aulora_materials WHERE user_id=?').bind(auth.user.id).first();
       if (Number(count?.n || 0) >= planLimits(auth.user.plan).materials) return json({ error: 'Limite de materiais na nuvem atingido.', code: 'MATERIAL_LIMIT' }, 429);
     }
     const ts = nowIso(), created = cleanText(m.createdAt, 40) || ts;
     const values = [id, auth.user.id, type, cleanText(m.typeLabel, 80), title, cleanText(m.subtitle, 300), JSON.stringify(sanitizeData(m.data || {})).slice(0, 50000), sanitizeHtml(m.html || ''), created, ts];
-    if (existing) await env.DB.prepare('UPDATE materials SET type=?,type_label=?,title=?,subtitle=?,data_json=?,html=?,updated_at=? WHERE id=? AND user_id=?').bind(type, values[3], title, values[5], values[6], values[7], ts, id, auth.user.id).run();
-    else await env.DB.prepare('INSERT INTO materials(id,user_id,type,type_label,title,subtitle,data_json,html,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)').bind(...values).run();
+    if (existing) await env.DB.prepare('UPDATE aulora_materials SET type=?,type_label=?,title=?,subtitle=?,data_json=?,html=?,updated_at=? WHERE id=? AND user_id=?').bind(type, values[3], title, values[5], values[6], values[7], ts, id, auth.user.id).run();
+    else await env.DB.prepare('INSERT INTO aulora_materials(id,user_id,type,type_label,title,subtitle,data_json,html,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)').bind(...values).run();
     return json({ ok: true, id, updatedAt: ts });
   }
   if (path === '/api/materials' && request.method === 'DELETE' && url.searchParams.get('all') === '1') {
     if (!mutationOriginAllowed(request)) return json({ error: 'Origem não autorizada.' }, 403);
     const auth = await requireUser(request, env); if (auth.response) return auth.response;
-    await env.DB.prepare('DELETE FROM materials WHERE user_id=?').bind(auth.user.id).run(); return json({ ok: true });
+    await env.DB.prepare('DELETE FROM aulora_materials WHERE user_id=?').bind(auth.user.id).run(); return json({ ok: true });
   }
   if (path.startsWith('/api/materials/') && request.method === 'DELETE') {
     if (!mutationOriginAllowed(request)) return json({ error: 'Origem não autorizada.' }, 403);
     const auth = await requireUser(request, env); if (auth.response) return auth.response;
     const id = decodeURIComponent(path.slice('/api/materials/'.length));
-    await env.DB.prepare('DELETE FROM materials WHERE id=? AND user_id=?').bind(id, auth.user.id).run(); return json({ ok: true });
+    await env.DB.prepare('DELETE FROM aulora_materials WHERE id=? AND user_id=?').bind(id, auth.user.id).run(); return json({ ok: true });
   }
 
   if (path === '/api/generate' && request.method === 'POST') {
@@ -448,7 +466,7 @@ async function api(request, env, url) {
     const usage = await usageFor(env, auth.user); if (usage.ai >= usage.limits.ai) return json({ error: 'Seu limite mensal de gerações inteligentes foi atingido.', code: 'AI_LIMIT', usage }, 429);
     try {
       const output = await generateAI(env, kind, d);
-      await env.DB.prepare(`INSERT INTO usage_monthly(user_id,month,ai_count) VALUES(?,?,1) ON CONFLICT(user_id,month) DO UPDATE SET ai_count=ai_count+1`).bind(auth.user.id, usage.month).run();
+      await env.DB.prepare(`INSERT INTO aulora_usage_monthly(user_id,month,ai_count) VALUES(?,?,1) ON CONFLICT(user_id,month) DO UPDATE SET ai_count=ai_count+1`).bind(auth.user.id, usage.month).run();
       const after = await usageFor(env, auth.user); return json({ ...output, usage: after });
     } catch (err) {
       console.error('Aulora generation error', err); return json({ error: 'Não foi possível gerar o material agora. Tente novamente em instantes.' }, 503);
@@ -484,13 +502,13 @@ async function api(request, env, url) {
     const event = JSON.parse(raw), obj = event?.data?.object || {};
     if (event.type === 'checkout.session.completed') {
       const userId = obj.client_reference_id || obj.metadata?.aulora_user_id;
-      if (userId) await env.DB.prepare(`UPDATE users SET plan='pro',plan_status='active',stripe_customer_id=?,stripe_subscription_id=?,updated_at=? WHERE id=?`).bind(obj.customer || null, obj.subscription || null, nowIso(), userId).run();
+      if (userId) await env.DB.prepare(`UPDATE aulora_users SET plan='pro',plan_status='active',stripe_customer_id=?,stripe_subscription_id=?,updated_at=? WHERE id=?`).bind(obj.customer || null, obj.subscription || null, nowIso(), userId).run();
     }
     if (event.type === 'customer.subscription.updated' || event.type === 'customer.subscription.deleted') {
       const userId = obj.metadata?.aulora_user_id, status = cleanText(obj.status, 30);
       if (userId) {
         const pro = ['active', 'trialing'].includes(status) && event.type !== 'customer.subscription.deleted';
-        await env.DB.prepare(`UPDATE users SET plan=?,plan_status=?,stripe_customer_id=COALESCE(?,stripe_customer_id),stripe_subscription_id=?,updated_at=? WHERE id=?`).bind(pro ? 'pro' : 'free', status || 'inactive', obj.customer || null, obj.id || null, nowIso(), userId).run();
+        await env.DB.prepare(`UPDATE aulora_users SET plan=?,plan_status=?,stripe_customer_id=COALESCE(?,stripe_customer_id),stripe_subscription_id=?,updated_at=? WHERE id=?`).bind(pro ? 'pro' : 'free', status || 'inactive', obj.customer || null, obj.id || null, nowIso(), userId).run();
       }
     }
     return json({ received: true });
@@ -501,7 +519,7 @@ async function api(request, env, url) {
     const supplied = request.headers.get('x-aulora-admin-key') || '';
     if (!constantTimeEqual(new TextEncoder().encode(supplied), new TextEncoder().encode(String(env.AULORA_ADMIN_KEY)))) return json({ error: 'Não autorizado.' }, 401);
     const body = await request.json().catch(() => ({})), email = cleanEmail(body.email), plan = body.plan === 'pro' ? 'pro' : 'free';
-    await env.DB.prepare('UPDATE users SET plan=?,plan_status=?,updated_at=? WHERE email=?').bind(plan, 'active', nowIso(), email).run(); return json({ ok: true, email, plan });
+    await env.DB.prepare('UPDATE aulora_users SET plan=?,plan_status=?,updated_at=? WHERE email=?').bind(plan, 'active', nowIso(), email).run(); return json({ ok: true, email, plan });
   }
 
   return json({ error: 'Rota não encontrada.' }, 404);

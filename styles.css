@@ -1,3 +1,4 @@
+[hidden]{display:none!important}
 :root{
   --bg:#f4f7f5;--surface:#fff;--surface-2:#edf4f0;--text:#173229;--muted:#6c7f78;--brand:#1f6f5f;--brand-dark:#17483d;--brand-soft:#dcece6;--accent:#d5a650;--border:#dce6e1;--danger:#a44646;--warning:#9a6b20;--success:#2d7a59;--shadow:0 18px 50px rgba(26,61,51,.08);--radius:22px
 }
@@ -48,3 +49,17 @@
 @media(max-width:1250px){.inclusive-presets{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:760px){.inclusive-presets{grid-template-columns:repeat(2,1fr)}.preset-card{min-height:108px}.document .choice-large,.document .sequence-box{grid-template-columns:1fr}}
 @media(max-width:420px){.inclusive-presets{grid-template-columns:1fr}}
+
+
+/* Educação inclusiva em destaque */
+.nav-inclusion-group{display:grid;gap:4px;margin:-2px 0 3px 34px;padding-left:9px;border-left:1px solid rgba(255,255,255,.12)}
+.nav-special{border:0;background:transparent;color:#bcd3cb;text-align:left;border-radius:9px;padding:7px 8px;font-size:11px;font-weight:700;display:flex;align-items:center;gap:7px;line-height:1.2}
+.nav-special span{font-size:13px}.nav-special:hover{background:rgba(255,255,255,.09);color:#fff}
+.hero-inclusive-button{border-color:#b8d6ca!important;background:#f7fbf9!important;color:var(--brand-dark)!important}
+.inclusive-home{margin-top:18px;border:1px solid #d6e5de;background:linear-gradient(135deg,#f8fcfa,#edf6f2);border-radius:22px;padding:20px}
+.inclusive-home-head{display:flex;justify-content:space-between;gap:18px;align-items:end;margin-bottom:14px}.inclusive-home-head h2{margin:5px 0 4px;font-size:22px;letter-spacing:-.5px}.inclusive-home-head p{margin:0;color:var(--muted);font-size:11px;line-height:1.5}
+.inclusive-home-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.inclusive-home-card{border:1px solid #d8e5df;background:#fff;border-radius:15px;padding:13px;text-align:left;display:grid;grid-template-columns:34px 1fr auto;gap:10px;align-items:center;min-height:82px;color:var(--text);transition:.18s ease}.inclusive-home-card:hover{transform:translateY(-2px);border-color:#91b9aa;box-shadow:0 10px 24px rgba(31,111,95,.08)}.inclusive-home-card.featured{border-color:#9fc8b8;background:#f9fffc}.inclusive-home-card>span{width:34px;height:34px;border-radius:10px;background:var(--brand-soft);display:grid;place-items:center;font-size:18px}.inclusive-home-card strong,.inclusive-home-card small{display:block}.inclusive-home-card strong{font-size:12px}.inclusive-home-card small{font-size:9.5px;color:var(--muted);line-height:1.35;margin-top:3px}.inclusive-home-card b{font-size:9px;color:var(--brand);white-space:nowrap}
+@media(max-width:1150px){.inclusive-home-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.nav-inclusion-group{margin-left:24px}}
+@media(max-width:800px){.nav-inclusion-group{margin-left:30px}.inclusive-home-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:560px){.inclusive-home-grid{grid-template-columns:1fr}.inclusive-home{padding:15px}.inclusive-home-head h2{font-size:19px}}

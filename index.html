@@ -26,6 +26,11 @@
         <button class="nav-item active" data-view="dashboard"><span>⌂</span> Início</button>
         <button class="nav-item" data-view="plan"><span>▤</span> Plano de aula</button>
         <button class="nav-item" data-view="activity"><span>✎</span> Atividade</button>
+        <div class="nav-inclusion-group" aria-label="Atalhos de educação inclusiva">
+          <button class="nav-special" type="button" data-inclusive-preset="special"><span>🌱</span> Educação especial</button>
+          <button class="nav-special" type="button" data-inclusive-preset="tea"><span>🧩</span> TEA / autismo</button>
+          <button class="nav-special" type="button" data-inclusive-preset="drawing"><span>🎨</span> Desenho e visual</button>
+        </div>
         <button class="nav-item" data-view="exam"><span>✓</span> Avaliação</button>
         <button class="nav-item" data-view="abnt"><span>¶</span> Acadêmico / ABNT</button>
         <button class="nav-item" data-view="materials"><span>▣</span> Meus materiais</button>
@@ -55,8 +60,8 @@
             <button class="ghost-button compact-button" id="topLoginBtn" type="button">Entrar</button>
             <button class="primary-button compact-button" id="topSignupBtn" type="button">Criar conta grátis</button>
           </div>
-          <button class="account-chip" id="accountBtn" type="button" hidden><span id="accountPlan">Grátis</span><strong id="accountName">Conta</strong></button>
-          <button class="avatar" id="profileShortcut" title="Abrir perfil" hidden>P</button>
+          <button class="account-chip" id="accountBtn" type="button" hidden><span id="accountPlan"></span><strong id="accountName"></strong></button>
+          <button class="avatar" id="profileShortcut" title="Abrir perfil" hidden>A</button>
         </div>
       </header>
 
@@ -69,6 +74,7 @@
               <p>Planeje aulas, gere atividades e avaliações, organize materiais e prepare estruturas acadêmicas em um único ambiente.</p>
               <div class="hero-actions">
                 <button class="primary-button" data-go="plan">Criar material</button>
+                <button class="ghost-button hero-inclusive-button" type="button" data-inclusive-preset="special">🌱 Educação especial</button>
                 <button class="ghost-button" data-go="materials">Abrir biblioteca</button>
               </div>
             </div>
@@ -81,6 +87,20 @@
               </div>
             </div>
           </div>
+
+          <section class="inclusive-home" aria-labelledby="inclusive-home-title">
+            <div class="inclusive-home-head">
+              <div><span class="eyebrow">EDUCAÇÃO INCLUSIVA</span><h2 id="inclusive-home-title">Atividades adaptadas em um clique</h2><p>Escolha o perfil pedagógico e o Aulora já abre a atividade com as adaptações configuradas.</p></div>
+            </div>
+            <div class="inclusive-home-grid">
+              <button type="button" class="inclusive-home-card featured" data-inclusive-preset="special"><span>🌱</span><div><strong>Educação especial</strong><small>Menos escrita, múltiplas formas de resposta e mediação.</small></div><b>Abrir →</b></button>
+              <button type="button" class="inclusive-home-card" data-inclusive-preset="tea"><span>🧩</span><div><strong>TEA / autismo</strong><small>Linguagem literal, previsibilidade e baixa carga visual.</small></div><b>Abrir →</b></button>
+              <button type="button" class="inclusive-home-card" data-inclusive-preset="drawing"><span>🎨</span><div><strong>Desenho guiado</strong><small>Desenhar, pintar, completar e representar ideias.</small></div><b>Abrir →</b></button>
+              <button type="button" class="inclusive-home-card" data-inclusive-preset="association"><span>🔗</span><div><strong>Ligar / associar</strong><small>Pares, correspondências, símbolos e relações simples.</small></div><b>Abrir →</b></button>
+              <button type="button" class="inclusive-home-card" data-inclusive-preset="literacy"><span>🔤</span><div><strong>Alfabetização</strong><small>Comandos curtos, letras, palavras e apoio visual.</small></div><b>Abrir →</b></button>
+              <button type="button" class="inclusive-home-card" data-inclusive-preset="visual"><span>👁</span><div><strong>Visual e objetiva</strong><small>Pouco texto, uma instrução por bloco e escolhas claras.</small></div><b>Abrir →</b></button>
+            </div>
+          </section>
 
           <div class="smart-banner" id="smartBanner">
             <div class="smart-icon">✦</div>
@@ -302,7 +322,7 @@
           <div class="page-intro"><span class="eyebrow">CONTA E PREFERÊNCIAS</span><h1>Perfil, plano e dados</h1><p>Gerencie sua conta, sincronização, plano e informações usadas nos materiais.</p></div>
           <div class="settings-grid">
             <div class="form-card account-card" id="accountSettingsCard">
-              <div class="card-heading"><div><span class="eyebrow">CONTA</span><h2 id="settingsAccountTitle">Você está usando como convidado</h2></div><span class="plan-badge" id="settingsPlanBadge">CONVIDADO</span></div>
+              <div class="card-heading"><div><span class="eyebrow">CONTA</span><h2 id="settingsAccountTitle">Você ainda não entrou</h2></div><span class="plan-badge" id="settingsPlanBadge">SEM CONTA</span></div>
               <p class="muted-copy" id="settingsAccountText">Crie uma conta gratuita para salvar materiais na nuvem e usar a geração inteligente.</p>
               <div class="data-summary account-summary"><div><span>Gerações neste mês</span><strong id="settingsAiUsage">—</strong></div><div><span>Materiais na conta</span><strong id="settingsCloudCount">—</strong></div></div>
               <div class="stack-actions account-actions"><button class="primary-button" id="settingsLoginBtn" type="button">Criar conta grátis</button><button class="ghost-button" id="settingsEnterBtn" type="button">Já tenho conta</button><button class="ghost-button" id="syncCloudBtn" type="button" hidden>Atualizar da nuvem</button><button class="ghost-button" id="logoutBtn" type="button" hidden>Sair da conta</button></div>
@@ -335,13 +355,13 @@
             </form>
             <div class="form-card">
               <div class="card-heading"><div><span class="eyebrow">DADOS</span><h2>Backup e armazenamento</h2></div></div>
-              <p class="muted-copy" id="settingsStorageCopy">Como convidado, os materiais ficam somente neste navegador. Com conta, o Aulora também mantém uma cópia sincronizada na nuvem.</p>
+              <p class="muted-copy" id="settingsStorageCopy">Sem entrar, os materiais ficam somente neste navegador. Com uma conta gratuita, o Aulora também mantém uma cópia sincronizada na nuvem.</p>
               <div class="data-summary"><div><span>Materiais atuais</span><strong id="settingsMaterialCount">0</strong></div><div><span>Cache local estimado</span><strong id="settingsStorageSize">0 KB</strong></div></div>
               <div class="stack-actions"><button class="ghost-button" id="settingsExportBtn" type="button">Baixar backup completo</button><button class="ghost-button danger-text" id="resetAppBtn" type="button">Apagar dados locais</button></div>
             </div>
             <div class="form-card wide-card">
               <div class="card-heading"><div><span class="eyebrow">PRIVACIDADE</span><h2>Como o Aulora usa seus dados</h2></div></div>
-              <div class="privacy-grid"><article><strong>Materiais</strong><p>Quando você entra, seus materiais são vinculados à sua conta no banco do Aulora; como convidado, permanecem somente no navegador.</p></article><article><strong>Geração inteligente</strong><p>Os dados do formulário solicitado são enviados ao serviço de geração para produzir o material. Evite inserir dados pessoais desnecessários de alunos.</p></article><article><strong>Senha</strong><p>A senha não é armazenada em texto aberto. O servidor guarda somente derivação criptográfica e sessões protegidas por cookie HttpOnly.</p></article></div>
+              <div class="privacy-grid"><article><strong>Materiais</strong><p>Quando você entra, seus materiais são vinculados à sua conta no banco do Aulora; sem login, permanecem somente neste navegador.</p></article><article><strong>Geração inteligente</strong><p>Os dados do formulário solicitado são enviados ao serviço de geração para produzir o material. Evite inserir dados pessoais desnecessários de alunos.</p></article><article><strong>Senha</strong><p>A senha não é armazenada em texto aberto. O servidor guarda somente derivação criptográfica e sessões protegidas por cookie HttpOnly.</p></article></div>
             </div>
           </div>
         </section>

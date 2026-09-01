@@ -91,7 +91,7 @@
   $('#authCloseBtn').addEventListener('click',closeAuth);
   $('#authDialog').addEventListener('click',e=>{if(e.target===$('#authDialog'))closeAuth();});
 
-  function planName(user){return user?.plan==='pro'?'Pro':user?'Grátis':'Convidado';}
+  function planName(user){return user?.plan==='pro'?'Pro':user?'Grátis':'Sem conta';}
   function applyUser(user){
     app.user=user||null; app.usage=user?.usage||null; app.billingEnabled=Boolean(user?.billing?.enabled);
     if(user){
@@ -101,7 +101,7 @@
   }
   function updateAccountUI(){
     const user=app.user, plan=planName(user), isPro=user?.plan==='pro';
-    $('#accountPlan').textContent=plan; $('#accountName').textContent=user?(user.name||user.email):'Conta';
+    $('#accountPlan').textContent=plan; $('#accountName').textContent=user?(user.name||user.email):''; $('#profileShortcut').textContent=user?String(user.name||user.email||'A').trim().charAt(0).toUpperCase():'A';
     $('#guestAuthActions').hidden=Boolean(user); $('#accountBtn').hidden=!user; $('#profileShortcut').hidden=!user;
     $$('[data-guest-only]').forEach(el=>el.hidden=Boolean(user));
     $$('[data-pro-only]').forEach(option=>{ option.disabled=Boolean(user)&&!isPro || !user; option.classList.toggle('option-pro-locked',!isPro); });
@@ -109,7 +109,7 @@
     $('#planMiniBadge').textContent=user?plan.toUpperCase():'COMECE GRÁTIS'; $('#planMiniBadge').className=isPro?'plan-pro':user?'plan-free':'';
     $('#planMiniTitle').textContent=user?(isPro?'Aulora Pro ativo':'Aulora Grátis ativo'):'Crie sua conta gratuita';
     $('#planMiniUsage').textContent=user&&app.usage?`${app.usage.ai}/${app.usage.limits.ai} gerações inteligentes usadas neste mês.`:'Geração inteligente exige uma conta gratuita.';
-    $('#settingsAccountTitle').textContent=user?(user.name||user.email):'Você está usando como convidado';
+    $('#settingsAccountTitle').textContent=user?(user.name||user.email):'Você ainda não entrou';
     $('#settingsPlanBadge').textContent=plan.toUpperCase(); $('#settingsPlanBadge').className=`plan-badge ${isPro?'plan-pro':user?'plan-free':''}`;
     $('#settingsAccountText').textContent=user?`Conta: ${user.email}. Seus novos materiais são salvos também na nuvem.`:'Ainda não é cadastrado? Crie sua conta grátis para gerar materiais, salvar na nuvem e sincronizar entre dispositivos.';
     $('#settingsAiUsage').textContent=user&&app.usage?`${app.usage.ai} / ${app.usage.limits.ai}`:'—';
@@ -118,7 +118,7 @@
     $('#freePlanSignupBtn').hidden=Boolean(user); $('#upgradeBtn').hidden=!user||isPro; $('#manageBillingBtn').hidden=!user||!isPro||!user.billing?.customer;
     $('#billingNote').textContent=isPro?'Plano Pro ativo: 200 gerações/mês, até 1.000 materiais e avaliações/atividades com até 20 questões.':user?'Aulora Grátis: 5 gerações/mês, até 25 materiais e avaliações/atividades com até 10 questões.':'Crie uma conta grátis para usar 5 gerações/mês e até 25 materiais. O Pro amplia os limites.';
     $('#libraryStorageMode').textContent=user?'Materiais sincronizados com sua conta. Uma cópia local fica neste dispositivo para acesso rápido.':'Materiais salvos somente neste dispositivo. Entre para sincronizar na nuvem.';
-    $('#settingsStorageCopy').textContent=user?'Seus materiais ficam no banco do Aulora e também em cache neste navegador. Você pode baixar um backup a qualquer momento.':'Como convidado, os materiais ficam somente neste navegador. Com conta, o Aulora também mantém uma cópia sincronizada na nuvem.';
+    $('#settingsStorageCopy').textContent=user?'Seus materiais ficam no banco do Aulora e também em cache neste navegador. Você pode baixar um backup a qualquer momento.':'Sem entrar, os materiais ficam somente neste navegador. Com uma conta gratuita, o Aulora também mantém uma cópia sincronizada na nuvem.';
     $$('.smart-action').forEach(btn=>btn.classList.toggle('locked',!user));
     const text=$('#smartBannerText'); if(text)text.textContent=user?`${app.usage?.ai||0} de ${app.usage?.limits?.ai||0} gerações inteligentes usadas neste mês. Seus materiais podem ser salvos na nuvem.`:'Entre com uma conta gratuita para gerar materiais e acessá-los em outros dispositivos. O modo local continua disponível sem cadastro.';
     updateSettingsStats();
@@ -140,7 +140,7 @@
   }
   async function offerGuestImport(){
     if(!app.user)return;const guest=loadJson(GUEST_STORAGE_KEY,[]);if(!guest.length)return;
-    if(!confirm(`Há ${guest.length} material(is) salvo(s) como convidado neste dispositivo. Deseja copiá-los para sua conta?`))return;
+    if(!confirm(`Há ${guest.length} material(is) salvo(s) neste dispositivo antes do login. Deseja copiá-los para sua conta?`))return;
     let sent=0;for(const original of guest){const m=typeof structuredClone==='function'?structuredClone(original):JSON.parse(JSON.stringify(original));try{await apiFetch('/api/materials',{method:'POST',body:{material:m}});sent++;}catch(err){if(err.code==='MATERIAL_LIMIT')break;}}
     await syncCloudMaterials(false);toast(`${sent} material(is) copiado(s) para sua conta.`);
   }
@@ -167,7 +167,7 @@
       }
       applyUser(r.user);closeAuth();app.materials=[];persistMaterialCache();updateStats();renderMaterials();await offerGuestImport();toast('Conta gratuita criada. Bem-vindo ao Aulora.');
     }
-    catch(err){setAuthError('signup',err.message);}finally{hideLoading();}
+    catch(err){setAuthError('signup',`${err.message}${err.code?` [${err.code}]`:''}`);}finally{hideLoading();}
   });
   $('#logoutBtn').addEventListener('click',async()=>{
     try{await apiFetch('/api/auth/logout',{method:'POST'});}catch{}
