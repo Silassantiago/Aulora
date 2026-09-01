@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#1f6f5f" />
+  <meta name="description" content="Aulora — planejamento de aulas, atividades, avaliações e apoio acadêmico em um só lugar." />
+  <title>Aulora — Planeje. Crie. Ensine.</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="assets/icon-192.png" />
+  <link rel="apple-touch-icon" href="assets/icon-192.png" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">A</div>
+        <div>
+          <strong>Aulora</strong>
+          <span>Planeje. Crie. Ensine.</span>
+        </div>
+      </div>
+
+      <nav class="nav" aria-label="Navegação principal">
+        <button class="nav-item active" data-view="dashboard"><span>⌂</span> Início</button>
+        <button class="nav-item" data-view="plan"><span>▤</span> Plano de aula</button>
+        <button class="nav-item" data-view="activity"><span>✎</span> Atividade</button>
+        <button class="nav-item" data-view="exam"><span>✓</span> Avaliação</button>
+        <button class="nav-item" data-view="abnt"><span>¶</span> Acadêmico / ABNT</button>
+        <button class="nav-item" data-view="materials"><span>▣</span> Meus materiais</button>
+      </nav>
+
+      <div class="sidebar-bottom">
+        <div class="beta-card">
+          <span class="pill">BETA</span>
+          <strong>Versão inicial gratuita</strong>
+          <small>Seus materiais ficam salvos neste dispositivo.</small>
+        </div>
+      </div>
+    </aside>
+
+    <div class="main-column">
+      <header class="topbar">
+        <button class="icon-button mobile-only" id="menuBtn" aria-label="Abrir menu">☰</button>
+        <div class="topbar-copy">
+          <strong id="pageTitle">Início</strong>
+          <span id="pageSubtitle">Sua central de preparação pedagógica</span>
+        </div>
+        <div class="topbar-actions">
+          <button class="ghost-button" id="installBtn" hidden>Instalar app</button>
+          <div class="avatar" title="Perfil do professor">P</div>
+        </div>
+      </header>
+
+      <main class="content">
+        <section class="view active" id="view-dashboard" aria-labelledby="dashboard-heading">
+          <div class="hero-card">
+            <div>
+              <span class="eyebrow">BEM-VINDO AO AULORA</span>
+              <h1 id="dashboard-heading">Menos tempo formatando.<br />Mais tempo ensinando.</h1>
+              <p>Crie materiais pedagógicos estruturados, organize suas produções e prepare documentos acadêmicos com um fluxo simples.</p>
+              <button class="primary-button" data-go="plan">Criar meu primeiro material</button>
+            </div>
+            <div class="hero-visual" aria-hidden="true">
+              <div class="paper paper-back"></div>
+              <div class="paper paper-front">
+                <span>PLANO DE AULA</span>
+                <i></i><i></i><i></i><i class="short"></i>
+                <b>✓</b>
+              </div>
+            </div>
+          </div>
+
+          <div class="section-heading">
+            <div>
+              <span class="eyebrow">ATALHOS</span>
+              <h2>O que você quer preparar hoje?</h2>
+            </div>
+          </div>
+
+          <div class="quick-grid">
+            <button class="quick-card" data-go="plan">
+              <span class="quick-icon">▤</span>
+              <strong>Plano de aula</strong>
+              <small>Objetivos, metodologia, recursos e avaliação.</small>
+              <em>Começar →</em>
+            </button>
+            <button class="quick-card" data-go="activity">
+              <span class="quick-icon">✎</span>
+              <strong>Atividade</strong>
+              <small>Exercícios organizados por série, tema e dificuldade.</small>
+              <em>Criar →</em>
+            </button>
+            <button class="quick-card" data-go="exam">
+              <span class="quick-icon">✓</span>
+              <strong>Avaliação</strong>
+              <small>Monte prova, critérios e gabarito em poucos passos.</small>
+              <em>Montar →</em>
+            </button>
+            <button class="quick-card" data-go="abnt">
+              <span class="quick-icon">¶</span>
+              <strong>Acadêmico / ABNT</strong>
+              <small>Estruture trabalhos e confira pontos de formatação.</small>
+              <em>Acessar →</em>
+            </button>
+          </div>
+
+          <div class="stats-grid">
+            <article class="stat-card"><span>Materiais salvos</span><strong id="statMaterials">0</strong></article>
+            <article class="stat-card"><span>Planos de aula</span><strong id="statPlans">0</strong></article>
+            <article class="stat-card"><span>Avaliações</span><strong id="statExams">0</strong></article>
+            <article class="stat-card"><span>Acadêmicos</span><strong id="statAbnt">0</strong></article>
+          </div>
+        </section>
+
+        <section class="view" id="view-plan">
+          <div class="page-intro">
+            <span class="eyebrow">PLANEJAMENTO</span>
+            <h1>Plano de aula</h1>
+            <p>Preencha o essencial. O Aulora monta uma estrutura clara para você revisar e adaptar à sua turma.</p>
+          </div>
+          <div class="workspace-grid">
+            <form class="form-card generator-form" id="planForm">
+              <div class="form-grid two-col">
+                <label>Disciplina<input name="discipline" required placeholder="Ex.: Ciências" /></label>
+                <label>Ano / turma<input name="grade" required placeholder="Ex.: 7º ano" /></label>
+                <label class="full">Tema da aula<input name="topic" required placeholder="Ex.: Sistema Solar" /></label>
+                <label>Duração<select name="duration"><option>50 minutos</option><option>1h30</option><option>2 aulas</option><option>3 aulas</option></select></label>
+                <label>Modalidade<select name="modality"><option>Presencial</option><option>Híbrida</option><option>Remota</option></select></label>
+                <label class="full">Objetivo principal<textarea name="objective" rows="3" placeholder="O que os alunos deverão compreender ou desenvolver?"></textarea></label>
+                <label class="full">Habilidade / código BNCC (opcional)<input name="bncc" placeholder="Ex.: EF07CI..." /></label>
+                <label class="full">Observações da turma (opcional)<textarea name="notes" rows="3" placeholder="Ex.: turma participativa; adaptar para alunos com dificuldade de leitura..."></textarea></label>
+              </div>
+              <div class="form-actions"><button type="reset" class="ghost-button">Limpar</button><button class="primary-button" type="submit">Gerar plano</button></div>
+            </form>
+            <div class="preview-card empty" id="planPreview"></div>
+          </div>
+        </section>
+
+        <section class="view" id="view-activity">
+          <div class="page-intro">
+            <span class="eyebrow">PRÁTICA</span>
+            <h1>Criar atividade</h1>
+            <p>Monte uma lista de exercícios pronta para ajustar, imprimir e aplicar.</p>
+          </div>
+          <div class="workspace-grid">
+            <form class="form-card generator-form" id="activityForm">
+              <div class="form-grid two-col">
+                <label>Disciplina<input name="discipline" required placeholder="Ex.: Língua Portuguesa" /></label>
+                <label>Ano / turma<input name="grade" required placeholder="Ex.: 5º ano" /></label>
+                <label class="full">Conteúdo / tema<input name="topic" required placeholder="Ex.: Interpretação de texto" /></label>
+                <label>Quantidade de questões<select name="count"><option>5</option><option selected>10</option><option>15</option><option>20</option></select></label>
+                <label>Dificuldade<select name="difficulty"><option>Fácil</option><option selected>Intermediária</option><option>Avançada</option></select></label>
+                <label class="full">Formato<select name="format"><option>Mista</option><option>Objetivas</option><option>Discursivas</option><option>Verdadeiro ou falso</option></select></label>
+                <label class="full">Orientações extras (opcional)<textarea name="notes" rows="3" placeholder="Ex.: priorizar situações do cotidiano..."></textarea></label>
+              </div>
+              <div class="form-actions"><button type="reset" class="ghost-button">Limpar</button><button class="primary-button" type="submit">Gerar atividade</button></div>
+            </form>
+            <div class="preview-card empty" id="activityPreview"></div>
+          </div>
+        </section>
+
+        <section class="view" id="view-exam">
+          <div class="page-intro">
+            <span class="eyebrow">AVALIAÇÃO</span>
+            <h1>Montar avaliação</h1>
+            <p>Crie uma prova estruturada e gere o gabarito no mesmo material.</p>
+          </div>
+          <div class="workspace-grid">
+            <form class="form-card generator-form" id="examForm">
+              <div class="form-grid two-col">
+                <label>Disciplina<input name="discipline" required placeholder="Ex.: História" /></label>
+                <label>Ano / turma<input name="grade" required placeholder="Ex.: 8º ano" /></label>
+                <label class="full">Conteúdo avaliado<input name="topic" required placeholder="Ex.: Revolução Industrial" /></label>
+                <label>Nº de questões<select name="count"><option>5</option><option selected>10</option><option>15</option></select></label>
+                <label>Dificuldade<select name="difficulty"><option>Fácil</option><option selected>Intermediária</option><option>Avançada</option></select></label>
+                <label class="full">Composição<select name="format"><option>70% objetivas + 30% discursivas</option><option>Somente objetivas</option><option>50% objetivas + 50% discursivas</option><option>Somente discursivas</option></select></label>
+                <label class="full">Critérios / observações (opcional)<textarea name="notes" rows="3" placeholder="Ex.: valor total 10,0; considerar clareza e justificativa..."></textarea></label>
+              </div>
+              <div class="form-actions"><button type="reset" class="ghost-button">Limpar</button><button class="primary-button" type="submit">Montar avaliação</button></div>
+            </form>
+            <div class="preview-card empty" id="examPreview"></div>
+          </div>
+        </section>
+
+        <section class="view" id="view-abnt">
+          <div class="page-intro">
+            <span class="eyebrow">ACADÊMICO</span>
+            <h1>Estrutura acadêmica / ABNT</h1>
+            <p>Monte a estrutura inicial e use o verificador como apoio. A instituição pode exigir regras complementares ao padrão ABNT.</p>
+          </div>
+
+          <div class="tabs" role="tablist">
+            <button class="tab active" data-tab="abnt-create">Criar estrutura</button>
+            <button class="tab" data-tab="abnt-check">Verificar texto</button>
+          </div>
+
+          <div class="tab-panel active" id="abnt-create">
+            <div class="workspace-grid">
+              <form class="form-card generator-form" id="abntForm">
+                <div class="form-grid two-col">
+                  <label>Tipo de trabalho<select name="workType"><option>Trabalho acadêmico</option><option>Artigo</option><option>Projeto</option><option>Relatório</option><option>TCC</option></select></label>
+                  <label>Instituição<input name="institution" placeholder="Nome da instituição" /></label>
+                  <label class="full">Título<input name="title" required placeholder="Título do trabalho" /></label>
+                  <label>Autor(a)<input name="author" required placeholder="Nome completo" /></label>
+                  <label>Curso / disciplina<input name="course" placeholder="Ex.: Pedagogia" /></label>
+                  <label>Cidade<input name="city" placeholder="Ex.: Urubici" /></label>
+                  <label>Ano<input name="year" inputmode="numeric" /></label>
+                  <label class="full">Tema / problema de pesquisa<textarea name="theme" rows="3" placeholder="Descreva o assunto central do trabalho"></textarea></label>
+                  <label class="full">Objetivo geral<textarea name="objective" rows="3" placeholder="O que o trabalho pretende analisar, demonstrar ou discutir?"></textarea></label>
+                  <label class="full">Palavras-chave<input name="keywords" placeholder="Ex.: educação; tecnologia; aprendizagem" /></label>
+                </div>
+                <div class="abnt-note">Perfil inicial: papel A4, margens acadêmicas usuais, hierarquia de seções, estrutura pré-textual/textual/pós-textual e orientação para citações/referências. Sempre confira o manual específico da sua instituição.</div>
+                <div class="form-actions"><button type="reset" class="ghost-button">Limpar</button><button class="primary-button" type="submit">Criar estrutura</button></div>
+              </form>
+              <div class="preview-card empty" id="abntPreview"></div>
+            </div>
+          </div>
+
+          <div class="tab-panel" id="abnt-check">
+            <div class="checker-grid">
+              <div class="form-card">
+                <label>Texto para verificação<textarea id="abntCheckText" rows="18" placeholder="Cole aqui o conteúdo do trabalho. Nesta versão, o Aulora verifica estrutura textual e sinais básicos de normalização; arquivos .docx serão suportados em uma etapa posterior."></textarea></label>
+                <div class="form-actions"><button class="primary-button" id="checkAbntBtn" type="button">Verificar</button></div>
+              </div>
+              <div class="check-results" id="abntCheckResults">
+                <div class="empty-state"><span>¶</span><strong>Nenhuma verificação realizada</strong><p>Cole o texto e clique em “Verificar”.</p></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="view" id="view-materials">
+          <div class="page-intro inline-intro">
+            <div>
+              <span class="eyebrow">BIBLIOTECA</span>
+              <h1>Meus materiais</h1>
+              <p>Conteúdos gerados e salvos neste dispositivo.</p>
+            </div>
+            <button class="ghost-button danger-text" id="clearMaterialsBtn">Limpar biblioteca</button>
+          </div>
+          <div class="materials-toolbar">
+            <input id="materialsSearch" placeholder="Buscar por título, disciplina ou turma..." />
+            <select id="materialsFilter"><option value="all">Todos os tipos</option><option value="plan">Planos de aula</option><option value="activity">Atividades</option><option value="exam">Avaliações</option><option value="abnt">Acadêmicos</option></select>
+          </div>
+          <div class="materials-list" id="materialsList"></div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <dialog id="materialDialog" class="material-dialog">
+    <form method="dialog" class="dialog-shell">
+      <div class="dialog-header">
+        <div><span class="eyebrow" id="dialogType">MATERIAL</span><h2 id="dialogTitle">Material</h2></div>
+        <button class="icon-button" aria-label="Fechar">×</button>
+      </div>
+      <div class="dialog-body" id="dialogBody"></div>
+      <div class="dialog-actions">
+        <button type="button" class="ghost-button" id="dialogDocBtn">Exportar Word</button>
+        <button type="button" class="ghost-button" id="dialogPrintBtn">Imprimir / PDF</button>
+        <button class="primary-button">Fechar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>
