@@ -121,6 +121,14 @@
   $('#authDialog').addEventListener('click',e=>{if(e.target===$('#authDialog'))closeAuth();});
 
   function planName(user){return user?.plan==='pro'?'Pro':user?'Grátis':'Sem conta';}
+  function planChipName(user){return user?.plan==='pro'?'Plano Pro':user?'Plano Grátis':'Sem conta';}
+  function formatDisplayName(value){
+    return String(value||'').trim().replace(/\s+/g,' ').toLowerCase().replace(/(^|[\s-])([\p{L}])/gu,(m,p1,p2)=>p1+p2.toUpperCase());
+  }
+  function userDisplayName(user){
+    const formatted=formatDisplayName(user?.name||'');
+    return formatted || (user?.email||'Professor(a)');
+  }
   function applyUser(user){
     app.user=user||null; app.usage=user?.usage||null; app.billingEnabled=Boolean(user?.billing?.enabled);
     if(user){
@@ -129,13 +137,13 @@
     applyProfile(true); updateAccountUI();
   }
   function updateAccountUI(){
-    const user=app.user, plan=planName(user), isPro=user?.plan==='pro';
-    $('#accountPlan').textContent=plan; $('#accountName').textContent=user?(user.name||user.email):''; $('#profileShortcut').textContent=user?String(user.name||user.email||'A').trim().charAt(0).toUpperCase():'A';
+    const user=app.user, plan=planName(user), chipPlan=planChipName(user), isPro=user?.plan==='pro', displayName=userDisplayName(user);
+    $('#accountPlan').textContent=chipPlan; $('#accountName').textContent=user?displayName:''; $('#profileShortcut').textContent=user?String(displayName||user.email||'A').trim().charAt(0).toUpperCase():'A';
     $('#guestAuthActions').hidden=Boolean(user); $('#accountMenuWrap').hidden=!user; $('#profileShortcut').hidden=true;
     if(user){
-      const initial=String(user.name||user.email||'A').trim().charAt(0).toUpperCase();
-      $('#accountMenuAvatar').textContent=initial; $('#accountMenuName').textContent=user.name||'Professor(a)'; $('#accountMenuEmail').textContent=user.email;
-      $('#accountMenuPlan').textContent=plan; $('#accountMenuUsage').textContent=app.usage?`${app.usage.ai} / ${app.usage.limits.ai} gerações neste mês`:'';
+      const initial=String(displayName||user.email||'A').trim().charAt(0).toUpperCase();
+      $('#accountMenuAvatar').textContent=initial; $('#accountMenuName').textContent=displayName||'Professor(a)'; $('#accountMenuEmail').textContent=user.email;
+      $('#accountMenuPlan').textContent=chipPlan; $('#accountMenuUsage').textContent=app.usage?`${app.usage.ai} / ${app.usage.limits.ai} gerações neste mês`:'';
     } else { $('#accountMenu').hidden=true; $('#accountBtn').setAttribute('aria-expanded','false'); }
     $$('[data-guest-only]').forEach(el=>el.hidden=Boolean(user));
     $$('[data-pro-only]').forEach(option=>{ option.disabled=Boolean(user)&&!isPro || !user; option.classList.toggle('option-pro-locked',!isPro); });
@@ -143,7 +151,7 @@
     $('#planMiniBadge').textContent=user?plan.toUpperCase():'COMECE GRÁTIS'; $('#planMiniBadge').className=isPro?'plan-pro':user?'plan-free':'';
     $('#planMiniTitle').textContent=user?(isPro?'Aulora Pro ativo':'Aulora Grátis ativo'):'Crie sua conta gratuita';
     $('#planMiniUsage').textContent=user&&app.usage?`${app.usage.ai}/${app.usage.limits.ai} gerações inteligentes usadas neste mês.`:'Geração inteligente exige uma conta gratuita.';
-    $('#settingsAccountTitle').textContent=user?(user.name||user.email):'Você ainda não entrou';
+    $('#settingsAccountTitle').textContent=user?(displayName||user.email):'Você ainda não entrou';
     $('#settingsPlanBadge').textContent=plan.toUpperCase(); $('#settingsPlanBadge').className=`plan-badge ${isPro?'plan-pro':user?'plan-free':''}`;
     $('#settingsAccountText').textContent=user?`Conta: ${user.email}. Seus novos materiais são salvos também na nuvem.`:'Ainda não é cadastrado? Crie sua conta grátis para gerar materiais, salvar na nuvem e sincronizar entre dispositivos.';
     $('#settingsAiUsage').textContent=user&&app.usage?`${app.usage.ai} / ${app.usage.limits.ai}`:'—';

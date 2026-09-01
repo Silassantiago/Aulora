@@ -355,6 +355,11 @@ body{
 }
 .ghost-button:hover,.account-chip:hover{background:rgba(20,58,110,.86)!important;border-color:rgba(62,207,223,.36)!important}
 .account-chip #accountPlan{color:#38edcf!important}.account-chip .account-chevron{color:#79a4d3!important}
+
+.account-chip #accountPlan{display:inline-flex;align-items:center;justify-content:center;padding:5px 9px;border-radius:999px;background:rgba(59,236,211,.12);border:1px solid rgba(59,236,211,.22);font-size:10px!important;letter-spacing:.02em!important;text-transform:none!important;color:#66f0dd!important;line-height:1;white-space:nowrap}
+.account-chip strong#accountName{text-transform:none;font-size:13px!important;max-width:170px}
+@media(max-width:760px){.account-chip #accountPlan{padding:4px 8px;font-size:9px!important}.account-chip strong#accountName{max-width:100px}}
+
 .content{max-width:1620px!important;padding:28px 34px 46px!important}
 #view-dashboard{color:#fff}
 
