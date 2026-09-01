@@ -142,13 +142,18 @@ async function ensureSchema(db) {
   ]);
   schemaReady = true;
 }
-async function createSession(db, userId, request) {
+async function prepareSession(request) {
   const raw = bytesToBase64(crypto.getRandomValues(new Uint8Array(32))).replace(/=+$/g, '');
   const hash = bytesToHex(await sha256(raw));
-  const created = new Date();
-  const expires = new Date(created.getTime() + SESSION_DAYS * 86400_000).toISOString();
-  await db.prepare('INSERT INTO sessions(token_hash,user_id,expires_at,created_at) VALUES(?,?,?,?)').bind(hash, userId, expires, created.toISOString()).run();
-  return { raw, cookie: sessionCookie(raw, request) };
+  const createdAt = nowIso();
+  const expiresAt = new Date(Date.now() + SESSION_DAYS * 86400_000).toISOString();
+  return { raw, hash, createdAt, expiresAt, cookie: sessionCookie(raw, request) };
+}
+async function createSession(db, userId, request) {
+  const session = await prepareSession(request);
+  await db.prepare('INSERT INTO sessions(token_hash,user_id,expires_at,created_at) VALUES(?,?,?,?)')
+    .bind(session.hash, userId, session.expiresAt, session.createdAt).run();
+  return session;
 }
 async function currentUser(request, env) {
   if (!env.DB) return null;
@@ -198,8 +203,14 @@ Regras obrigatórias:
 function promptFor(kind, d) {
   const payload = JSON.stringify(d, null, 2);
   if (kind === 'plan') return `${commonSystem()}\nCrie um PLANO DE AULA completo. Inclua identificação, tema, objetivo geral, objetivos específicos, conhecimentos prévios, desenvolvimento em etapas com tempo aproximado, metodologia, recursos, avaliação, fechamento e adaptações quando informadas. Código BNCC só pode ser reproduzido se fornecido.\nDados:\n${payload}`;
-  if (kind === 'activity') return `${commonSystem()}\nCrie uma ATIVIDADE PEDAGÓGICA com exatamente ${d.count || 10} questões. Respeite formato e dificuldade. Questões objetivas precisam de 4 alternativas A-D com uma correta; discursivas precisam de orientação de correção. Ao final inclua <div class="answer-key"><h2>GABARITO / ORIENTAÇÕES DE CORREÇÃO</h2>...</div>.\nDados:\n${payload}`;
-  if (kind === 'exam') return `${commonSystem()}\nCrie uma AVALIAÇÃO com exatamente ${d.count || 10} questões e total de ${d.totalPoints || 10} pontos. Distribua os pontos para somar exatamente o total. Questões objetivas têm 4 alternativas com uma correta; discursivas têm critério de correção. Inclua gabarito ao final em <div class="answer-key">.\nDados:\n${payload}`;
+  if (kind === 'activity') return `${commonSystem()}
+Crie uma ATIVIDADE PEDAGÓGICA FINAL, pronta para revisão do professor, com exatamente ${d.count || 10} questões REAIS e ESPECÍFICAS sobre o tema informado. Cada questão deve ficar dentro de <div class="question">. Respeite disciplina, etapa/turma, formato e dificuldade. Se houver texto-base, use-o de forma efetiva. Se não houver texto-base, use conhecimento geral consolidado e apropriado ao nível escolar, sem inventar fontes ou dados. Questões objetivas devem ter exatamente 4 alternativas A-D plausíveis e somente uma correta. Questões discursivas devem ter enunciado completo e critério objetivo de correção. Não escreva placeholders, colchetes para preencher, 'personalize', 'defina a alternativa', 'insira aqui' ou instruções para o professor no corpo das questões. Ao final inclua <div class="answer-key"><h2>GABARITO / ORIENTAÇÕES DE CORREÇÃO</h2>...</div> com resposta correspondente a TODAS as questões.
+Dados:
+${payload}`;
+  if (kind === 'exam') return `${commonSystem()}
+Crie uma AVALIAÇÃO FINAL, pronta para revisão do professor, com exatamente ${d.count || 10} questões REAIS e ESPECÍFICAS sobre o tema informado e total de ${d.totalPoints || 10} pontos. Cada questão deve ficar dentro de <div class="question">. Distribua a pontuação de modo que a soma seja exatamente o total. Respeite disciplina, etapa/turma, formato e dificuldade. Se houver texto-base, use-o de forma efetiva. Se não houver, use conhecimento geral consolidado e apropriado ao nível escolar, sem inventar fontes ou dados. Questões objetivas devem ter exatamente 4 alternativas A-D plausíveis e somente uma correta; discursivas devem ter enunciado completo e critério de correção. Não escreva placeholders, colchetes para preencher, 'personalize', 'defina a alternativa', 'insira aqui' ou qualquer questão genérica do tipo 'fale sobre o tema'. Inclua <div class="answer-key"><h2>GABARITO / CRITÉRIOS DE CORREÇÃO</h2>...</div> com resposta correspondente a TODAS as questões e pontuação coerente.
+Dados:
+${payload}`;
   return `${commonSystem()}\nCrie uma ESTRUTURA GUIADA DE TRABALHO ACADÊMICO. Não produza texto pronto para ser apresentado como autoria do estudante. Monte capa textual, resumo orientativo, palavras-chave, introdução, objetivos, referencial teórico, metodologia, resultados/discussão, considerações finais e referências. Onde depender de pesquisa, oriente a inserir fontes realmente consultadas. Inclua nota final para conferir o manual institucional.\nDados:\n${payload}`;
 }
 function defaultMeta(kind, d) {
@@ -208,18 +219,43 @@ function defaultMeta(kind, d) {
   if (kind === 'exam') return { title: `Avaliação — ${d.topic || 'Sem tema'}`, subtitle: `${d.discipline || ''} • ${d.grade || ''}`, typeLabel: 'Avaliação' };
   return { title: d.title || 'Estrutura acadêmica', subtitle: `${d.workType || 'Trabalho acadêmico'} • ${d.author || ''}`, typeLabel: 'Acadêmico / ABNT' };
 }
-async function generateAI(env, kind, d) {
-  const meta = defaultMeta(kind, d);
+function generatedMaterialValid(kind, html, d) {
+  const text = String(html || '');
+  if (text.length < 300) return false;
+  if (/\[(?:preencha|insira|resposta|alternativa|quest[aã]o|conte[uú]do)[^\]]*\]|preencha a alternativa|defina a alternativa|personalize (?:a|as|o|os) quest|insira aqui/i.test(text)) return false;
+  if (kind === 'activity' || kind === 'exam') {
+    const expected = Math.max(1, Math.min(20, Number(d.count) || 10));
+    const questions = (text.match(/class=["']question["']/gi) || []).length;
+    if (questions !== expected) return false;
+    if (!/class=["']answer-key["']/i.test(text)) return false;
+  }
+  return true;
+}
+async function runGeneration(env, kind, d, repair = false) {
   const schema = { type: 'object', properties: { title: { type: 'string' }, subtitle: { type: 'string' }, typeLabel: { type: 'string' }, html: { type: 'string' } }, required: ['title', 'subtitle', 'typeLabel', 'html'] };
+  const instruction = repair
+    ? `${promptFor(kind, d)}\nATENÇÃO: a tentativa anterior foi rejeitada por estar incompleta ou genérica. Refaça do zero, cumpra exatamente a quantidade de questões e não use nenhum placeholder.`
+    : promptFor(kind, d);
   const result = await env.AI.run(MODEL, {
-    messages: [{ role: 'system', content: 'Siga rigorosamente as instruções e devolva JSON válido no esquema solicitado.' }, { role: 'user', content: promptFor(kind, d) }],
-    response_format: { type: 'json_schema', json_schema: schema }, max_tokens: 3500, temperature: 0.3
+    messages: [{ role: 'system', content: 'Siga rigorosamente as instruções. Gere conteúdo pedagógico específico e devolva JSON válido no esquema solicitado.' }, { role: 'user', content: instruction }],
+    response_format: { type: 'json_schema', json_schema: schema }, max_tokens: 5000, temperature: 0.25
   });
   let data = result?.response ?? result;
   if (result?.choices?.[0]?.message?.content) data = result.choices[0].message.content;
   if (typeof data === 'string') data = JSON.parse(data.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim());
   if (!data || typeof data !== 'object') throw new Error('Resposta inválida do modelo');
-  return { title: cleanText(data.title || meta.title, 180), subtitle: cleanText(data.subtitle || meta.subtitle, 240), typeLabel: cleanText(data.typeLabel || meta.typeLabel, 80), html: sanitizeHtml(data.html || '') };
+  return data;
+}
+async function generateAI(env, kind, d) {
+  const meta = defaultMeta(kind, d);
+  let data = await runGeneration(env, kind, d, false);
+  let html = sanitizeHtml(data.html || '');
+  if (!generatedMaterialValid(kind, html, d)) {
+    data = await runGeneration(env, kind, d, true);
+    html = sanitizeHtml(data.html || '');
+  }
+  if (!generatedMaterialValid(kind, html, d)) throw new Error('A geração não atingiu o padrão mínimo de qualidade');
+  return { title: cleanText(data.title || meta.title, 180), subtitle: cleanText(data.subtitle || meta.subtitle, 240), typeLabel: cleanText(data.typeLabel || meta.typeLabel, 80), html };
 }
 
 async function stripeRequest(env, path, params) {
@@ -251,18 +287,32 @@ async function api(request, env, url) {
     return json({ ok: true, ai: Boolean(env.AI), db: true, billing: Boolean(env.STRIPE_SECRET_KEY && env.STRIPE_PRICE_PRO), service: 'Aulora' });
   }
   if (path === '/api/auth/signup' && request.method === 'POST') {
-    if (!mutationOriginAllowed(request)) return json({ error: 'Origem não autorizada.' }, 403);
+    if (!mutationOriginAllowed(request)) return json({ error: 'Origem não autorizada.', code: 'ORIGIN_BLOCKED' }, 403);
     const body = await request.json().catch(() => ({}));
     const email = cleanEmail(body.email), name = cleanText(body.name, 120), password = String(body.password || '');
-    if (!isEmail(email)) return json({ error: 'Informe um e-mail válido.' }, 400);
-    if (password.length < 8 || password.length > 128) return json({ error: 'A senha deve ter entre 8 e 128 caracteres.' }, 400);
-    if (await env.DB.prepare('SELECT id FROM users WHERE email=?').bind(email).first()) return json({ error: 'Já existe uma conta com este e-mail.' }, 409);
-    const id = crypto.randomUUID(), hp = await hashPassword(password), ts = nowIso();
-    await env.DB.prepare('INSERT INTO users(id,email,name,password_hash,password_salt,plan,plan_status,profile_json,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)')
-      .bind(id, email, name, hp.hash, hp.salt, 'free', 'active', JSON.stringify({ teacher: name, school: '', city: '', stage: 'Anos finais do Ensino Fundamental' }), ts, ts).run();
-    const session = await createSession(env.DB, id, request);
-    const user = await env.DB.prepare('SELECT * FROM users WHERE id=?').bind(id).first();
-    return json({ user: await userPayload(env, user) }, 201, { 'set-cookie': session.cookie });
+    if (!name) return json({ error: 'Informe seu nome.', code: 'NAME_REQUIRED' }, 400);
+    if (!isEmail(email)) return json({ error: 'Informe um e-mail válido.', code: 'EMAIL_INVALID' }, 400);
+    if (password.length < 8 || password.length > 128) return json({ error: 'A senha deve ter entre 8 e 128 caracteres.', code: 'PASSWORD_INVALID' }, 400);
+    const existing = await env.DB.prepare('SELECT id FROM users WHERE email=?').bind(email).first();
+    if (existing) return json({ error: 'Já existe uma conta com este e-mail. Use a opção Entrar.', code: 'EMAIL_EXISTS' }, 409);
+    try {
+      const id = crypto.randomUUID(), hp = await hashPassword(password), ts = nowIso(), session = await prepareSession(request);
+      const profile = JSON.stringify({ teacher: name, school: '', city: '', stage: 'Anos finais do Ensino Fundamental' });
+      await env.DB.batch([
+        env.DB.prepare('INSERT INTO users(id,email,name,password_hash,password_salt,plan,plan_status,profile_json,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)')
+          .bind(id, email, name, hp.hash, hp.salt, 'free', 'active', profile, ts, ts),
+        env.DB.prepare('INSERT INTO sessions(token_hash,user_id,expires_at,created_at) VALUES(?,?,?,?)')
+          .bind(session.hash, id, session.expiresAt, session.createdAt)
+      ]);
+      const user = await env.DB.prepare('SELECT * FROM users WHERE id=?').bind(id).first();
+      if (!user) return json({ error: 'A conta não pôde ser confirmada após o cadastro. Tente novamente.', code: 'SIGNUP_CONFIRM_FAILED' }, 500);
+      return json({ user: await userPayload(env, user) }, 201, { 'set-cookie': session.cookie });
+    } catch (err) {
+      console.error('Aulora signup error', err);
+      const message = String(err?.message || '');
+      if (/unique|users\.email/i.test(message)) return json({ error: 'Já existe uma conta com este e-mail. Use a opção Entrar.', code: 'EMAIL_EXISTS' }, 409);
+      return json({ error: 'Não foi possível criar a conta agora. Tente novamente. Se continuar, use a opção Entrar caso esta seja uma segunda tentativa.', code: 'SIGNUP_FAILED' }, 500);
+    }
   }
   if (path === '/api/auth/login' && request.method === 'POST') {
     if (!mutationOriginAllowed(request)) return json({ error: 'Origem não autorizada.' }, 403);

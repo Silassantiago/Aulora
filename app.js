@@ -75,8 +75,13 @@
     if(!res.ok){const err=new Error(payload.error||'Não foi possível concluir a operação.');err.code=payload.code;err.payload=payload;throw err;}
     return payload;
   }
+  function setAuthError(panel,message=''){
+    const el=$(panel==='signup'?'#signupError':'#loginError');
+    if(!el)return; el.textContent=message; el.hidden=!message;
+  }
   function openAuth(tab='login'){
     const dialog=$('#authDialog');
+    setAuthError('login'); setAuthError('signup');
     $$('.auth-tab').forEach(b=>b.classList.toggle('active',b.dataset.authTab===tab));
     $$('[data-auth-panel]').forEach(p=>p.classList.toggle('active',p.dataset.authPanel===tab));
     if(!dialog.open)dialog.showModal();
@@ -140,12 +145,12 @@
   $('#loginForm').addEventListener('submit',async e=>{
     e.preventDefault();const d=formData(e.currentTarget);showLoading('Entrando no Aulora…','Validando sua conta.');
     try{const r=await apiFetch('/api/auth/login',{method:'POST',body:d});applyUser(r.user);closeAuth();app.materials=loadJson(materialCacheKey(),[]);await syncCloudMaterials(false);await offerGuestImport();toast('Conta conectada.');}
-    catch(err){toast(err.message);}finally{hideLoading();}
+    catch(err){setAuthError('login',err.message);toast(err.message);}finally{hideLoading();}
   });
   $('#signupForm').addEventListener('submit',async e=>{
     e.preventDefault();const d=formData(e.currentTarget);showLoading('Criando sua conta…','Preparando sua biblioteca na nuvem.');
     try{const r=await apiFetch('/api/auth/signup',{method:'POST',body:d});applyUser(r.user);closeAuth();app.materials=[];persistMaterialCache();updateStats();renderMaterials();await offerGuestImport();toast('Conta gratuita criada. Bem-vindo ao Aulora.');}
-    catch(err){toast(err.message);}finally{hideLoading();}
+    catch(err){setAuthError('signup',err.message);toast(err.message);}finally{hideLoading();}
   });
   $('#logoutBtn').addEventListener('click',async()=>{
     try{await apiFetch('/api/auth/logout',{method:'POST'});}catch{}
@@ -319,18 +324,25 @@
 
   async function generateSmart(kind,d){
     if(!app.user){
-      const material=localMaterial(kind,d);bindPreview(previewFor(kind),material);openAuth('signup');toast('Modelo local montado. Crie uma conta gratuita para usar a geração inteligente.');return;
+      openAuth('login');
+      toast('Entre na sua conta para gerar este material. O Aulora não cria provas ou atividades genéricas no lugar da geração inteligente.');
+      return;
     }
-    showLoading(kind==='plan'?'Criando o plano de aula…':kind==='activity'?'Criando a atividade…':kind==='exam'?'Montando a avaliação…':'Estruturando o trabalho…','O Aulora está organizando o conteúdo e preparando a versão editável.');
+    showLoading(kind==='plan'?'Criando o plano de aula…':kind==='activity'?'Criando a atividade…':kind==='exam'?'Montando a avaliação…':'Estruturando o trabalho…','O Aulora está gerando conteúdo específico para os dados informados.');
     try{
       const payload=await apiFetch('/api/generate',{method:'POST',body:{kind,data:d}});
       if(payload.usage){app.usage=payload.usage;if(app.user)app.user.usage=payload.usage;updateAccountUI();}
       const material=newMaterial(kind,payload.title||`${kind} — ${d.topic||d.title}`,payload.subtitle||'',d,payload.html||'',payload.typeLabel||({plan:'Plano de aula',activity:'Atividade',exam:'Avaliação',abnt:'Acadêmico / ABNT'}[kind]));
       bindPreview(previewFor(kind),material); toast('Material gerado. Revise, edite e salve quando estiver pronto.');
     }catch(err){
-      const material=localMaterial(kind,d);bindPreview(previewFor(kind),material);
-      if(err.code==='AI_LIMIT'){toast('Limite mensal atingido. Montei um modelo local; o plano Pro amplia para 200 gerações.');go('settings');}
-      else toast('A geração inteligente falhou. O Aulora montou um modelo local para você editar.');
+      if(err.code==='AI_LIMIT'){
+        toast('Seu limite mensal de gerações foi atingido. Nenhum conteúdo genérico foi colocado no lugar da prova.');
+        go('settings');
+      } else if(err.status===401 || err.code==='AUTH_REQUIRED'){
+        app.user=null; updateAccountUI(); openAuth('login'); toast('Sua sessão expirou. Entre novamente para gerar.');
+      } else {
+        toast(err.message||'Não foi possível gerar o material agora. Tente novamente.');
+      }
       console.warn(err);checkSmartStatus();
     }finally{hideLoading();}
   }
@@ -339,7 +351,15 @@
   activityForm.addEventListener('submit',e=>{e.preventDefault();saveActivityDraft();generateSmart('activity',formData(e.currentTarget));});
   examForm.addEventListener('submit',e=>{e.preventDefault();saveExamDraft();generateSmart('exam',formData(e.currentTarget));});
   abntForm.addEventListener('submit',e=>{e.preventDefault();generateSmart('abnt',formData(e.currentTarget));});
-  $$('[data-local]').forEach(btn=>btn.addEventListener('click',()=>{const kind=btn.dataset.local,form={plan:planForm,activity:activityForm,exam:examForm,abnt:abntForm}[kind];if(!form.reportValidity())return;const m=localMaterial(kind,formData(form));bindPreview(previewFor(kind),m);toast('Modelo local montado. Edite antes de aplicar.');}));
+  $$('[data-local]').forEach(btn=>btn.addEventListener('click',()=>{
+    const kind=btn.dataset.local,form={plan:planForm,activity:activityForm,exam:examForm,abnt:abntForm}[kind];
+    if(!form.reportValidity())return;
+    if(kind==='activity'||kind==='exam'){
+      if(!app.user){openAuth('login');toast('Entre para gerar questões reais. O Aulora não monta mais prova ou atividade com perguntas de preenchimento.');return;}
+      generateSmart(kind,formData(form));return;
+    }
+    const m=localMaterial(kind,formData(form));bindPreview(previewFor(kind),m);toast('Estrutura manual montada. Este botão não usa geração inteligente.');
+  }));
 
   if(!abntForm.elements.year.value)abntForm.elements.year.value=new Date().getFullYear();
 

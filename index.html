@@ -127,7 +127,7 @@
                 <label class="full">Observações da turma (opcional)<textarea name="notes" rows="3" placeholder="Particularidades que devem ser consideradas."></textarea></label>
               </div>
               <div class="draft-status" id="planDraftStatus">Rascunho salvo automaticamente neste dispositivo.</div>
-              <div class="form-actions split-actions"><button type="reset" class="ghost-button">Limpar</button><div><button class="ghost-button" type="button" data-local="plan">Montar modelo local</button><button class="primary-button smart-action" type="submit"><span>✦</span> Gerar plano completo</button></div></div>
+              <div class="form-actions split-actions"><button type="reset" class="ghost-button">Limpar</button><div><button class="ghost-button" type="button" data-local="plan">Montar estrutura manual</button><button class="primary-button smart-action" type="submit"><span>✦</span> Gerar plano completo</button></div></div>
             </form>
             <div class="preview-card empty" id="planPreview"></div>
           </div>
@@ -154,7 +154,7 @@
                 <label class="full">Critérios / observações do professor<textarea name="notes" rows="3" placeholder="Ex.: aceitar respostas equivalentes; foco em argumentação..."></textarea></label>
               </div>
               <div class="draft-status" id="activityDraftStatus">Rascunho salvo automaticamente neste dispositivo.</div>
-              <div class="form-actions split-actions"><button type="reset" class="ghost-button">Limpar</button><div><button class="ghost-button" type="button" data-local="activity">Montar modelo local</button><button class="primary-button smart-action" type="submit"><span>✦</span> Gerar atividade completa</button></div></div>
+              <div class="form-actions split-actions"><button type="reset" class="ghost-button">Limpar</button><div><button class="ghost-button" type="button" data-local="activity">Gerar com inteligência</button><button class="primary-button smart-action" type="submit"><span>✦</span> Gerar atividade completa</button></div></div>
             </form>
             <div class="preview-card empty" id="activityPreview"></div>
           </div>
@@ -182,7 +182,7 @@
                 <label class="full">Critérios / observações de correção<textarea name="notes" rows="3" placeholder="Ex.: considerar argumentação, domínio conceitual e vocabulário."></textarea></label>
               </div>
               <div class="draft-status" id="examDraftStatus">Rascunho salvo automaticamente neste dispositivo.</div>
-              <div class="form-actions split-actions"><button type="reset" class="ghost-button">Limpar</button><div><button class="ghost-button" type="button" data-local="exam">Montar modelo local</button><button class="primary-button smart-action" type="submit"><span>✦</span> Gerar avaliação completa</button></div></div>
+              <div class="form-actions split-actions"><button type="reset" class="ghost-button">Limpar</button><div><button class="ghost-button" type="button" data-local="exam">Gerar com inteligência</button><button class="primary-button smart-action" type="submit"><span>✦</span> Gerar avaliação completa</button></div></div>
             </form>
             <div class="preview-card empty" id="examPreview"></div>
           </div>
@@ -212,7 +212,7 @@
                   <label class="full">Palavras-chave<input name="keywords" placeholder="Ex.: educação; tecnologia; aprendizagem" /></label>
                 </div>
                 <div class="abnt-note"><strong>Importante:</strong> o Aulora não inventa fontes, autores, citações ou referências bibliográficas. A estrutura serve como apoio de normalização e deve ser conferida com o manual da sua instituição.</div>
-                <div class="form-actions split-actions"><button type="reset" class="ghost-button">Limpar</button><div><button class="ghost-button" type="button" data-local="abnt">Montar estrutura local</button><button class="primary-button smart-action" type="submit"><span>✦</span> Criar estrutura guiada</button></div></div>
+                <div class="form-actions split-actions"><button type="reset" class="ghost-button">Limpar</button><div><button class="ghost-button" type="button" data-local="abnt">Montar estrutura manual</button><button class="primary-button smart-action" type="submit"><span>✦</span> Criar estrutura guiada</button></div></div>
               </form>
               <div class="preview-card empty" id="abntPreview"></div>
             </div>
@@ -315,12 +315,14 @@
       <form id="loginForm" class="auth-form active" data-auth-panel="login">
         <label>E-mail<input name="email" type="email" autocomplete="email" required placeholder="voce@exemplo.com" /></label>
         <label>Senha<input name="password" type="password" autocomplete="current-password" required minlength="8" placeholder="Sua senha" /></label>
+        <div class="auth-error" id="loginError" role="alert" hidden></div>
         <button class="primary-button" type="submit">Entrar no Aulora</button>
       </form>
       <form id="signupForm" class="auth-form" data-auth-panel="signup">
         <label>Nome<input name="name" autocomplete="name" required placeholder="Seu nome" /></label>
         <label>E-mail<input name="email" type="email" autocomplete="email" required placeholder="voce@exemplo.com" /></label>
         <label>Senha<input name="password" type="password" autocomplete="new-password" required minlength="8" placeholder="Mínimo de 8 caracteres" /></label>
+        <div class="auth-error" id="signupError" role="alert" hidden></div>
         <button class="primary-button" type="submit">Criar conta gratuita</button>
       </form>
       <p class="auth-foot">Plano gratuito: 5 gerações inteligentes/mês e até 25 materiais sincronizados.</p>
