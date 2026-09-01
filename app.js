@@ -177,7 +177,7 @@
     $('#settingsAccountText').textContent=user?`Conta: ${user.email}. Seus novos materiais são salvos também na nuvem.`:'Ainda não é cadastrado? Crie sua conta grátis para gerar materiais, salvar na nuvem e sincronizar entre dispositivos.';
     $('#settingsAiUsage').textContent=user&&app.usage?`${app.usage.ai} / ${app.usage.limits.ai}`:'—';
     $('#settingsCloudCount').textContent=user?String(app.materials.length):'—';
-    $('#settingsLoginBtn').hidden=Boolean(user); $('#settingsEnterBtn').hidden=Boolean(user); $('#syncCloudBtn').hidden=!user; $('#logoutBtn').hidden=!user;
+    $('#settingsLoginBtn').hidden=Boolean(user); $('#settingsEnterBtn').hidden=Boolean(user); if($('#cloudSyncCard')) $('#cloudSyncCard').hidden=!user; $('#logoutBtn').hidden=!user;
     $('#freePlanSignupBtn').hidden=Boolean(user); $('#upgradeBtn').hidden=!user||pro; if($('#cardCheckoutBtn')) $('#cardCheckoutBtn').hidden=!user||pro; $('#manageBillingBtn').hidden=!user||!pro;
     const proExpiry=user?.billing?.expiresAt?new Date(user.billing.expiresAt):null;
     const expiryText=proExpiry&&!Number.isNaN(proExpiry.getTime())?proExpiry.toLocaleDateString('pt-BR'):'';
@@ -208,10 +208,23 @@
     }catch(err){console.warn('Conta indisponível',err);applyUser(null);}
     updateStats();renderMaterials();
   }
+  function setCloudSyncStatus(state='ok',message=''){
+    const card=$('#cloudSyncCard'), text=$('#cloudSyncText'), badge=$('#cloudSyncBadge');
+    if(!card||!text||!badge)return;
+    card.classList.remove('syncing','error');
+    if(state==='syncing'){card.classList.add('syncing');badge.textContent='SINCRONIZANDO';text.textContent=message||'Atualizando seus materiais automaticamente…';}
+    else if(state==='error'){card.classList.add('error');badge.textContent='ATENÇÃO';text.textContent=message||'A sincronização automática tentará novamente na próxima ação.';}
+    else {badge.textContent='ATIVA';text.textContent=message||'Seus materiais são sincronizados automaticamente com sua conta.';}
+  }
+
   async function syncCloudMaterials(showToast=true){
-    if(!app.user||app.cloudSyncing)return;app.cloudSyncing=true;
-    try{const data=await apiFetch('/api/materials',{cache:'no-store'});app.materials=Array.isArray(data.materials)?data.materials:[];persistMaterialCache();updateStats();renderMaterials();if(showToast)toast('Biblioteca atualizada da nuvem.');}
-    catch(err){if(showToast)toast(`Não foi possível sincronizar: ${err.message}`);}
+    if(!app.user||app.cloudSyncing)return;app.cloudSyncing=true;setCloudSyncStatus('syncing');
+    try{
+      const data=await apiFetch('/api/materials',{cache:'no-store'});app.materials=Array.isArray(data.materials)?data.materials:[];persistMaterialCache();updateStats();renderMaterials();
+      const now=new Intl.DateTimeFormat('pt-BR',{hour:'2-digit',minute:'2-digit'}).format(new Date());setCloudSyncStatus('ok',`Sincronizado automaticamente às ${now}.`);
+      if(showToast)toast('Materiais sincronizados.');
+    }
+    catch(err){setCloudSyncStatus('error',`Falha momentânea de sincronização: ${err.message}`);if(showToast)toast(`Não foi possível sincronizar: ${err.message}`);}
     finally{app.cloudSyncing=false;updateAccountUI();}
   }
   async function offerGuestImport(){
@@ -227,7 +240,6 @@
   $('#gateLoginBtn')?.addEventListener('click',()=>openAuth('login'));
   $('#gateSignupBtn')?.addEventListener('click',()=>openAuth('signup'));
   $('#freePlanSignupBtn').addEventListener('click',()=>app.user?toast('Sua conta gratuita já está ativa.'):openAuth('signup'));
-  $('#syncCloudBtn').addEventListener('click',()=>syncCloudMaterials(true));
   $('#loginForm').addEventListener('submit',async e=>{
     e.preventDefault();const d=formData(e.currentTarget);showLoading('Entrando no Aulora…','Validando sua conta.');
     try{const r=await apiFetch('/api/auth/login',{method:'POST',body:d});applyUser(r.user);closeAuth();app.materials=loadJson(materialCacheKey(),[]);await syncCloudMaterials(false);await offerGuestImport();toast('Conta conectada.');}
@@ -500,7 +512,7 @@
     if(sd) sd.onclick=()=>{sync();exportDoc(material,stripAnswerKey(material.html),'aluno');};
     if(sp) sp.onclick=()=>{sync();printMaterial(material,stripAnswerKey(material.html));};
   }
-  function stripAnswerKey(html){ const wrap=document.createElement('div');wrap.innerHTML=html;$$('.answer-key',wrap).forEach(x=>x.remove());return wrap.innerHTML; }
+  function stripAnswerKey(html){ const wrap=document.createElement('div');wrap.innerHTML=html;$$('.answer-key,.teacher-only',wrap).forEach(x=>x.remove());return wrap.innerHTML; }
   async function saveMaterial(material){
     if(!app.user){openAuth('login');return;}
     const ix=app.materials.findIndex(x=>x.id===material.id);
@@ -508,7 +520,7 @@
     if(ix<0 && app.materials.length>=materialLimit){focusUpgrade(`O Plano Básico salva até ${materialLimit} materiais. O Pro libera até 1.000.`);return;}
     material.updatedAt=nowIso(); if(ix>=0)app.materials[ix]=material;else app.materials.unshift(material); persistMaterialCache(); updateStats(); renderMaterials();
     if(app.user){
-      try{const result=await apiFetch('/api/materials',{method:'POST',body:{material}});toast(result.emailQueued?'Material salvo na nuvem. Uma cópia atualizada será enviada ao seu e-mail.':'Material salvo e sincronizado na nuvem.');}
+      try{const result=await apiFetch('/api/materials',{method:'POST',body:{material}});const now=new Intl.DateTimeFormat('pt-BR',{hour:'2-digit',minute:'2-digit'}).format(new Date());setCloudSyncStatus('ok',`Última sincronização automática às ${now}.`);toast(result.emailQueued?'Material salvo na nuvem. Uma cópia atualizada será enviada ao seu e-mail.':'Material salvo e sincronizado automaticamente.');}
       catch(err){
         if(err.code==='MATERIAL_LIMIT'&&ix<0){app.materials=app.materials.filter(m=>m.id!==material.id);persistMaterialCache();updateStats();renderMaterials();focusUpgrade('O limite de materiais do Plano Básico foi atingido.');}
         else toast(`Não foi possível sincronizar o material: ${err.message}`);
@@ -627,7 +639,7 @@
       go('settings');
       return;
     }
-    showLoading(kind==='plan'?'Criando o plano de aula…':kind==='activity'?'Criando a atividade…':kind==='exam'?'Montando a avaliação…':kind==='report'?'Redigindo o relatório pedagógico…':'Estruturando o trabalho…',(kind==='activity'||kind==='exam') && d.imageMode && d.imageMode!=='Sem imagens' ? 'Gerando conteúdo e figuras. Provas com várias imagens podem levar um pouco mais de tempo.' : 'O Aulora está gerando conteúdo específico para os dados informados.');
+    showLoading(kind==='plan'?'Pesquisando e criando o plano…':kind==='activity'?'Pesquisando e criando a atividade…':kind==='exam'?'Pesquisando e montando a avaliação…':kind==='report'?'Redigindo o relatório pedagógico…':'Estruturando o trabalho…',['plan','activity','exam'].includes(kind)?((kind==='activity'||kind==='exam')&&d.imageMode&&d.imageMode!=='Sem imagens'?'Primeiro o Aulora consulta fontes de apoio e valida disciplina/tema; depois gera o conteúdo e as figuras.':'Primeiro o Aulora consulta fontes de apoio e valida disciplina/tema. Só depois gera o material.'):'O Aulora está gerando conteúdo específico para os dados informados.');
     try{
       const payload=await apiFetch('/api/generate',{method:'POST',body:{kind,data:d}});
       if(payload.usage){app.usage=payload.usage;if(app.user)app.user.usage=payload.usage;updateAccountUI();}
@@ -645,6 +657,8 @@
         app.user=null; updateAccountUI(); openAuth('login'); toast('Sua sessão expirou. Entre novamente para gerar.');
       } else if(err.code==='IMAGE_GENERATION_FAILED'){
         toast(err.message||'Não foi possível gerar as figuras solicitadas. Tente novamente.');
+      } else if(err.code==='RESEARCH_MISMATCH'){
+        toast(err.message||'A pesquisa não confirmou uma relação clara entre disciplina e tema. Especifique melhor o conteúdo ou cole um texto-base.');
       } else if(kind==='report' || err.code==='REPORT_GENERATION_FAILED'){
         toast(err.message||'Não foi possível concluir o relatório pedagógico agora. O rascunho foi preservado. Tente novamente em alguns segundos.');
       } else {

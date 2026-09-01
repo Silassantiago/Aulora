@@ -786,3 +786,15 @@ body:not([data-view="admin"]) .admin-users-card{display:block}.plan-basic-mode [
 
 .version-button{border-color:rgba(72,225,218,.45)!important;background:linear-gradient(135deg,rgba(20,151,190,.16),rgba(99,72,255,.16))!important;color:#7df3e8!important;font-weight:800!important}
 .version-button:hover{border-color:#47e1d7!important;background:linear-gradient(135deg,rgba(20,151,190,.27),rgba(99,72,255,.27))!important}
+
+/* ===== Pesquisa factual + sincronização automática ===== */
+.cloud-sync-card{display:grid;grid-template-columns:42px minmax(0,1fr) auto;align-items:center;gap:11px;margin:14px 0;padding:12px 13px;border:1px solid rgba(48,203,188,.25);border-radius:15px;background:linear-gradient(135deg,rgba(20,106,119,.17),rgba(20,64,125,.18));color:#eaf8ff}
+.cloud-sync-card[hidden]{display:none!important}.cloud-sync-icon{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;background:linear-gradient(145deg,rgba(38,226,203,.24),rgba(68,113,255,.24));font-size:18px}.cloud-sync-card strong,.cloud-sync-card small{display:block}.cloud-sync-card strong{font-size:11px}.cloud-sync-card small{font-size:8.8px;color:#8faac8;margin-top:3px;line-height:1.35}.cloud-sync-card>b{padding:5px 7px;border-radius:999px;background:rgba(43,224,190,.13);border:1px solid rgba(43,224,190,.22);color:#58ecd7;font-size:7px;letter-spacing:.08em}.cloud-sync-card.syncing>b{color:#9ac9ff;border-color:rgba(86,161,255,.28);background:rgba(46,103,189,.18)}.cloud-sync-card.error{border-color:rgba(255,128,112,.30);background:rgba(127,46,55,.13)}.cloud-sync-card.error>b{color:#ff9e91;border-color:rgba(255,128,112,.28);background:rgba(148,59,62,.16)}
+
+.form-section-title.research-title{padding:12px 14px!important;border:1px solid rgba(42,213,191,.28)!important;border-radius:14px!important;background:linear-gradient(135deg,rgba(19,132,142,.14),rgba(40,93,180,.13))!important;margin-top:10px!important}.form-section-title.research-title>span{background:linear-gradient(135deg,#14d9c3,#348cff)!important;color:#041c38!important;box-shadow:0 6px 18px rgba(37,164,224,.18)}
+.research-sources{margin:24px 0 8px;padding:15px 17px;border:1px solid rgba(28,151,139,.24);border-radius:14px;background:#f2fbf8;color:#173e38}.research-sources>strong{display:block;font-size:12px;color:#0c665a}.research-sources>p{margin:5px 0 9px!important;font-size:9.5px!important;color:#5e766f!important}.research-sources ul{margin:0;padding-left:18px}.research-sources li{margin:6px 0;font-size:9.5px;line-height:1.45;color:#365c54}.research-sources li span{font-size:8px;color:#6f8781;overflow-wrap:anywhere}
+
+/* O card Pro deve ficar limpo: sem faixa diagonal atravessando o conteúdo. */
+.plan-option.pro-option:before{content:none!important;display:none!important}
+
+@media(max-width:640px){.cloud-sync-card{grid-template-columns:38px 1fr}.cloud-sync-card>b{grid-column:2;width:max-content}.cloud-sync-icon{width:38px;height:38px}}
