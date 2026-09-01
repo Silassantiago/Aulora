@@ -23,8 +23,5 @@
   "observability": {
     "enabled": true
   },
-  "workers_dev": true,
-  "vars": {
-    "ADMIN_EMAILS": "silas.henrique.1@hotmail.com"
-  }
+  "workers_dev": true
 }

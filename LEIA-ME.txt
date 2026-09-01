@@ -2,6 +2,6 @@ AULORA — PROJETO PRINCIPAL
 
 Este é o único projeto do Aulora. As próximas melhorias devem ser feitas sobre estes mesmos arquivos.
 
-Recursos atuais: PWA, plano de aula, atividades, avaliações, ABNT, geração inteligente, login, banco D1, sincronização na nuvem e estrutura Básico/Pro.
+Recursos atuais: PWA, plano de aula, atividades, avaliações, ABNT, geração inteligente, login, banco D1, sincronização na nuvem e estrutura Free/Pro.
 
 Consulte SETUP.md para publicação e ativação opcional da cobrança Pro.

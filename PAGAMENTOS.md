@@ -32,12 +32,12 @@ Nesta versão o pagamento é **único por 30 dias**, sem renovação automática
 
 ## Plano Básico
 
-- 2 gerações inteligentes/mês;
-- 3 materiais sincronizados;
+- 3 gerações inteligentes/mês;
+- 5 materiais sincronizados;
 - até 5 questões por atividade/avaliação;
 - plano de aula, atividade e avaliação;
 - sem imagens geradas por IA;
-- sem Henry IA; ficam apenas os atalhos de navegação.
+- Henry em modo de orientação básica.
 
 ## Plano Pro
 
@@ -47,7 +47,4 @@ Nesta versão o pagamento é **único por 30 dias**, sem renovação automática
 - imagens pedagógicas geradas por IA;
 - relatórios pedagógicos com IA;
 - Acadêmico/ABNT com IA;
-- Henry com assistência pedagógica completa;
-- modelos avançados de educação inclusiva;
-- exportação Word/PDF;
-- cópias por e-mail quando configuradas.
+- Henry com assistência pedagógica completa.

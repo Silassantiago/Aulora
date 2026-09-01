@@ -43,7 +43,7 @@ Depois do deploy:
 5. Salve o material.
 6. Saia e entre novamente para confirmar a sincronização.
 
-O Plano Básico funciona mesmo sem configurar o Mercado Pago. É obrigatório entrar para acessar o aplicativo.
+O plano gratuito funciona mesmo sem configurar o Mercado Pago.
 
 ## 4. Ativar cobrança Pro via Pix (Mercado Pago)
 
@@ -71,27 +71,13 @@ A URL do Worker já usa HTTPS, requisito para a `notification_url` do pagamento.
 
 O Pix é uma cobrança avulsa. Cada pagamento aprovado adiciona 30 dias de Pro. Não há débito automático via Pix nesta integração. Se futuramente quiser renovação automática, adicione assinatura recorrente por cartão como uma segunda forma de pagamento.
 
-## 6. Definir sua conta de administrador
+## 6. Secret administrativo opcional
 
-O painel administrativo do Aulora **não usa senha administrativa separada** e não existe senha hardcoded no código. Você entra com a sua conta normal do Aulora; o Worker reconhece como administrador somente os e-mails autorizados na Cloudflare.
+Se quiser testar uma conta Pro sem pagamento, crie o secret:
 
-1. Crie ou use a sua conta normal no Aulora.
-2. No Cloudflare, abra o Worker `aulora` > Settings > Variables and Secrets.
-3. Adicione a variável/secret:
+- `AULORA_ADMIN_KEY`
 
-- `ADMIN_EMAILS` = o e-mail da sua conta no Aulora.
-
-Para autorizar mais de um administrador, separe por vírgula, por exemplo: `voce@dominio.com,socio@dominio.com`.
-
-Depois faça um novo deploy ou reinicie a sessão. A opção **Administração** aparecerá no menu lateral. Contas administrativas têm acesso completo aos recursos para gestão e testes, sem precisar comprar Pro.
-
-No painel administrativo você pode:
-- ver total de usuários, contas Pro, materiais e receita aprovada registrada;
-- pesquisar usuários por nome ou e-mail;
-- adicionar 30 dias de Pro a uma conta;
-- retornar uma conta ao Plano Básico.
-
-O painel nunca exibe senhas ou hashes de senha.
+Existe uma rota administrativa protegida `POST /api/admin/set-plan`. Não coloque essa chave no front-end nem em repositório público.
 
 ## 7. Antes de divulgar em escala
 
