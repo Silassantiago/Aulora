@@ -33,9 +33,9 @@
 
       <div class="sidebar-bottom">
         <div class="beta-card">
-          <span class="pill">BETA</span>
-          <strong>Versão inicial gratuita</strong>
-          <small>Seus materiais ficam salvos neste dispositivo.</small>
+          <span class="pill">BETA 0.2</span>
+          <strong>Planejamento já funcional</strong>
+          <small>Crie, edite, salve e exporte seus materiais neste dispositivo.</small>
         </div>
       </div>
     </aside>
@@ -121,18 +121,28 @@
             <p>Preencha o essencial. O Aulora monta uma estrutura clara para você revisar e adaptar à sua turma.</p>
           </div>
           <div class="workspace-grid">
-            <form class="form-card generator-form" id="planForm">
+            <form class="form-card generator-form" id="planForm" autocomplete="on">
               <div class="form-grid two-col">
+                <label>Professor(a)<input name="teacher" placeholder="Seu nome (opcional)" /></label>
+                <label>Escola / instituição<input name="school" placeholder="Nome da escola (opcional)" /></label>
                 <label>Disciplina<input name="discipline" required placeholder="Ex.: Ciências" /></label>
-                <label>Ano / turma<input name="grade" required placeholder="Ex.: 7º ano" /></label>
+                <label>Ano / turma<input name="grade" required placeholder="Ex.: 7º ano A" /></label>
+                <label>Etapa de ensino<select name="stage"><option>Educação Infantil</option><option>Anos iniciais do Ensino Fundamental</option><option selected>Anos finais do Ensino Fundamental</option><option>Ensino Médio</option><option>EJA</option><option>Ensino Superior</option><option>Outro</option></select></label>
+                <label>Data da aula<input name="date" type="date" /></label>
                 <label class="full">Tema da aula<input name="topic" required placeholder="Ex.: Sistema Solar" /></label>
-                <label>Duração<select name="duration"><option>50 minutos</option><option>1h30</option><option>2 aulas</option><option>3 aulas</option></select></label>
+                <label>Duração<select name="duration"><option>45 minutos</option><option selected>50 minutos</option><option>1 hora</option><option>1h30</option><option>2 aulas</option><option>3 aulas</option></select></label>
                 <label>Modalidade<select name="modality"><option>Presencial</option><option>Híbrida</option><option>Remota</option></select></label>
                 <label class="full">Objetivo principal<textarea name="objective" rows="3" placeholder="O que os alunos deverão compreender ou desenvolver?"></textarea></label>
-                <label class="full">Habilidade / código BNCC (opcional)<input name="bncc" placeholder="Ex.: EF07CI..." /></label>
-                <label class="full">Observações da turma (opcional)<textarea name="notes" rows="3" placeholder="Ex.: turma participativa; adaptar para alunos com dificuldade de leitura..."></textarea></label>
+                <label class="full">Habilidade / código BNCC (opcional)<input name="bncc" placeholder="Ex.: EF07CI... — informe apenas se tiver certeza do código" /></label>
+                <label class="full">Conhecimentos prévios (opcional)<textarea name="prior" rows="2" placeholder="O que a turma já precisa saber antes desta aula?"></textarea></label>
+                <label>Estratégia principal<select name="strategy"><option>Exposição dialogada</option><option>Aprendizagem baseada em problemas</option><option>Rotação por estações</option><option>Trabalho em grupos</option><option>Estudo de caso</option><option>Projeto / investigação</option><option>Oficina prática</option></select></label>
+                <label>Forma de avaliação<select name="assessment"><option>Avaliação formativa</option><option>Atividade individual</option><option>Atividade em grupo</option><option>Produção escrita</option><option>Apresentação / seminário</option><option>Quiz / verificação rápida</option></select></label>
+                <label class="full">Recursos disponíveis (opcional)<input name="resources" placeholder="Ex.: quadro, projetor, livro didático, laboratório..." /></label>
+                <label class="full">Adaptações / inclusão (opcional)<textarea name="adaptations" rows="3" placeholder="Ex.: leitura mediada, tempo ampliado, apoio visual, atividade em dupla..."></textarea></label>
+                <label class="full">Observações da turma (opcional)<textarea name="notes" rows="3" placeholder="Ex.: turma participativa; retomar conceito da aula anterior..."></textarea></label>
               </div>
-              <div class="form-actions"><button type="reset" class="ghost-button">Limpar</button><button class="primary-button" type="submit">Gerar plano</button></div>
+              <div class="draft-status" id="planDraftStatus">Rascunho salvo automaticamente neste dispositivo.</div>
+              <div class="form-actions"><button type="reset" class="ghost-button">Limpar</button><button class="primary-button" type="submit">Montar plano</button></div>
             </form>
             <div class="preview-card empty" id="planPreview"></div>
           </div>

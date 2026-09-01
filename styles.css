@@ -38,3 +38,12 @@ button{cursor:pointer}
 @media(max-width:760px){.sidebar{transform:translateX(-100%);transition:.2s}.sidebar.open{transform:translateX(0);box-shadow:25px 0 60px rgba(0,0,0,.18)}.main-column{margin-left:0;width:100%}.mobile-only{display:grid;place-items:center;margin-right:12px}.topbar{padding:0 16px}.content{padding:20px 14px 35px}.hero-card{padding:28px 22px;display:block}.hero-card h1{font-size:34px}.hero-visual{display:none}.quick-grid,.stats-grid{grid-template-columns:1fr 1fr}.two-col{grid-template-columns:1fr}.full{grid-column:auto}.page-intro h1{font-size:29px}.materials-toolbar{grid-template-columns:1fr}.material-item{grid-template-columns:42px 1fr}.material-actions{grid-column:1/-1;justify-content:flex-end}.inline-intro{display:block}.inline-intro .ghost-button{margin-top:12px}.topbar-copy span{display:none}}
 @media(max-width:480px){.quick-grid,.stats-grid{grid-template-columns:1fr}.hero-card h1{font-size:31px}.topbar-actions .ghost-button{display:none}.form-card,.preview-card,.check-results{padding:18px}.dialog-actions{flex-wrap:wrap}.dialog-actions button{flex:1}}
 @media print{body{background:white}.sidebar,.topbar,.content>*:not(.view.active),.page-intro,.generator-form,.preview-header,.tabs,.form-actions,.toast{display:none!important}.main-column{margin:0;width:100%}.content{padding:0}.preview-card{border:0;box-shadow:none;max-height:none}.document{font-size:12pt}}
+
+/* Aulora 0.2 — planejamento funcional */
+.draft-status{margin-top:14px;padding:10px 12px;border-radius:10px;background:#f3f7f5;color:var(--muted);font-size:11px;border:1px dashed #d7e2dd}
+.edit-hint{margin:-7px 0 14px;padding:9px 11px;border-radius:10px;background:#fff8ea;color:#725c34;font-size:11px;border:1px solid #f0dfb9}
+.document.editing{outline:2px dashed #82aa9c;outline-offset:8px;border-radius:6px;background:#fcfffd;min-height:260px}
+.document.editing:focus{outline:2px solid var(--brand)}
+.plan-meta{display:grid!important;grid-template-columns:1fr 1fr;gap:6px 14px}
+.plan-meta span{display:block;font-size:11px}
+@media(max-width:620px){.plan-meta{grid-template-columns:1fr}.preview-actions{width:100%}.preview-header{flex-direction:column}.preview-actions .mini-button{flex:1}}

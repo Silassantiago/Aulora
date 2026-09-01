@@ -1,5 +1,6 @@
 (() => {
   const STORAGE_KEY = 'aulora.materials.v1';
+  const PLAN_DRAFT_KEY = 'aulora.plan.draft.v1';
   const app = {
     materials: loadMaterials(),
     currentMaterial: null,
@@ -50,14 +51,29 @@
   }));
 
   function previewShell(material){
-    return `<div class="preview-header"><div><span class="eyebrow">PRÉVIA</span><h3>${esc(material.title)}</h3></div><div class="preview-actions"><button class="mini-button" data-action="doc">Word</button><button class="mini-button" data-action="print">PDF</button><button class="mini-button primary" data-action="save">Salvar</button></div></div><div class="document ${material.type==='abnt'?'abnt-doc':''}">${material.html}</div>`;
+    return `<div class="preview-header"><div><span class="eyebrow">PRÉVIA</span><h3>${esc(material.title)}</h3></div><div class="preview-actions"><button class="mini-button" data-action="edit">Editar texto</button><button class="mini-button" data-action="doc">Word</button><button class="mini-button" data-action="print">PDF</button><button class="mini-button primary" data-action="save">Salvar</button></div></div><div class="edit-hint" hidden>Modo de edição ativo: clique no texto abaixo e ajuste o que quiser. As alterações serão usadas ao salvar ou exportar.</div><div class="document ${material.type==='abnt'?'abnt-doc':''}">${material.html}</div>`;
+  }
+
+  function syncPreviewMaterial(preview, material){
+    const doc=$('.document',preview);
+    if(doc) material.html=doc.innerHTML;
+    return material;
   }
 
   function bindPreview(preview, material){
     preview.classList.remove('empty'); preview.innerHTML=previewShell(material);
-    $('[data-action="save"]',preview).onclick=()=>saveMaterial(material);
-    $('[data-action="doc"]',preview).onclick=()=>exportDoc(material);
-    $('[data-action="print"]',preview).onclick=()=>printMaterial(material);
+    const doc=$('.document',preview); const editBtn=$('[data-action="edit"]',preview); const hint=$('.edit-hint',preview);
+    editBtn.onclick=()=>{
+      const editing=doc.getAttribute('contenteditable')==='true';
+      if(editing){
+        doc.removeAttribute('contenteditable'); doc.classList.remove('editing'); editBtn.textContent='Editar texto'; hint.hidden=true; material.html=doc.innerHTML; toast('Edição concluída.');
+      }else{
+        doc.setAttribute('contenteditable','true'); doc.classList.add('editing'); editBtn.textContent='Concluir edição'; hint.hidden=false; doc.focus();
+      }
+    };
+    $('[data-action="save"]',preview).onclick=()=>saveMaterial(syncPreviewMaterial(preview,material));
+    $('[data-action="doc"]',preview).onclick=()=>exportDoc(syncPreviewMaterial(preview,material));
+    $('[data-action="print"]',preview).onclick=()=>printMaterial(syncPreviewMaterial(preview,material));
   }
 
   function saveMaterial(material){
@@ -69,14 +85,50 @@
 
   function baseMeta(d){ return `<div class="meta"><strong>Disciplina:</strong> ${esc(d.discipline)} &nbsp; | &nbsp; <strong>Turma:</strong> ${esc(d.grade)}</div>`; }
 
-  $('#planForm').addEventListener('submit',e=>{
-    e.preventDefault(); const d=formData(e.currentTarget);
-    const obj=d.objective || `Compreender os conceitos centrais relacionados a ${d.topic} e aplicá-los em situações adequadas ao nível da turma.`;
-    const bncc=d.bncc?`<p><strong>Habilidade / referência BNCC informada:</strong> ${esc(d.bncc)}</p>`:'';
-    const notes=d.notes?`<p><strong>Observações da turma:</strong> ${esc(d.notes)}</p>`:'';
-    const html=`<h1>PLANO DE AULA — ${esc(d.topic)}</h1>${baseMeta(d)}<p><strong>Duração:</strong> ${esc(d.duration)} &nbsp; | &nbsp; <strong>Modalidade:</strong> ${esc(d.modality)}</p>${bncc}<h2>1. Objetivo</h2><p>${esc(obj)}</p><h2>2. Objetivos específicos</h2><ul><li>Identificar os principais conceitos de ${esc(d.topic)}.</li><li>Relacionar o conteúdo com exemplos do cotidiano.</li><li>Participar de atividade de consolidação e demonstrar compreensão do tema.</li></ul><h2>3. Conteúdos</h2><p>Conceitos essenciais, aplicações e exemplos relacionados a ${esc(d.topic)}.</p><h2>4. Metodologia</h2><ol><li><strong>Acolhida e sondagem:</strong> retomada breve dos conhecimentos prévios.</li><li><strong>Desenvolvimento:</strong> exposição dialogada com exemplos e perguntas orientadoras.</li><li><strong>Prática:</strong> atividade individual ou em pequenos grupos.</li><li><strong>Fechamento:</strong> síntese coletiva e registro dos pontos principais.</li></ol><h2>5. Recursos</h2><p>Quadro, material didático, recursos visuais e/ou digitais disponíveis na escola.</p><h2>6. Avaliação</h2><p>Avaliação formativa por participação, realização da atividade e capacidade de explicar os conceitos trabalhados.</p><h2>7. Encaminhamento / continuidade</h2><p>Retomar dificuldades identificadas e propor atividade complementar quando necessário.</p>${notes}`;
+  function formatDateBR(value){ if(!value)return ''; const [y,m,d]=value.split('-'); return `${d}/${m}/${y}`; }
+  function planIdentification(d){
+    const rows=[];
+    if(d.school) rows.push(`<strong>Escola / instituição:</strong> ${esc(d.school)}`);
+    if(d.teacher) rows.push(`<strong>Professor(a):</strong> ${esc(d.teacher)}`);
+    rows.push(`<strong>Disciplina:</strong> ${esc(d.discipline)}`);
+    rows.push(`<strong>Turma:</strong> ${esc(d.grade)}`);
+    rows.push(`<strong>Etapa:</strong> ${esc(d.stage)}`);
+    rows.push(`<strong>Duração:</strong> ${esc(d.duration)}`);
+    rows.push(`<strong>Modalidade:</strong> ${esc(d.modality)}`);
+    if(d.date) rows.push(`<strong>Data:</strong> ${esc(formatDateBR(d.date))}`);
+    return `<div class="meta plan-meta">${rows.map(r=>`<span>${r}</span>`).join('')}</div>`;
+  }
+
+  function methodSteps(d){
+    const strategy=esc(d.strategy || 'Exposição dialogada');
+    return `<ol><li><strong>Abertura e diagnóstico:</strong> apresentar o tema, mobilizar conhecimentos prévios e levantar hipóteses ou perguntas da turma.</li><li><strong>Desenvolvimento:</strong> conduzir ${strategy.toLowerCase()} sobre ${esc(d.topic)}, utilizando exemplos adequados ao nível da turma e verificações de compreensão ao longo da aula.</li><li><strong>Aplicação:</strong> propor uma tarefa de consolidação em que os estudantes utilizem os conceitos trabalhados para explicar, resolver, comparar ou produzir algo relacionado ao tema.</li><li><strong>Socialização:</strong> discutir respostas, estratégias e dúvidas, valorizando diferentes formas de raciocínio.</li><li><strong>Fechamento:</strong> retomar o objetivo da aula, registrar a síntese e identificar pontos que precisam de retomada.</li></ol>`;
+  }
+
+  const planForm=$('#planForm');
+  function savePlanDraft(){ try{localStorage.setItem(PLAN_DRAFT_KEY,JSON.stringify(formData(planForm))); const el=$('#planDraftStatus'); if(el){el.textContent='Rascunho salvo automaticamente às '+new Intl.DateTimeFormat('pt-BR',{hour:'2-digit',minute:'2-digit'}).format(new Date())+'.';}}catch{} }
+  function restorePlanDraft(){
+    try{
+      const draft=JSON.parse(localStorage.getItem(PLAN_DRAFT_KEY)||'null'); if(!draft)return;
+      Object.entries(draft).forEach(([name,value])=>{const field=planForm.elements.namedItem(name); if(field)field.value=value;});
+      const el=$('#planDraftStatus'); if(el)el.textContent='Rascunho anterior recuperado automaticamente.';
+    }catch{}
+  }
+  let draftTimer; planForm.addEventListener('input',()=>{clearTimeout(draftTimer);draftTimer=setTimeout(savePlanDraft,450);});
+  planForm.addEventListener('change',savePlanDraft);
+  planForm.addEventListener('reset',()=>setTimeout(()=>{localStorage.removeItem(PLAN_DRAFT_KEY); const el=$('#planDraftStatus'); if(el)el.textContent='Rascunho limpo. Comece um novo planejamento.';},0));
+  restorePlanDraft();
+
+  planForm.addEventListener('submit',e=>{
+    e.preventDefault(); const d=formData(e.currentTarget); savePlanDraft();
+    const obj=d.objective || `Compreender os conceitos centrais relacionados a ${d.topic}, relacionando-os a situações adequadas ao nível da turma.`;
+    const bncc=d.bncc?`<p><strong>Habilidade / referência BNCC informada pelo professor:</strong> ${esc(d.bncc)}</p>`:`<p><strong>Habilidade / BNCC:</strong> não informada. Recomenda-se inserir o código somente após conferência no documento curricular adotado pela rede.</p>`;
+    const prior=d.prior?esc(d.prior):`Levantar conhecimentos prévios da turma sobre ${esc(d.topic)} por meio de perguntas iniciais e exemplos do cotidiano.`;
+    const resources=d.resources?esc(d.resources):'Quadro, material didático e recursos visuais ou digitais disponíveis na escola.';
+    const adaptations=d.adaptations?`<h2>9. Adaptações e acessibilidade</h2><p>${esc(d.adaptations)}</p>`:`<h2>9. Adaptações e acessibilidade</h2><p>Adequar linguagem, tempo, suporte visual, forma de participação e registro às necessidades identificadas na turma, quando necessário.</p>`;
+    const notes=d.notes?`<h2>10. Observações do professor</h2><p>${esc(d.notes)}</p>`:'';
+    const html=`<h1>PLANO DE AULA — ${esc(d.topic)}</h1>${planIdentification(d)}<h2>1. Tema</h2><p>${esc(d.topic)}</p><h2>2. Objetivo geral</h2><p>${esc(obj)}</p><h2>3. Objetivos específicos</h2><ul><li>Reconhecer e explicar conceitos centrais relacionados a ${esc(d.topic)}.</li><li>Relacionar o conteúdo a exemplos, situações ou problemas compatíveis com ${esc(d.grade)}.</li><li>Aplicar o que foi estudado em uma atividade de consolidação.</li><li>Comunicar conclusões, dúvidas ou estratégias de forma oral, escrita ou prática.</li></ul><h2>4. Habilidades / referências curriculares</h2>${bncc}<h2>5. Conhecimentos prévios</h2><p>${prior}</p><h2>6. Conteúdos</h2><p>Conceitos, relações, aplicações e exemplos diretamente vinculados ao tema ${esc(d.topic)}.</p><h2>7. Metodologia e desenvolvimento</h2><p><strong>Estratégia principal:</strong> ${esc(d.strategy)}</p>${methodSteps(d)}<h2>8. Recursos didáticos</h2><p>${resources}</p><h2>9. Avaliação da aprendizagem</h2><p><strong>Forma prevista:</strong> ${esc(d.assessment)}. Observar participação, compreensão conceitual, qualidade das respostas/produções e capacidade de utilizar o conteúdo estudado. Registrar dificuldades relevantes para retomada.</p>${adaptations.replace('<h2>9.','<h2>10.')}${notes?notes.replace('<h2>10.','<h2>11.') : ''}<h2>${notes?'12':'11'}. Encaminhamentos / continuidade</h2><p>Retomar os pontos com maior dificuldade, oferecer devolutiva à turma e planejar a continuidade do conteúdo com base nas evidências observadas durante a aula.</p>`;
     const material={id:uid(),type:'plan',typeLabel:'Plano de aula',title:`${d.topic} — ${d.grade}`,subtitle:`${d.discipline} • ${d.duration}`,createdAt:new Date().toISOString(),data:d,html};
-    bindPreview($('#planPreview'),material);
+    bindPreview($('#planPreview'),material); toast('Plano montado. Você pode editar o texto antes de salvar.');
   });
 
   function questionText(topic, i, kind, difficulty){
