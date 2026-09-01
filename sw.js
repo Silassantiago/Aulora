@@ -1,5 +1,12 @@
-const CACHE='aulora-v2';
-const ASSETS=['./','./index.html','./styles.css','./app.js','./manifest.webmanifest','./assets/icon-192.png','./assets/icon-512.png'];
-self.addEventListener('install',event=>{self.skipWaiting();event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS)));});
-self.addEventListener('activate',event=>event.waitUntil(Promise.all([self.clients.claim(),caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k))))])));
-self.addEventListener('fetch',event=>{if(event.request.method!=='GET')return;const u=new URL(event.request.url);if(u.origin===location.origin && ['document','script','style'].includes(event.request.destination)){event.respondWith(fetch(event.request).then(resp=>{const clone=resp.clone();caches.open(CACHE).then(cache=>cache.put(event.request,clone));return resp;}).catch(()=>caches.match(event.request).then(hit=>hit||caches.match('./index.html'))));return;}event.respondWith(caches.match(event.request).then(hit=>hit||fetch(event.request).then(resp=>{const clone=resp.clone();caches.open(CACHE).then(cache=>cache.put(event.request,clone));return resp;})));});
+const CACHE='aulora-shell-20260901-full';
+const ASSETS=['/','/index.html','/styles.css','/app.js','/manifest.webmanifest','/icon-192.png','/icon-512.png'];
+self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting()));});
+self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});
+self.addEventListener('fetch',event=>{
+  const req=event.request,url=new URL(req.url);
+  if(req.method!=='GET'||url.origin!==location.origin||url.pathname.startsWith('/api/'))return;
+  if(req.mode==='navigate'){
+    event.respondWith(fetch(req).then(res=>{const copy=res.clone();caches.open(CACHE).then(c=>c.put('/index.html',copy));return res;}).catch(()=>caches.match('/index.html')));return;
+  }
+  event.respondWith(caches.match(req).then(hit=>hit||fetch(req).then(res=>{if(res.ok){const copy=res.clone();caches.open(CACHE).then(c=>c.put(req,copy));}return res;})));
+});

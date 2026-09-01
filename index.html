@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="theme-color" content="#1f6f5f" />
-  <meta name="description" content="Aulora — planejamento de aulas, atividades, avaliações e apoio acadêmico em um só lugar." />
+  <meta name="theme-color" content="#17483d" />
+  <meta name="description" content="Aulora — planejamento de aulas, atividades, avaliações, materiais acadêmicos e organização docente em um só lugar." />
   <title>Aulora — Planeje. Crie. Ensine.</title>
   <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="icon" href="assets/icon-192.png" />
-  <link rel="apple-touch-icon" href="assets/icon-192.png" />
+  <link rel="icon" href="icon-192.png" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -29,13 +29,14 @@
         <button class="nav-item" data-view="exam"><span>✓</span> Avaliação</button>
         <button class="nav-item" data-view="abnt"><span>¶</span> Acadêmico / ABNT</button>
         <button class="nav-item" data-view="materials"><span>▣</span> Meus materiais</button>
+        <button class="nav-item" data-view="settings"><span>⚙</span> Perfil e dados</button>
       </nav>
 
       <div class="sidebar-bottom">
-        <div class="beta-card">
-          <span class="pill">BETA 0.2</span>
-          <strong>Planejamento já funcional</strong>
-          <small>Crie, edite, salve e exporte seus materiais neste dispositivo.</small>
+        <div class="plan-mini" id="planMini"><span id="planMiniBadge">CONVIDADO</span><strong id="planMiniTitle">Use sem conta ou entre para sincronizar</strong><small id="planMiniUsage">Geração inteligente exige uma conta gratuita.</small></div>
+        <div class="status-card">
+          <div class="status-line"><span class="status-dot" id="aiDot"></span><strong id="aiStatus">Verificando serviços…</strong></div>
+          <small id="aiStatusDetail">O modo local continua disponível mesmo sem conexão.</small>
         </div>
       </div>
     </aside>
@@ -49,7 +50,8 @@
         </div>
         <div class="topbar-actions">
           <button class="ghost-button" id="installBtn" hidden>Instalar app</button>
-          <div class="avatar" title="Perfil do professor">P</div>
+          <button class="account-chip" id="accountBtn" type="button"><span id="accountPlan">Convidado</span><strong id="accountName">Entrar</strong></button>
+          <button class="avatar" id="profileShortcut" title="Abrir perfil">P</button>
         </div>
       </header>
 
@@ -57,153 +59,141 @@
         <section class="view active" id="view-dashboard" aria-labelledby="dashboard-heading">
           <div class="hero-card">
             <div>
-              <span class="eyebrow">BEM-VINDO AO AULORA</span>
-              <h1 id="dashboard-heading">Menos tempo formatando.<br />Mais tempo ensinando.</h1>
-              <p>Crie materiais pedagógicos estruturados, organize suas produções e prepare documentos acadêmicos com um fluxo simples.</p>
-              <button class="primary-button" data-go="plan">Criar meu primeiro material</button>
+              <span class="eyebrow">CENTRAL DO PROFESSOR</span>
+              <h1 id="dashboard-heading">Menos tempo preparando.<br />Mais tempo ensinando.</h1>
+              <p>Planeje aulas, gere atividades e avaliações, organize materiais e prepare estruturas acadêmicas em um único ambiente.</p>
+              <div class="hero-actions">
+                <button class="primary-button" data-go="plan">Criar material</button>
+                <button class="ghost-button" data-go="materials">Abrir biblioteca</button>
+              </div>
             </div>
             <div class="hero-visual" aria-hidden="true">
               <div class="paper paper-back"></div>
               <div class="paper paper-front">
-                <span>PLANO DE AULA</span>
+                <span>AULORA</span>
                 <i></i><i></i><i></i><i class="short"></i>
                 <b>✓</b>
               </div>
             </div>
           </div>
 
+          <div class="smart-banner" id="smartBanner">
+            <div class="smart-icon">✦</div>
+            <div><strong>Geração inteligente + biblioteca na nuvem</strong><small id="smartBannerText">Entre com uma conta gratuita para gerar materiais e acessá-los em outros dispositivos. O modo local continua disponível sem cadastro.</small></div>
+            <span class="smart-badge" id="smartBadge">Verificando</span>
+          </div>
+
           <div class="section-heading">
-            <div>
-              <span class="eyebrow">ATALHOS</span>
-              <h2>O que você quer preparar hoje?</h2>
-            </div>
+            <div><span class="eyebrow">ATALHOS</span><h2>O que você quer preparar hoje?</h2></div>
           </div>
 
           <div class="quick-grid">
-            <button class="quick-card" data-go="plan">
-              <span class="quick-icon">▤</span>
-              <strong>Plano de aula</strong>
-              <small>Objetivos, metodologia, recursos e avaliação.</small>
-              <em>Começar →</em>
-            </button>
-            <button class="quick-card" data-go="activity">
-              <span class="quick-icon">✎</span>
-              <strong>Atividade</strong>
-              <small>Exercícios organizados por série, tema e dificuldade.</small>
-              <em>Criar →</em>
-            </button>
-            <button class="quick-card" data-go="exam">
-              <span class="quick-icon">✓</span>
-              <strong>Avaliação</strong>
-              <small>Monte prova, critérios e gabarito em poucos passos.</small>
-              <em>Montar →</em>
-            </button>
-            <button class="quick-card" data-go="abnt">
-              <span class="quick-icon">¶</span>
-              <strong>Acadêmico / ABNT</strong>
-              <small>Estruture trabalhos e confira pontos de formatação.</small>
-              <em>Acessar →</em>
-            </button>
+            <button class="quick-card" data-go="plan"><span class="quick-icon">▤</span><strong>Plano de aula</strong><small>Objetivos, metodologia, recursos, inclusão e avaliação.</small><em>Planejar →</em></button>
+            <button class="quick-card" data-go="activity"><span class="quick-icon">✎</span><strong>Atividade</strong><small>Questões, texto-base, gabarito e versão do aluno.</small><em>Criar →</em></button>
+            <button class="quick-card" data-go="exam"><span class="quick-icon">✓</span><strong>Avaliação</strong><small>Prova com pontuação, questões e critérios de correção.</small><em>Montar →</em></button>
+            <button class="quick-card" data-go="abnt"><span class="quick-icon">¶</span><strong>Acadêmico / ABNT</strong><small>Estrutura, referências e verificação de normalização.</small><em>Acessar →</em></button>
           </div>
 
           <div class="stats-grid">
             <article class="stat-card"><span>Materiais salvos</span><strong id="statMaterials">0</strong></article>
             <article class="stat-card"><span>Planos de aula</span><strong id="statPlans">0</strong></article>
+            <article class="stat-card"><span>Atividades</span><strong id="statActivities">0</strong></article>
             <article class="stat-card"><span>Avaliações</span><strong id="statExams">0</strong></article>
             <article class="stat-card"><span>Acadêmicos</span><strong id="statAbnt">0</strong></article>
           </div>
         </section>
 
         <section class="view" id="view-plan">
-          <div class="page-intro">
-            <span class="eyebrow">PLANEJAMENTO</span>
-            <h1>Plano de aula</h1>
-            <p>Preencha o essencial. O Aulora monta uma estrutura clara para você revisar e adaptar à sua turma.</p>
-          </div>
+          <div class="page-intro"><span class="eyebrow">PLANEJAMENTO</span><h1>Plano de aula</h1><p>Informe o contexto da turma. O Aulora pode gerar um planejamento completo ou montar um modelo local para edição.</p></div>
           <div class="workspace-grid">
             <form class="form-card generator-form" id="planForm" autocomplete="on">
               <div class="form-grid two-col">
-                <label>Professor(a)<input name="teacher" placeholder="Seu nome (opcional)" /></label>
-                <label>Escola / instituição<input name="school" placeholder="Nome da escola (opcional)" /></label>
+                <label>Professor(a)<input name="teacher" data-profile="teacher" placeholder="Seu nome" /></label>
+                <label>Escola / instituição<input name="school" data-profile="school" placeholder="Nome da escola" /></label>
                 <label>Disciplina<input name="discipline" required placeholder="Ex.: Ciências" /></label>
                 <label>Ano / turma<input name="grade" required placeholder="Ex.: 7º ano A" /></label>
-                <label>Etapa de ensino<select name="stage"><option>Educação Infantil</option><option>Anos iniciais do Ensino Fundamental</option><option selected>Anos finais do Ensino Fundamental</option><option>Ensino Médio</option><option>EJA</option><option>Ensino Superior</option><option>Outro</option></select></label>
+                <label>Etapa de ensino<select name="stage" data-profile="stage"><option>Educação Infantil</option><option>Anos iniciais do Ensino Fundamental</option><option selected>Anos finais do Ensino Fundamental</option><option>Ensino Médio</option><option>EJA</option><option>Ensino Superior</option><option>Outro</option></select></label>
                 <label>Data da aula<input name="date" type="date" /></label>
                 <label class="full">Tema da aula<input name="topic" required placeholder="Ex.: Sistema Solar" /></label>
                 <label>Duração<select name="duration"><option>45 minutos</option><option selected>50 minutos</option><option>1 hora</option><option>1h30</option><option>2 aulas</option><option>3 aulas</option></select></label>
                 <label>Modalidade<select name="modality"><option>Presencial</option><option>Híbrida</option><option>Remota</option></select></label>
                 <label class="full">Objetivo principal<textarea name="objective" rows="3" placeholder="O que os alunos deverão compreender ou desenvolver?"></textarea></label>
-                <label class="full">Habilidade / código BNCC (opcional)<input name="bncc" placeholder="Ex.: EF07CI... — informe apenas se tiver certeza do código" /></label>
-                <label class="full">Conhecimentos prévios (opcional)<textarea name="prior" rows="2" placeholder="O que a turma já precisa saber antes desta aula?"></textarea></label>
+                <label class="full">Habilidade / código BNCC (opcional)<input name="bncc" placeholder="Informe somente um código já conferido. O Aulora não inventa códigos BNCC." /></label>
+                <label class="full">Conhecimentos prévios (opcional)<textarea name="prior" rows="2" placeholder="O que a turma já precisa saber?"></textarea></label>
                 <label>Estratégia principal<select name="strategy"><option>Exposição dialogada</option><option>Aprendizagem baseada em problemas</option><option>Rotação por estações</option><option>Trabalho em grupos</option><option>Estudo de caso</option><option>Projeto / investigação</option><option>Oficina prática</option></select></label>
                 <label>Forma de avaliação<select name="assessment"><option>Avaliação formativa</option><option>Atividade individual</option><option>Atividade em grupo</option><option>Produção escrita</option><option>Apresentação / seminário</option><option>Quiz / verificação rápida</option></select></label>
-                <label class="full">Recursos disponíveis (opcional)<input name="resources" placeholder="Ex.: quadro, projetor, livro didático, laboratório..." /></label>
-                <label class="full">Adaptações / inclusão (opcional)<textarea name="adaptations" rows="3" placeholder="Ex.: leitura mediada, tempo ampliado, apoio visual, atividade em dupla..."></textarea></label>
-                <label class="full">Observações da turma (opcional)<textarea name="notes" rows="3" placeholder="Ex.: turma participativa; retomar conceito da aula anterior..."></textarea></label>
+                <label class="full">Recursos disponíveis (opcional)<input name="resources" placeholder="Ex.: quadro, projetor, livro, laboratório..." /></label>
+                <label class="full">Adaptações / inclusão (opcional)<textarea name="adaptations" rows="3" placeholder="Ex.: apoio visual, tempo ampliado, leitura mediada..."></textarea></label>
+                <label class="full">Observações da turma (opcional)<textarea name="notes" rows="3" placeholder="Particularidades que devem ser consideradas."></textarea></label>
               </div>
               <div class="draft-status" id="planDraftStatus">Rascunho salvo automaticamente neste dispositivo.</div>
-              <div class="form-actions"><button type="reset" class="ghost-button">Limpar</button><button class="primary-button" type="submit">Montar plano</button></div>
+              <div class="form-actions split-actions"><button type="reset" class="ghost-button">Limpar</button><div><button class="ghost-button" type="button" data-local="plan">Montar modelo local</button><button class="primary-button smart-action" type="submit"><span>✦</span> Gerar plano completo</button></div></div>
             </form>
             <div class="preview-card empty" id="planPreview"></div>
           </div>
         </section>
 
         <section class="view" id="view-activity">
-          <div class="page-intro">
-            <span class="eyebrow">PRÁTICA</span>
-            <h1>Criar atividade</h1>
-            <p>Monte uma lista de exercícios pronta para ajustar, imprimir e aplicar.</p>
-          </div>
+          <div class="page-intro"><span class="eyebrow">PRÁTICA</span><h1>Criar atividade</h1><p>Gere questões adequadas ao tema e à turma. Para maior precisão, inclua um texto-base ou resumo do conteúdo trabalhado.</p></div>
           <div class="workspace-grid">
-            <form class="form-card generator-form" id="activityForm">
+            <form class="form-card generator-form" id="activityForm" autocomplete="on">
               <div class="form-grid two-col">
+                <label>Professor(a)<input name="teacher" data-profile="teacher" placeholder="Seu nome" /></label>
+                <label>Escola / instituição<input name="school" data-profile="school" placeholder="Nome da escola" /></label>
                 <label>Disciplina<input name="discipline" required placeholder="Ex.: Língua Portuguesa" /></label>
-                <label>Ano / turma<input name="grade" required placeholder="Ex.: 5º ano" /></label>
+                <label>Ano / turma<input name="grade" required placeholder="Ex.: 5º ano A" /></label>
                 <label class="full">Conteúdo / tema<input name="topic" required placeholder="Ex.: Interpretação de texto" /></label>
+                <label class="full">Objetivo da atividade<textarea name="objective" rows="2" placeholder="Ex.: verificar compreensão e aplicação dos conceitos."></textarea></label>
+                <label class="full">Texto-base / conteúdo trabalhado<textarea name="sourceText" rows="7" placeholder="Cole um texto, resumo, situação-problema ou os principais conceitos. Quanto melhor o contexto, melhores as questões."></textarea></label>
                 <label>Quantidade de questões<select name="count"><option>5</option><option selected>10</option><option>15</option><option>20</option></select></label>
                 <label>Dificuldade<select name="difficulty"><option>Fácil</option><option selected>Intermediária</option><option>Avançada</option></select></label>
-                <label class="full">Formato<select name="format"><option>Mista</option><option>Objetivas</option><option>Discursivas</option><option>Verdadeiro ou falso</option></select></label>
-                <label class="full">Orientações extras (opcional)<textarea name="notes" rows="3" placeholder="Ex.: priorizar situações do cotidiano..."></textarea></label>
+                <label>Formato<select name="format"><option>Mista</option><option>Objetivas</option><option>Discursivas</option><option>Verdadeiro ou falso</option></select></label>
+                <label>Espaço para resposta<select name="answerSpace"><option value="1">Curto</option><option value="2" selected>Médio</option><option value="4">Amplo</option></select></label>
+                <label class="full">Habilidade / referência curricular (opcional)<input name="skill" placeholder="Informe somente referências já conferidas" /></label>
+                <label class="full">Orientações ao aluno<textarea name="instructions" rows="3" placeholder="Ex.: leia com atenção e justifique as questões discursivas."></textarea></label>
+                <label class="full">Critérios / observações do professor<textarea name="notes" rows="3" placeholder="Ex.: aceitar respostas equivalentes; foco em argumentação..."></textarea></label>
               </div>
-              <div class="form-actions"><button type="reset" class="ghost-button">Limpar</button><button class="primary-button" type="submit">Gerar atividade</button></div>
+              <div class="draft-status" id="activityDraftStatus">Rascunho salvo automaticamente neste dispositivo.</div>
+              <div class="form-actions split-actions"><button type="reset" class="ghost-button">Limpar</button><div><button class="ghost-button" type="button" data-local="activity">Montar modelo local</button><button class="primary-button smart-action" type="submit"><span>✦</span> Gerar atividade completa</button></div></div>
             </form>
             <div class="preview-card empty" id="activityPreview"></div>
           </div>
         </section>
 
         <section class="view" id="view-exam">
-          <div class="page-intro">
-            <span class="eyebrow">AVALIAÇÃO</span>
-            <h1>Montar avaliação</h1>
-            <p>Crie uma prova estruturada e gere o gabarito no mesmo material.</p>
-          </div>
+          <div class="page-intro"><span class="eyebrow">AVALIAÇÃO</span><h1>Montar avaliação</h1><p>Crie prova e gabarito separados, com distribuição de pontos, nível de dificuldade e critérios de correção.</p></div>
           <div class="workspace-grid">
-            <form class="form-card generator-form" id="examForm">
+            <form class="form-card generator-form" id="examForm" autocomplete="on">
               <div class="form-grid two-col">
+                <label>Professor(a)<input name="teacher" data-profile="teacher" placeholder="Seu nome" /></label>
+                <label>Escola / instituição<input name="school" data-profile="school" placeholder="Nome da escola" /></label>
                 <label>Disciplina<input name="discipline" required placeholder="Ex.: História" /></label>
-                <label>Ano / turma<input name="grade" required placeholder="Ex.: 8º ano" /></label>
+                <label>Ano / turma<input name="grade" required placeholder="Ex.: 8º ano A" /></label>
                 <label class="full">Conteúdo avaliado<input name="topic" required placeholder="Ex.: Revolução Industrial" /></label>
-                <label>Nº de questões<select name="count"><option>5</option><option selected>10</option><option>15</option></select></label>
+                <label>Data<input name="date" type="date" /></label>
+                <label>Duração prevista<select name="duration"><option>45 minutos</option><option selected>50 minutos</option><option>1 hora</option><option>1h30</option><option>2 aulas</option></select></label>
+                <label>Nº de questões<select name="count"><option>5</option><option selected>10</option><option>15</option><option>20</option></select></label>
+                <label>Valor total<input name="totalPoints" type="number" min="1" max="100" step="0.5" value="10" /></label>
                 <label>Dificuldade<select name="difficulty"><option>Fácil</option><option selected>Intermediária</option><option>Avançada</option></select></label>
-                <label class="full">Composição<select name="format"><option>70% objetivas + 30% discursivas</option><option>Somente objetivas</option><option>50% objetivas + 50% discursivas</option><option>Somente discursivas</option></select></label>
-                <label class="full">Critérios / observações (opcional)<textarea name="notes" rows="3" placeholder="Ex.: valor total 10,0; considerar clareza e justificativa..."></textarea></label>
+                <label>Composição<select name="format"><option>70% objetivas + 30% discursivas</option><option>Somente objetivas</option><option>50% objetivas + 50% discursivas</option><option>Somente discursivas</option><option>Verdadeiro ou falso</option></select></label>
+                <label class="full">Texto-base / conteúdo trabalhado<textarea name="sourceText" rows="7" placeholder="Cole o conteúdo, resumo ou texto-base que deve orientar a avaliação."></textarea></label>
+                <label class="full">Habilidade / referência curricular (opcional)<input name="skill" placeholder="Informe apenas referências já conferidas" /></label>
+                <label class="full">Instruções da avaliação<textarea name="instructions" rows="3" placeholder="Ex.: responda de forma legível e revise antes de entregar."></textarea></label>
+                <label class="full">Critérios / observações de correção<textarea name="notes" rows="3" placeholder="Ex.: considerar argumentação, domínio conceitual e vocabulário."></textarea></label>
               </div>
-              <div class="form-actions"><button type="reset" class="ghost-button">Limpar</button><button class="primary-button" type="submit">Montar avaliação</button></div>
+              <div class="draft-status" id="examDraftStatus">Rascunho salvo automaticamente neste dispositivo.</div>
+              <div class="form-actions split-actions"><button type="reset" class="ghost-button">Limpar</button><div><button class="ghost-button" type="button" data-local="exam">Montar modelo local</button><button class="primary-button smart-action" type="submit"><span>✦</span> Gerar avaliação completa</button></div></div>
             </form>
             <div class="preview-card empty" id="examPreview"></div>
           </div>
         </section>
 
         <section class="view" id="view-abnt">
-          <div class="page-intro">
-            <span class="eyebrow">ACADÊMICO</span>
-            <h1>Estrutura acadêmica / ABNT</h1>
-            <p>Monte a estrutura inicial e use o verificador como apoio. A instituição pode exigir regras complementares ao padrão ABNT.</p>
-          </div>
-
+          <div class="page-intro"><span class="eyebrow">ACADÊMICO</span><h1>Acadêmico / ABNT</h1><p>Estruture trabalhos, formate referências e faça verificações iniciais. O manual da instituição sempre prevalece quando trouxer exigências específicas.</p></div>
           <div class="tabs" role="tablist">
             <button class="tab active" data-tab="abnt-create">Criar estrutura</button>
             <button class="tab" data-tab="abnt-check">Verificar texto</button>
+            <button class="tab" data-tab="abnt-reference">Formatar referência</button>
           </div>
 
           <div class="tab-panel active" id="abnt-create">
@@ -211,18 +201,18 @@
               <form class="form-card generator-form" id="abntForm">
                 <div class="form-grid two-col">
                   <label>Tipo de trabalho<select name="workType"><option>Trabalho acadêmico</option><option>Artigo</option><option>Projeto</option><option>Relatório</option><option>TCC</option></select></label>
-                  <label>Instituição<input name="institution" placeholder="Nome da instituição" /></label>
+                  <label>Instituição<input name="institution" data-profile="school" placeholder="Nome da instituição" /></label>
                   <label class="full">Título<input name="title" required placeholder="Título do trabalho" /></label>
-                  <label>Autor(a)<input name="author" required placeholder="Nome completo" /></label>
+                  <label>Autor(a)<input name="author" data-profile="teacher" required placeholder="Nome completo" /></label>
                   <label>Curso / disciplina<input name="course" placeholder="Ex.: Pedagogia" /></label>
-                  <label>Cidade<input name="city" placeholder="Ex.: Urubici" /></label>
+                  <label>Cidade<input name="city" data-profile="city" placeholder="Ex.: Urubici" /></label>
                   <label>Ano<input name="year" inputmode="numeric" /></label>
-                  <label class="full">Tema / problema de pesquisa<textarea name="theme" rows="3" placeholder="Descreva o assunto central do trabalho"></textarea></label>
-                  <label class="full">Objetivo geral<textarea name="objective" rows="3" placeholder="O que o trabalho pretende analisar, demonstrar ou discutir?"></textarea></label>
+                  <label class="full">Tema / problema de pesquisa<textarea name="theme" rows="3" placeholder="Delimite o assunto central e o problema."></textarea></label>
+                  <label class="full">Objetivo geral<textarea name="objective" rows="3" placeholder="O que o trabalho pretende analisar, compreender ou demonstrar?"></textarea></label>
                   <label class="full">Palavras-chave<input name="keywords" placeholder="Ex.: educação; tecnologia; aprendizagem" /></label>
                 </div>
-                <div class="abnt-note">Perfil inicial: papel A4, margens acadêmicas usuais, hierarquia de seções, estrutura pré-textual/textual/pós-textual e orientação para citações/referências. Sempre confira o manual específico da sua instituição.</div>
-                <div class="form-actions"><button type="reset" class="ghost-button">Limpar</button><button class="primary-button" type="submit">Criar estrutura</button></div>
+                <div class="abnt-note"><strong>Importante:</strong> o Aulora não inventa fontes, autores, citações ou referências bibliográficas. A estrutura serve como apoio de normalização e deve ser conferida com o manual da sua instituição.</div>
+                <div class="form-actions split-actions"><button type="reset" class="ghost-button">Limpar</button><div><button class="ghost-button" type="button" data-local="abnt">Montar estrutura local</button><button class="primary-button smart-action" type="submit"><span>✦</span> Criar estrutura guiada</button></div></div>
               </form>
               <div class="preview-card empty" id="abntPreview"></div>
             </div>
@@ -231,49 +221,117 @@
           <div class="tab-panel" id="abnt-check">
             <div class="checker-grid">
               <div class="form-card">
-                <label>Texto para verificação<textarea id="abntCheckText" rows="18" placeholder="Cole aqui o conteúdo do trabalho. Nesta versão, o Aulora verifica estrutura textual e sinais básicos de normalização; arquivos .docx serão suportados em uma etapa posterior."></textarea></label>
-                <div class="form-actions"><button class="primary-button" id="checkAbntBtn" type="button">Verificar</button></div>
+                <label>Texto para verificação<textarea id="abntCheckText" rows="20" placeholder="Cole aqui o conteúdo do trabalho. O Aulora verificará estrutura textual, seções, indícios de citações e outros pontos que podem ser avaliados em texto puro."></textarea></label>
+                <div class="form-actions"><button class="primary-button" id="checkAbntBtn" type="button">Verificar texto</button></div>
               </div>
-              <div class="check-results" id="abntCheckResults">
-                <div class="empty-state"><span>¶</span><strong>Nenhuma verificação realizada</strong><p>Cole o texto e clique em “Verificar”.</p></div>
-              </div>
+              <div class="check-results" id="abntCheckResults"><div class="empty-state"><span>¶</span><strong>Nenhuma verificação realizada</strong><p>Cole o texto e clique em “Verificar texto”.</p></div></div>
+            </div>
+          </div>
+
+          <div class="tab-panel" id="abnt-reference">
+            <div class="workspace-grid">
+              <form class="form-card" id="referenceForm">
+                <div class="form-grid two-col">
+                  <label>Tipo de fonte<select name="type" id="referenceType"><option value="book">Livro</option><option value="article">Artigo de periódico</option><option value="site">Página / site</option></select></label>
+                  <label>Autor(es)<input name="authors" placeholder="Ex.: SILVA, João; SOUZA, Maria" /></label>
+                  <label class="full">Título<input name="title" required placeholder="Título da obra ou página" /></label>
+                  <label class="full">Subtítulo (opcional)<input name="subtitle" placeholder="Subtítulo" /></label>
+                  <label class="ref-book">Edição<input name="edition" placeholder="Ex.: 2. ed." /></label>
+                  <label class="ref-book">Local<input name="place" placeholder="Ex.: São Paulo" /></label>
+                  <label class="ref-book">Editora<input name="publisher" placeholder="Ex.: Atlas" /></label>
+                  <label>Ano<input name="year" placeholder="Ex.: 2026" /></label>
+                  <label class="ref-article" hidden>Nome do periódico<input name="journal" placeholder="Ex.: Revista Brasileira de Educação" /></label>
+                  <label class="ref-article" hidden>Volume / número<input name="volume" placeholder="Ex.: v. 31, n. 2" /></label>
+                  <label class="ref-article" hidden>Páginas<input name="pages" placeholder="Ex.: p. 10-25" /></label>
+                  <label class="ref-site" hidden>Nome do site / responsável<input name="siteName" placeholder="Ex.: Ministério da Educação" /></label>
+                  <label class="full ref-online" hidden>URL<input name="url" type="url" placeholder="https://..." /></label>
+                  <label class="ref-online" hidden>Data de acesso<input name="accessDate" type="date" /></label>
+                </div>
+                <div class="form-actions"><button class="primary-button" type="submit">Formatar referência</button></div>
+              </form>
+              <div class="preview-card empty" id="referencePreview"></div>
             </div>
           </div>
         </section>
 
         <section class="view" id="view-materials">
           <div class="page-intro inline-intro">
-            <div>
-              <span class="eyebrow">BIBLIOTECA</span>
-              <h1>Meus materiais</h1>
-              <p>Conteúdos gerados e salvos neste dispositivo.</p>
-            </div>
-            <button class="ghost-button danger-text" id="clearMaterialsBtn">Limpar biblioteca</button>
+            <div><span class="eyebrow">BIBLIOTECA</span><h1>Meus materiais</h1><p id="libraryStorageMode">Materiais salvos neste dispositivo. Entre para sincronizar na nuvem.</p></div>
+            <div class="header-actions"><button class="ghost-button" id="exportBackupBtn">Exportar backup</button><label class="ghost-button file-label">Importar backup<input type="file" id="importBackupInput" accept="application/json" hidden /></label><button class="ghost-button danger-text" id="clearMaterialsBtn">Limpar biblioteca</button></div>
           </div>
-          <div class="materials-toolbar">
-            <input id="materialsSearch" placeholder="Buscar por título, disciplina ou turma..." />
-            <select id="materialsFilter"><option value="all">Todos os tipos</option><option value="plan">Planos de aula</option><option value="activity">Atividades</option><option value="exam">Avaliações</option><option value="abnt">Acadêmicos</option></select>
-          </div>
+          <div class="materials-toolbar"><input id="materialsSearch" placeholder="Buscar por título, disciplina ou turma..." /><select id="materialsFilter"><option value="all">Todos os tipos</option><option value="plan">Planos de aula</option><option value="activity">Atividades</option><option value="exam">Avaliações</option><option value="abnt">Acadêmicos</option><option value="reference">Referências</option></select></div>
           <div class="materials-list" id="materialsList"></div>
+        </section>
+
+        <section class="view" id="view-settings">
+          <div class="page-intro"><span class="eyebrow">CONTA E PREFERÊNCIAS</span><h1>Perfil, plano e dados</h1><p>Gerencie sua conta, sincronização, plano e informações usadas nos materiais.</p></div>
+          <div class="settings-grid">
+            <div class="form-card account-card" id="accountSettingsCard">
+              <div class="card-heading"><div><span class="eyebrow">CONTA</span><h2 id="settingsAccountTitle">Você está usando como convidado</h2></div><span class="plan-badge" id="settingsPlanBadge">CONVIDADO</span></div>
+              <p class="muted-copy" id="settingsAccountText">Crie uma conta gratuita para salvar materiais na nuvem e usar a geração inteligente.</p>
+              <div class="data-summary account-summary"><div><span>Gerações neste mês</span><strong id="settingsAiUsage">—</strong></div><div><span>Materiais na conta</span><strong id="settingsCloudCount">—</strong></div></div>
+              <div class="stack-actions account-actions"><button class="primary-button" id="settingsLoginBtn" type="button">Entrar / criar conta</button><button class="ghost-button" id="syncCloudBtn" type="button" hidden>Atualizar da nuvem</button><button class="ghost-button" id="logoutBtn" type="button" hidden>Sair da conta</button></div>
+            </div>
+            <div class="form-card plan-card">
+              <div class="card-heading"><div><span class="eyebrow">PLANO</span><h2>Aulora Pro</h2></div><span class="price-tag">R$ 14,90/mês</span></div>
+              <ul class="feature-list"><li>Até 200 gerações inteligentes por mês</li><li>Até 1.000 materiais sincronizados</li><li>Acesso aos materiais em qualquer dispositivo</li><li>Plano de aula, atividade, avaliação e apoio acadêmico</li></ul>
+              <div class="stack-actions"><button class="primary-button" id="upgradeBtn" type="button">Assinar Pro</button><button class="ghost-button" id="manageBillingBtn" type="button" hidden>Gerenciar assinatura</button></div>
+              <small class="billing-note" id="billingNote">A conta gratuita inclui 5 gerações inteligentes por mês e até 25 materiais na nuvem.</small>
+            </div>
+            <form class="form-card" id="profileForm">
+              <div class="card-heading"><div><span class="eyebrow">PERFIL</span><h2>Dados do professor</h2></div></div>
+              <div class="form-grid two-col">
+                <label>Nome<input name="teacher" placeholder="Seu nome" /></label>
+                <label>Escola / instituição<input name="school" placeholder="Nome da escola" /></label>
+                <label>Cidade<input name="city" placeholder="Cidade" /></label>
+                <label>Etapa padrão<select name="stage"><option>Educação Infantil</option><option>Anos iniciais do Ensino Fundamental</option><option selected>Anos finais do Ensino Fundamental</option><option>Ensino Médio</option><option>EJA</option><option>Ensino Superior</option><option>Outro</option></select></label>
+              </div>
+              <div class="form-actions"><button class="primary-button" type="submit">Salvar perfil</button></div>
+            </form>
+            <div class="form-card">
+              <div class="card-heading"><div><span class="eyebrow">DADOS</span><h2>Backup e armazenamento</h2></div></div>
+              <p class="muted-copy" id="settingsStorageCopy">Como convidado, os materiais ficam somente neste navegador. Com conta, o Aulora também mantém uma cópia sincronizada na nuvem.</p>
+              <div class="data-summary"><div><span>Materiais atuais</span><strong id="settingsMaterialCount">0</strong></div><div><span>Cache local estimado</span><strong id="settingsStorageSize">0 KB</strong></div></div>
+              <div class="stack-actions"><button class="ghost-button" id="settingsExportBtn" type="button">Baixar backup completo</button><button class="ghost-button danger-text" id="resetAppBtn" type="button">Apagar dados locais</button></div>
+            </div>
+            <div class="form-card wide-card">
+              <div class="card-heading"><div><span class="eyebrow">PRIVACIDADE</span><h2>Como o Aulora usa seus dados</h2></div></div>
+              <div class="privacy-grid"><article><strong>Materiais</strong><p>Quando você entra, seus materiais são vinculados à sua conta no banco do Aulora; como convidado, permanecem somente no navegador.</p></article><article><strong>Geração inteligente</strong><p>Os dados do formulário solicitado são enviados ao serviço de geração para produzir o material. Evite inserir dados pessoais desnecessários de alunos.</p></article><article><strong>Senha</strong><p>A senha não é armazenada em texto aberto. O servidor guarda somente derivação criptográfica e sessões protegidas por cookie HttpOnly.</p></article></div>
+            </div>
+          </div>
         </section>
       </main>
     </div>
   </div>
 
+  <div class="loading-overlay" id="loadingOverlay" hidden><div class="loading-card"><div class="spinner"></div><strong id="loadingTitle">Preparando seu material…</strong><span id="loadingText">Isso costuma levar alguns segundos.</span></div></div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <dialog id="authDialog" class="auth-dialog">
+    <div class="auth-shell">
+      <button class="icon-button auth-close" id="authCloseBtn" type="button" aria-label="Fechar">×</button>
+      <div class="auth-brand"><div class="brand-mark">A</div><div><strong>Aulora</strong><span>Entre para sincronizar e gerar.</span></div></div>
+      <div class="auth-tabs"><button class="auth-tab active" data-auth-tab="login" type="button">Entrar</button><button class="auth-tab" data-auth-tab="signup" type="button">Criar conta</button></div>
+      <form id="loginForm" class="auth-form active" data-auth-panel="login">
+        <label>E-mail<input name="email" type="email" autocomplete="email" required placeholder="voce@exemplo.com" /></label>
+        <label>Senha<input name="password" type="password" autocomplete="current-password" required minlength="8" placeholder="Sua senha" /></label>
+        <button class="primary-button" type="submit">Entrar no Aulora</button>
+      </form>
+      <form id="signupForm" class="auth-form" data-auth-panel="signup">
+        <label>Nome<input name="name" autocomplete="name" required placeholder="Seu nome" /></label>
+        <label>E-mail<input name="email" type="email" autocomplete="email" required placeholder="voce@exemplo.com" /></label>
+        <label>Senha<input name="password" type="password" autocomplete="new-password" required minlength="8" placeholder="Mínimo de 8 caracteres" /></label>
+        <button class="primary-button" type="submit">Criar conta gratuita</button>
+      </form>
+      <p class="auth-foot">Plano gratuito: 5 gerações inteligentes/mês e até 25 materiais sincronizados.</p>
+    </div>
+  </dialog>
 
   <dialog id="materialDialog" class="material-dialog">
     <form method="dialog" class="dialog-shell">
-      <div class="dialog-header">
-        <div><span class="eyebrow" id="dialogType">MATERIAL</span><h2 id="dialogTitle">Material</h2></div>
-        <button class="icon-button" aria-label="Fechar">×</button>
-      </div>
+      <div class="dialog-header"><div><span class="eyebrow" id="dialogType">MATERIAL</span><h2 id="dialogTitle">Material</h2></div><button class="icon-button" aria-label="Fechar">×</button></div>
       <div class="dialog-body" id="dialogBody"></div>
-      <div class="dialog-actions">
-        <button type="button" class="ghost-button" id="dialogDocBtn">Exportar Word</button>
-        <button type="button" class="ghost-button" id="dialogPrintBtn">Imprimir / PDF</button>
-        <button class="primary-button">Fechar</button>
-      </div>
+      <div class="dialog-actions"><button type="button" class="ghost-button" id="dialogDuplicateBtn">Duplicar</button><button type="button" class="ghost-button" id="dialogDocBtn">Exportar Word</button><button type="button" class="ghost-button" id="dialogPrintBtn">Imprimir / PDF</button><button class="primary-button">Fechar</button></div>
     </form>
   </dialog>
 
