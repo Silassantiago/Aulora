@@ -49,7 +49,7 @@ function nowIso() { return new Date().toISOString(); }
 function monthKey() { return new Date().toISOString().slice(0, 7); }
 function planLimits(plan) {
   const pro = plan === 'pro';
-  return { ai: pro ? PRO_AI_LIMIT : FREE_AI_LIMIT, materials: pro ? PRO_MATERIAL_LIMIT : FREE_MATERIAL_LIMIT };
+  return { ai: pro ? PRO_AI_LIMIT : FREE_AI_LIMIT, materials: pro ? PRO_MATERIAL_LIMIT : FREE_MATERIAL_LIMIT, questions: pro ? 20 : 10 };
 }
 function parseCookies(request) {
   const raw = request.headers.get('cookie') || '';
@@ -140,6 +140,34 @@ async function ensureSchema(db) {
       FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
     )`)
   ]);
+
+  // Migra bancos D1 criados por versões anteriores do Aulora.
+  // CREATE TABLE IF NOT EXISTS não adiciona colunas novas a tabelas já existentes.
+  async function addMissingColumns(table, columns) {
+    const info = await db.prepare(`PRAGMA table_info(${table})`).all();
+    const names = new Set((info.results || []).map(r => r.name));
+    for (const [name, definition] of columns) {
+      if (!names.has(name)) await db.prepare(`ALTER TABLE ${table} ADD COLUMN ${name} ${definition}`).run();
+    }
+  }
+  await addMissingColumns('users', [
+    ['name', "TEXT NOT NULL DEFAULT ''"],
+    ['plan', "TEXT NOT NULL DEFAULT 'free'"],
+    ['plan_status', "TEXT NOT NULL DEFAULT 'active'"],
+    ['profile_json', "TEXT NOT NULL DEFAULT '{}'"],
+    ['stripe_customer_id', 'TEXT'],
+    ['stripe_subscription_id', 'TEXT'],
+    ['created_at', "TEXT NOT NULL DEFAULT ''"],
+    ['updated_at', "TEXT NOT NULL DEFAULT ''"]
+  ]);
+  await addMissingColumns('materials', [
+    ['type_label', "TEXT NOT NULL DEFAULT ''"],
+    ['subtitle', "TEXT NOT NULL DEFAULT ''"],
+    ['data_json', "TEXT NOT NULL DEFAULT '{}'"],
+    ['html', "TEXT NOT NULL DEFAULT ''"],
+    ['created_at', "TEXT NOT NULL DEFAULT ''"],
+    ['updated_at', "TEXT NOT NULL DEFAULT ''"]
+  ]);
   schemaReady = true;
 }
 async function prepareSession(request) {
@@ -204,7 +232,29 @@ function promptFor(kind, d) {
   const payload = JSON.stringify(d, null, 2);
   if (kind === 'plan') return `${commonSystem()}\nCrie um PLANO DE AULA completo. Inclua identificação, tema, objetivo geral, objetivos específicos, conhecimentos prévios, desenvolvimento em etapas com tempo aproximado, metodologia, recursos, avaliação, fechamento e adaptações quando informadas. Código BNCC só pode ser reproduzido se fornecido.\nDados:\n${payload}`;
   if (kind === 'activity') return `${commonSystem()}
-Crie uma ATIVIDADE PEDAGÓGICA FINAL, pronta para revisão do professor, com exatamente ${d.count || 10} questões REAIS e ESPECÍFICAS sobre o tema informado. Cada questão deve ficar dentro de <div class="question">. Respeite disciplina, etapa/turma, formato e dificuldade. Se houver texto-base, use-o de forma efetiva. Se não houver texto-base, use conhecimento geral consolidado e apropriado ao nível escolar, sem inventar fontes ou dados. Questões objetivas devem ter exatamente 4 alternativas A-D plausíveis e somente uma correta. Questões discursivas devem ter enunciado completo e critério objetivo de correção. Não escreva placeholders, colchetes para preencher, 'personalize', 'defina a alternativa', 'insira aqui' ou instruções para o professor no corpo das questões. Ao final inclua <div class="answer-key"><h2>GABARITO / ORIENTAÇÕES DE CORREÇÃO</h2>...</div> com resposta correspondente a TODAS as questões.
+Crie uma ATIVIDADE PEDAGÓGICA FINAL, pronta para revisão do professor, com exatamente ${d.count || 10} tarefas REAIS e ESPECÍFICAS sobre o tema informado. Cada tarefa deve ficar dentro de <div class="question">.
+
+REGRAS PEDAGÓGICAS:
+- Respeite disciplina, etapa/turma, dificuldade, tipo de atividade, forma de resposta, linguagem e organização visual escolhidos.
+- Se houver texto-base, use-o de forma efetiva. Se não houver, use conhecimento geral consolidado e apropriado ao nível escolar, sem inventar fontes ou dados.
+- Se houver perfil de apoio pedagógico, trate-o como necessidade de ACESSO PEDAGÓGICO, sem diagnosticar, rotular, infantilizar ou presumir incapacidade.
+- Para Estudante autista / TEA: priorize previsibilidade, linguagem literal, instruções curtas, uma demanda por vez, baixa carga visual e alternativas de resposta. Não presuma nível de suporte clínico, sensibilidade sensorial ou comunicação; use somente o que foi informado.
+- Para Educação especial — apoio ampliado: reduza carga de escrita quando solicitado, ofereça respostas por marcar, ligar, apontar, desenhar ou oralidade mediada e inclua exemplos simples quando ajudarem.
+- Para Alfabetização / pré-leitor: use palavras frequentes, comandos muito curtos, apoio por símbolos simples e tarefas de identificação, associação, completar, traçar ou desenho.
+- Interesses informados podem contextualizar a atividade, mas não devem dominar nem estereotipar o estudante.
+- Em qualquer adaptação, preserve o objetivo curricular sempre que possível e registre no gabarito sugestões de mediação, não respostas clínicas.
+
+REGRAS DE FORMATO:
+- Tipo "Desenho guiado": inclua instrução concreta e um <div class="drawing-box"></div> em cada tarefa que exija desenho.
+- Tipo "Ligar / associar": use tabelas simples ou blocos <div class="visual-task"> com pares claramente identificados; não dependa de imagens externas.
+- Tipo "Pintar / marcar": use símbolos, palavras, formas ou opções textuais simples; pode usar <span class="visual-symbol">●</span>, ★, ▲, ■ ou emojis comuns quando pedagógico.
+- Tipo "Sequência visual / ordenar": use <div class="sequence-box"><div>1</div><div>2</div><div>3</div></div> ou tabela simples com etapas curtas.
+- Tipo "Recortar e colar — imprimível": crie itens curtos em blocos separados, próprios para impressão e recorte, sem imagens externas.
+- Organização "Uma tarefa por bloco" ou perfis inclusivos: deixe enunciados curtos e sem excesso de informação.
+- Quando a tarefa for objetiva, use ${d.optionCount || 3} alternativas plausíveis e somente uma correta. Não force 4 alternativas se o professor escolheu 2 ou 3.
+- Questões discursivas devem ter enunciado completo e critério objetivo de correção.
+- Não escreva placeholders, colchetes para preencher, 'personalize', 'defina a alternativa', 'insira aqui' ou instruções para o professor no corpo das tarefas.
+- Ao final inclua <div class="answer-key"><h2>GABARITO / ORIENTAÇÕES DE CORREÇÃO</h2>...</div> com resposta correspondente a TODAS as tarefas e, quando houver adaptação, uma seção <div class="teacher-support"><strong>Sugestões de mediação</strong>...</div>.
 Dados:
 ${payload}`;
   if (kind === 'exam') return `${commonSystem()}
@@ -228,13 +278,15 @@ function generatedMaterialValid(kind, html, d) {
     const questions = (text.match(/class=["']question["']/gi) || []).length;
     if (questions !== expected) return false;
     if (!/class=["']answer-key["']/i.test(text)) return false;
+    if (kind === 'activity' && /Desenho guiado/i.test(String(d.activityType || '')) && !/class=["']drawing-box["']/i.test(text)) return false;
+    if (kind === 'activity' && /Ligar \/ associar/i.test(String(d.activityType || '')) && !/(<table|class=["']visual-task["'])/i.test(text)) return false;
   }
   return true;
 }
 async function runGeneration(env, kind, d, repair = false) {
   const schema = { type: 'object', properties: { title: { type: 'string' }, subtitle: { type: 'string' }, typeLabel: { type: 'string' }, html: { type: 'string' } }, required: ['title', 'subtitle', 'typeLabel', 'html'] };
   const instruction = repair
-    ? `${promptFor(kind, d)}\nATENÇÃO: a tentativa anterior foi rejeitada por estar incompleta ou genérica. Refaça do zero, cumpra exatamente a quantidade de questões e não use nenhum placeholder.`
+    ? `${promptFor(kind, d)}\nATENÇÃO: a tentativa anterior foi rejeitada por estar incompleta, genérica ou não respeitar a adaptação escolhida. Refaça do zero, cumpra exatamente a quantidade de tarefas, o tipo de atividade inclusiva e não use nenhum placeholder.`
     : promptFor(kind, d);
   const result = await env.AI.run(MODEL, {
     messages: [{ role: 'system', content: 'Siga rigorosamente as instruções. Gere conteúdo pedagógico específico e devolva JSON válido no esquema solicitado.' }, { role: 'user', content: instruction }],
@@ -296,17 +348,19 @@ async function api(request, env, url) {
     const existing = await env.DB.prepare('SELECT id FROM users WHERE email=?').bind(email).first();
     if (existing) return json({ error: 'Já existe uma conta com este e-mail. Use a opção Entrar.', code: 'EMAIL_EXISTS' }, 409);
     try {
-      const id = crypto.randomUUID(), hp = await hashPassword(password), ts = nowIso(), session = await prepareSession(request);
+      const id = crypto.randomUUID(), hp = await hashPassword(password), ts = nowIso();
       const profile = JSON.stringify({ teacher: name, school: '', city: '', stage: 'Anos finais do Ensino Fundamental' });
-      await env.DB.batch([
-        env.DB.prepare('INSERT INTO users(id,email,name,password_hash,password_salt,plan,plan_status,profile_json,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)')
-          .bind(id, email, name, hp.hash, hp.salt, 'free', 'active', profile, ts, ts),
-        env.DB.prepare('INSERT INTO sessions(token_hash,user_id,expires_at,created_at) VALUES(?,?,?,?)')
-          .bind(session.hash, id, session.expiresAt, session.createdAt)
-      ]);
+      await env.DB.prepare('INSERT INTO users(id,email,name,password_hash,password_salt,plan,plan_status,profile_json,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)')
+        .bind(id, email, name, hp.hash, hp.salt, 'free', 'active', profile, ts, ts).run();
       const user = await env.DB.prepare('SELECT * FROM users WHERE id=?').bind(id).first();
       if (!user) return json({ error: 'A conta não pôde ser confirmada após o cadastro. Tente novamente.', code: 'SIGNUP_CONFIRM_FAILED' }, 500);
-      return json({ user: await userPayload(env, user) }, 201, { 'set-cookie': session.cookie });
+      try {
+        const session = await createSession(env.DB, id, request);
+        return json({ user: await userPayload(env, user) }, 201, { 'set-cookie': session.cookie });
+      } catch (sessionErr) {
+        console.error('Aulora signup session error', sessionErr);
+        return json({ accountCreated: true, loginRequired: true, email }, 201);
+      }
     } catch (err) {
       console.error('Aulora signup error', err);
       const message = String(err?.message || '');
@@ -384,6 +438,10 @@ async function api(request, env, url) {
     const body = await request.json().catch(() => ({})); const kind = cleanText(body.kind, 20);
     if (!['plan', 'activity', 'exam', 'abnt'].includes(kind)) return json({ error: 'Tipo de material inválido.' }, 400);
     const d = sanitizeData(body.data || {});
+    const limits = planLimits(auth.user.plan);
+    if ((kind === 'activity' || kind === 'exam') && Number(d.count || 0) > limits.questions) {
+      return json({ error: auth.user.plan === 'pro' ? 'O Aulora Pro permite até 20 questões por material.' : 'O Aulora Grátis permite até 10 questões por atividade ou avaliação. Assine o Pro para criar até 20.', code: 'QUESTION_LIMIT', limits }, 403);
+    }
     if (kind !== 'abnt' && (!d.topic || !d.discipline || !d.grade)) return json({ error: 'Preencha tema, disciplina e turma.' }, 400);
     if (kind === 'abnt' && (!d.title || !d.author)) return json({ error: 'Preencha título e autor.' }, 400);
     if (!env.AI) return json({ error: 'Geração inteligente não configurada.' }, 503);

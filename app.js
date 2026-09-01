@@ -101,18 +101,22 @@
   }
   function updateAccountUI(){
     const user=app.user, plan=planName(user), isPro=user?.plan==='pro';
-    $('#accountPlan').textContent=plan; $('#accountName').textContent=user?(user.name||user.email):'Entrar';
-    $('#planMiniBadge').textContent=plan.toUpperCase(); $('#planMiniBadge').className=isPro?'plan-pro':user?'plan-free':'';
-    $('#planMiniTitle').textContent=user?(isPro?'Aulora Pro ativo':'Conta gratuita ativa'):'Use sem conta ou entre para sincronizar';
+    $('#accountPlan').textContent=plan; $('#accountName').textContent=user?(user.name||user.email):'Conta';
+    $('#guestAuthActions').hidden=Boolean(user); $('#accountBtn').hidden=!user; $('#profileShortcut').hidden=!user;
+    $$('[data-guest-only]').forEach(el=>el.hidden=Boolean(user));
+    $$('[data-pro-only]').forEach(option=>{ option.disabled=Boolean(user)&&!isPro || !user; option.classList.toggle('option-pro-locked',!isPro); });
+    [$('#activityForm'),$('#examForm')].forEach(form=>{ if(form && !isPro && Number(form.elements.count?.value||0)>10) form.elements.count.value='10'; });
+    $('#planMiniBadge').textContent=user?plan.toUpperCase():'COMECE GRÁTIS'; $('#planMiniBadge').className=isPro?'plan-pro':user?'plan-free':'';
+    $('#planMiniTitle').textContent=user?(isPro?'Aulora Pro ativo':'Aulora Grátis ativo'):'Crie sua conta gratuita';
     $('#planMiniUsage').textContent=user&&app.usage?`${app.usage.ai}/${app.usage.limits.ai} gerações inteligentes usadas neste mês.`:'Geração inteligente exige uma conta gratuita.';
     $('#settingsAccountTitle').textContent=user?(user.name||user.email):'Você está usando como convidado';
     $('#settingsPlanBadge').textContent=plan.toUpperCase(); $('#settingsPlanBadge').className=`plan-badge ${isPro?'plan-pro':user?'plan-free':''}`;
-    $('#settingsAccountText').textContent=user?`Conta: ${user.email}. Seus novos materiais são salvos também na nuvem.`:'Crie uma conta gratuita para salvar materiais na nuvem e usar a geração inteligente.';
+    $('#settingsAccountText').textContent=user?`Conta: ${user.email}. Seus novos materiais são salvos também na nuvem.`:'Ainda não é cadastrado? Crie sua conta grátis para gerar materiais, salvar na nuvem e sincronizar entre dispositivos.';
     $('#settingsAiUsage').textContent=user&&app.usage?`${app.usage.ai} / ${app.usage.limits.ai}`:'—';
     $('#settingsCloudCount').textContent=user?String(app.materials.length):'—';
-    $('#settingsLoginBtn').hidden=Boolean(user); $('#syncCloudBtn').hidden=!user; $('#logoutBtn').hidden=!user;
-    $('#upgradeBtn').hidden=!user||isPro; $('#manageBillingBtn').hidden=!user||!isPro||!user.billing?.customer;
-    $('#billingNote').textContent=isPro?'Plano Pro ativo. O limite atual é de 200 gerações inteligentes e 1.000 materiais por mês/conta.':user?'Plano gratuito: 5 gerações inteligentes por mês e até 25 materiais sincronizados.':'Entre em uma conta para assinar o Aulora Pro.';
+    $('#settingsLoginBtn').hidden=Boolean(user); $('#settingsEnterBtn').hidden=Boolean(user); $('#syncCloudBtn').hidden=!user; $('#logoutBtn').hidden=!user;
+    $('#freePlanSignupBtn').hidden=Boolean(user); $('#upgradeBtn').hidden=!user||isPro; $('#manageBillingBtn').hidden=!user||!isPro||!user.billing?.customer;
+    $('#billingNote').textContent=isPro?'Plano Pro ativo: 200 gerações/mês, até 1.000 materiais e avaliações/atividades com até 20 questões.':user?'Aulora Grátis: 5 gerações/mês, até 25 materiais e avaliações/atividades com até 10 questões.':'Crie uma conta grátis para usar 5 gerações/mês e até 25 materiais. O Pro amplia os limites.';
     $('#libraryStorageMode').textContent=user?'Materiais sincronizados com sua conta. Uma cópia local fica neste dispositivo para acesso rápido.':'Materiais salvos somente neste dispositivo. Entre para sincronizar na nuvem.';
     $('#settingsStorageCopy').textContent=user?'Seus materiais ficam no banco do Aulora e também em cache neste navegador. Você pode baixar um backup a qualquer momento.':'Como convidado, os materiais ficam somente neste navegador. Com conta, o Aulora também mantém uma cópia sincronizada na nuvem.';
     $$('.smart-action').forEach(btn=>btn.classList.toggle('locked',!user));
@@ -140,17 +144,30 @@
     let sent=0;for(const original of guest){const m=typeof structuredClone==='function'?structuredClone(original):JSON.parse(JSON.stringify(original));try{await apiFetch('/api/materials',{method:'POST',body:{material:m}});sent++;}catch(err){if(err.code==='MATERIAL_LIMIT')break;}}
     await syncCloudMaterials(false);toast(`${sent} material(is) copiado(s) para sua conta.`);
   }
-  $('#settingsLoginBtn').addEventListener('click',()=>openAuth('login'));
+  $('#settingsLoginBtn').addEventListener('click',()=>openAuth('signup'));
+  $('#settingsEnterBtn').addEventListener('click',()=>openAuth('login'));
+  $('#topLoginBtn').addEventListener('click',()=>openAuth('login'));
+  $('#topSignupBtn').addEventListener('click',()=>openAuth('signup'));
+  $('#freePlanSignupBtn').addEventListener('click',()=>app.user?toast('Sua conta gratuita já está ativa.'):openAuth('signup'));
   $('#syncCloudBtn').addEventListener('click',()=>syncCloudMaterials(true));
   $('#loginForm').addEventListener('submit',async e=>{
     e.preventDefault();const d=formData(e.currentTarget);showLoading('Entrando no Aulora…','Validando sua conta.');
     try{const r=await apiFetch('/api/auth/login',{method:'POST',body:d});applyUser(r.user);closeAuth();app.materials=loadJson(materialCacheKey(),[]);await syncCloudMaterials(false);await offerGuestImport();toast('Conta conectada.');}
-    catch(err){setAuthError('login',err.message);toast(err.message);}finally{hideLoading();}
+    catch(err){setAuthError('login',err.message);}finally{hideLoading();}
   });
   $('#signupForm').addEventListener('submit',async e=>{
     e.preventDefault();const d=formData(e.currentTarget);showLoading('Criando sua conta…','Preparando sua biblioteca na nuvem.');
-    try{const r=await apiFetch('/api/auth/signup',{method:'POST',body:d});applyUser(r.user);closeAuth();app.materials=[];persistMaterialCache();updateStats();renderMaterials();await offerGuestImport();toast('Conta gratuita criada. Bem-vindo ao Aulora.');}
-    catch(err){setAuthError('signup',err.message);toast(err.message);}finally{hideLoading();}
+    try{
+      const r=await apiFetch('/api/auth/signup',{method:'POST',body:d});
+      if(r.loginRequired){
+        openAuth('login');
+        $('#loginForm').elements.email.value=d.email||'';
+        setAuthError('login','Sua conta foi criada. Entre com o e-mail e a senha que você acabou de cadastrar.');
+        return;
+      }
+      applyUser(r.user);closeAuth();app.materials=[];persistMaterialCache();updateStats();renderMaterials();await offerGuestImport();toast('Conta gratuita criada. Bem-vindo ao Aulora.');
+    }
+    catch(err){setAuthError('signup',err.message);}finally{hideLoading();}
   });
   $('#logoutBtn').addEventListener('click',async()=>{
     try{await apiFetch('/api/auth/logout',{method:'POST'});}catch{}
@@ -180,8 +197,26 @@
 
   $$('.nav-item').forEach(b=>b.addEventListener('click',()=>go(b.dataset.view)));
   $$('[data-go]').forEach(b=>b.addEventListener('click',()=>go(b.dataset.go)));
+
+  const inclusivePresets = {
+    tea:{adaptationProfile:'Estudante autista / TEA',supportLevel:'Apoio moderado',activityType:'Mista inclusiva',visualStyle:'Baixa carga visual',responseMode:'Múltiplas formas de resposta',languageStyle:'Literal, sem metáforas ou ambiguidades',difficulty:'Bem acessível',count:'5',optionCount:'3',instructions:'Faça uma tarefa de cada vez. Leia ou escute a instrução e responda do jeito indicado.'},
+    special:{adaptationProfile:'Educação especial — apoio ampliado',supportLevel:'Apoio frequente',activityType:'Mista inclusiva',visualStyle:'Uma tarefa por bloco',responseMode:'Múltiplas formas de resposta',languageStyle:'Frases curtas e diretas',difficulty:'Bem acessível',count:'5',optionCount:'2'},
+    drawing:{adaptationProfile:'',supportLevel:'Apoio leve',activityType:'Desenho guiado',visualStyle:'Uma tarefa por bloco',responseMode:'Desenhar / pintar',languageStyle:'Frases curtas e diretas',difficulty:'Fácil',count:'5',answerSpace:'6'},
+    association:{adaptationProfile:'',supportLevel:'Apoio leve',activityType:'Ligar / associar',visualStyle:'Baixa carga visual',responseMode:'Ligar / associar',languageStyle:'Uma instrução por vez',difficulty:'Fácil',count:'5',optionCount:'3'},
+    literacy:{adaptationProfile:'Alfabetização / pré-leitor',supportLevel:'Apoio moderado',activityType:'Visual e objetiva',visualStyle:'Letra e espaços ampliados',responseMode:'Múltiplas formas de resposta',languageStyle:'Linguagem muito simples',difficulty:'Bem acessível',count:'5',optionCount:'3'},
+    visual:{adaptationProfile:'Leitura acessível / linguagem simples',supportLevel:'Apoio leve',activityType:'Visual e objetiva',visualStyle:'Alto contraste e poucos elementos',responseMode:'Marcar / circular',languageStyle:'Frases curtas e diretas',difficulty:'Fácil',count:'5',optionCount:'3'}
+  };
+  $$('[data-inclusive-preset]').forEach(btn=>btn.addEventListener('click',()=>{
+    const preset=inclusivePresets[btn.dataset.inclusivePreset]; if(!preset)return;
+    go('activity');
+    Object.entries(preset).forEach(([name,value])=>{const field=activityForm.elements[name];if(field)field.value=value;});
+    $$('[data-inclusive-preset]').forEach(b=>b.classList.toggle('active',b===btn));
+    saveActivityDraft();
+    toast('Modelo inclusivo aplicado. Complete disciplina, turma e tema e ajuste o que precisar.');
+    setTimeout(()=>activityForm.elements.topic?.focus(),120);
+  }));
   $('#profileShortcut').addEventListener('click',()=>go('settings'));
-  $('#accountBtn').addEventListener('click',()=>app.user?go('settings'):openAuth('login'));
+  $('#accountBtn').addEventListener('click',()=>go('settings'));
   $('#menuBtn').addEventListener('click',()=>$('#sidebar').classList.toggle('open'));
   document.addEventListener('click',e=>{ if(innerWidth<=800 && $('#sidebar').classList.contains('open') && !e.target.closest('#sidebar') && !e.target.closest('#menuBtn')) $('#sidebar').classList.remove('open'); });
 
@@ -324,8 +359,13 @@
 
   async function generateSmart(kind,d){
     if(!app.user){
-      openAuth('login');
-      toast('Entre na sua conta para gerar este material. O Aulora não cria provas ou atividades genéricas no lugar da geração inteligente.');
+      openAuth('signup');
+      toast('Crie sua conta grátis ou entre para gerar materiais com o Aulora.');
+      return;
+    }
+    if((kind==='activity'||kind==='exam') && app.user.plan!=='pro' && Number(d.count||0)>10){
+      toast('No Aulora Grátis, atividades e avaliações podem ter até 10 questões. O Pro libera até 20.');
+      go('settings');
       return;
     }
     showLoading(kind==='plan'?'Criando o plano de aula…':kind==='activity'?'Criando a atividade…':kind==='exam'?'Montando a avaliação…':'Estruturando o trabalho…','O Aulora está gerando conteúdo específico para os dados informados.');
@@ -355,7 +395,7 @@
     const kind=btn.dataset.local,form={plan:planForm,activity:activityForm,exam:examForm,abnt:abntForm}[kind];
     if(!form.reportValidity())return;
     if(kind==='activity'||kind==='exam'){
-      if(!app.user){openAuth('login');toast('Entre para gerar questões reais. O Aulora não monta mais prova ou atividade com perguntas de preenchimento.');return;}
+      if(!app.user){openAuth('signup');return;}
       generateSmart(kind,formData(form));return;
     }
     const m=localMaterial(kind,formData(form));bindPreview(previewFor(kind),m);toast('Estrutura manual montada. Este botão não usa geração inteligente.');

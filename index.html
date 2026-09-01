@@ -33,10 +33,10 @@
       </nav>
 
       <div class="sidebar-bottom">
-        <div class="plan-mini" id="planMini"><span id="planMiniBadge">CONVIDADO</span><strong id="planMiniTitle">Use sem conta ou entre para sincronizar</strong><small id="planMiniUsage">Geração inteligente exige uma conta gratuita.</small></div>
+        <div class="plan-mini" id="planMini"><span id="planMiniBadge">COMECE GRÁTIS</span><strong id="planMiniTitle">Crie sua conta gratuita</strong><small id="planMiniUsage">5 gerações inteligentes por mês no plano gratuito.</small></div>
         <div class="status-card">
           <div class="status-line"><span class="status-dot" id="aiDot"></span><strong id="aiStatus">Verificando serviços…</strong></div>
-          <small id="aiStatusDetail">O modo local continua disponível mesmo sem conexão.</small>
+          <small id="aiStatusDetail">Modelos manuais continuam disponíveis; geração inteligente exige conta.</small>
         </div>
       </div>
     </aside>
@@ -50,8 +50,13 @@
         </div>
         <div class="topbar-actions">
           <button class="ghost-button" id="installBtn" hidden>Instalar app</button>
-          <button class="account-chip" id="accountBtn" type="button"><span id="accountPlan">Convidado</span><strong id="accountName">Entrar</strong></button>
-          <button class="avatar" id="profileShortcut" title="Abrir perfil">P</button>
+          <div class="guest-auth-actions" id="guestAuthActions">
+            <span class="guest-auth-copy">Ainda não é cadastrado?</span>
+            <button class="ghost-button compact-button" id="topLoginBtn" type="button">Entrar</button>
+            <button class="primary-button compact-button" id="topSignupBtn" type="button">Criar conta grátis</button>
+          </div>
+          <button class="account-chip" id="accountBtn" type="button" hidden><span id="accountPlan">Grátis</span><strong id="accountName">Conta</strong></button>
+          <button class="avatar" id="profileShortcut" title="Abrir perfil" hidden>P</button>
         </div>
       </header>
 
@@ -89,7 +94,7 @@
 
           <div class="quick-grid">
             <button class="quick-card" data-go="plan"><span class="quick-icon">▤</span><strong>Plano de aula</strong><small>Objetivos, metodologia, recursos, inclusão e avaliação.</small><em>Planejar →</em></button>
-            <button class="quick-card" data-go="activity"><span class="quick-icon">✎</span><strong>Atividade</strong><small>Questões, texto-base, gabarito e versão do aluno.</small><em>Criar →</em></button>
+            <button class="quick-card" data-go="activity"><span class="quick-icon">✎</span><strong>Atividade inclusiva</strong><small>Questões, desenho, associação, TEA, educação especial, gabarito e versão do aluno.</small><em>Criar →</em></button>
             <button class="quick-card" data-go="exam"><span class="quick-icon">✓</span><strong>Avaliação</strong><small>Prova com pontuação, questões e critérios de correção.</small><em>Montar →</em></button>
             <button class="quick-card" data-go="abnt"><span class="quick-icon">¶</span><strong>Acadêmico / ABNT</strong><small>Estrutura, referências e verificação de normalização.</small><em>Acessar →</em></button>
           </div>
@@ -127,36 +132,64 @@
                 <label class="full">Observações da turma (opcional)<textarea name="notes" rows="3" placeholder="Particularidades que devem ser consideradas."></textarea></label>
               </div>
               <div class="draft-status" id="planDraftStatus">Rascunho salvo automaticamente neste dispositivo.</div>
-              <div class="form-actions split-actions"><button type="reset" class="ghost-button">Limpar</button><div><button class="ghost-button" type="button" data-local="plan">Montar estrutura manual</button><button class="primary-button smart-action" type="submit"><span>✦</span> Gerar plano completo</button></div></div>
+              <div class="form-actions split-actions"><button type="reset" class="ghost-button">Limpar</button><div><button class="ghost-button" type="button" data-local="plan">Montar modelo manual</button><button class="primary-button smart-action" type="submit"><span>✦</span> Gerar plano completo</button></div></div>
+              <small class="account-required-hint" data-guest-only>🔒 Geração inteligente requer conta gratuita. O plano Grátis inclui 5 gerações por mês.</small>
             </form>
-            <div class="preview-card empty" id="planPreview"></div>
+            <div class="preview-card empty" id="planPreview"><div class="empty-state preview-empty"><span>▤</span><strong>Seu plano de aula aparecerá aqui</strong><p>Preencha os campos e gere com o Aulora ou monte um modelo manual para editar.</p></div></div>
           </div>
         </section>
 
         <section class="view" id="view-activity">
-          <div class="page-intro"><span class="eyebrow">PRÁTICA</span><h1>Criar atividade</h1><p>Gere questões adequadas ao tema e à turma. Para maior precisão, inclua um texto-base ou resumo do conteúdo trabalhado.</p></div>
+          <div class="page-intro"><span class="eyebrow">PRÁTICA + INCLUSÃO</span><h1>Criar atividade</h1><p>Gere atividades tradicionais ou adaptadas, com linguagem, apoio visual e forma de resposta ajustados ao contexto pedagógico da turma ou do estudante.</p></div>
+
+          <div class="inclusive-presets" aria-label="Atalhos de atividades inclusivas">
+            <button type="button" class="preset-card" data-inclusive-preset="tea"><span>🧩</span><strong>TEA / autismo</strong><small>Instruções previsíveis, linguagem literal e baixa carga visual.</small></button>
+            <button type="button" class="preset-card" data-inclusive-preset="special"><span>🌱</span><strong>Educação especial</strong><small>Menos escrita, respostas alternativas e mediação pedagógica.</small></button>
+            <button type="button" class="preset-card" data-inclusive-preset="drawing"><span>🎨</span><strong>Desenho guiado</strong><small>Atividades para desenhar, pintar, completar e representar ideias.</small></button>
+            <button type="button" class="preset-card" data-inclusive-preset="association"><span>🔗</span><strong>Ligar / associar</strong><small>Pares, correspondências, símbolos e relações simples.</small></button>
+            <button type="button" class="preset-card" data-inclusive-preset="literacy"><span>🔤</span><strong>Alfabetização</strong><small>Comandos curtos, letras, palavras, sons e apoio visual.</small></button>
+            <button type="button" class="preset-card" data-inclusive-preset="visual"><span>👁</span><strong>Visual e objetiva</strong><small>Uma instrução por bloco, pouco texto e organização limpa.</small></button>
+          </div>
+
           <div class="workspace-grid">
             <form class="form-card generator-form" id="activityForm" autocomplete="on">
               <div class="form-grid two-col">
+                <div class="form-section-title full"><span>1</span><div><strong>Contexto pedagógico</strong><small>Dados básicos da atividade.</small></div></div>
                 <label>Professor(a)<input name="teacher" data-profile="teacher" placeholder="Seu nome" /></label>
                 <label>Escola / instituição<input name="school" data-profile="school" placeholder="Nome da escola" /></label>
                 <label>Disciplina<input name="discipline" required placeholder="Ex.: Língua Portuguesa" /></label>
                 <label>Ano / turma<input name="grade" required placeholder="Ex.: 5º ano A" /></label>
+                <label>Etapa de ensino<select name="stage" data-profile="stage"><option>Educação Infantil</option><option>Anos iniciais do Ensino Fundamental</option><option selected>Anos finais do Ensino Fundamental</option><option>Ensino Médio</option><option>EJA</option><option>Outro</option></select></label>
+                <label>Dificuldade<select name="difficulty"><option>Bem acessível</option><option>Fácil</option><option selected>Intermediária</option><option>Avançada</option></select></label>
                 <label class="full">Conteúdo / tema<input name="topic" required placeholder="Ex.: Interpretação de texto" /></label>
-                <label class="full">Objetivo da atividade<textarea name="objective" rows="2" placeholder="Ex.: verificar compreensão e aplicação dos conceitos."></textarea></label>
-                <label class="full">Texto-base / conteúdo trabalhado<textarea name="sourceText" rows="7" placeholder="Cole um texto, resumo, situação-problema ou os principais conceitos. Quanto melhor o contexto, melhores as questões."></textarea></label>
-                <label>Quantidade de questões<select name="count"><option>5</option><option selected>10</option><option>15</option><option>20</option></select></label>
-                <label>Dificuldade<select name="difficulty"><option>Fácil</option><option selected>Intermediária</option><option>Avançada</option></select></label>
-                <label>Formato<select name="format"><option>Mista</option><option>Objetivas</option><option>Discursivas</option><option>Verdadeiro ou falso</option></select></label>
-                <label>Espaço para resposta<select name="answerSpace"><option value="1">Curto</option><option value="2" selected>Médio</option><option value="4">Amplo</option></select></label>
+                <label class="full">Objetivo da atividade<textarea name="objective" rows="2" placeholder="Ex.: reconhecer personagens, ordenar acontecimentos e expressar compreensão por fala, marcação ou desenho."></textarea></label>
+                <label class="full">Texto-base / conteúdo trabalhado<textarea name="sourceText" rows="6" placeholder="Cole um texto, resumo, situação-problema ou conceitos já trabalhados. Se a atividade for visual, descreva os elementos que podem ser representados."></textarea></label>
+
+                <div class="form-section-title full inclusive-title"><span>2</span><div><strong>Adaptação e educação inclusiva</strong><small>Opcional. O Aulora adapta a forma de apresentar e responder; não realiza diagnóstico.</small></div></div>
+                <label>Perfil de apoio pedagógico<select name="adaptationProfile"><option value="">Sem adaptação específica</option><option>Estudante autista / TEA</option><option>Educação especial — apoio ampliado</option><option>Alfabetização / pré-leitor</option><option>Comunicação alternativa / pouco texto</option><option>Leitura acessível / linguagem simples</option></select></label>
+                <label>Nível de mediação<select name="supportLevel"><option>Independência predominante</option><option>Apoio leve</option><option selected>Apoio moderado</option><option>Apoio frequente</option></select></label>
+                <label>Tipo de atividade<select name="activityType"><option>Questões tradicionais</option><option>Mista inclusiva</option><option>Visual e objetiva</option><option>Desenho guiado</option><option>Ligar / associar</option><option>Pintar / marcar</option><option>Sequência visual / ordenar</option><option>Completar palavras ou frases</option><option>Recortar e colar — imprimível</option></select></label>
+                <label>Organização visual<select name="visualStyle"><option>Padrão</option><option>Baixa carga visual</option><option>Uma tarefa por bloco</option><option>Letra e espaços ampliados</option><option>Alto contraste e poucos elementos</option></select></label>
+                <label>Forma principal de resposta<select name="responseMode"><option>Escrita</option><option>Marcar / circular</option><option>Ligar / associar</option><option>Desenhar / pintar</option><option>Apontar / escolher</option><option>Resposta oral mediada</option><option>Múltiplas formas de resposta</option></select></label>
+                <label>Linguagem dos comandos<select name="languageStyle"><option>Padrão escolar</option><option>Frases curtas e diretas</option><option>Linguagem muito simples</option><option>Uma instrução por vez</option><option>Literal, sem metáforas ou ambiguidades</option></select></label>
+                <label class="full">Interesses / temas motivadores (opcional)<input name="interests" placeholder="Ex.: animais, carros, espaço, dinossauros. Use apenas se ajudar o engajamento." /></label>
+                <label class="full">Evitar / considerar (opcional)<textarea name="accessNotes" rows="3" placeholder="Ex.: evitar excesso de texto; oferecer exemplo resolvido; não usar linguagem infantilizada; permitir resposta por desenho."></textarea></label>
+
+                <div class="form-section-title full"><span>3</span><div><strong>Estrutura e entrega</strong><small>Quantidade, formato e critérios.</small></div></div>
+                <label>Quantidade de questões / tarefas<select name="count"><option>3</option><option>5</option><option selected>10</option><option value="15" data-pro-only>15 — Pro</option><option value="20" data-pro-only>20 — Pro</option></select><small class="field-hint">Grátis: até 10 • Pro: até 20. Para atividades inclusivas, menos tarefas pode ser mais adequado.</small></label>
+                <label>Formato acadêmico<select name="format"><option>Mista</option><option>Objetivas</option><option>Discursivas</option><option>Verdadeiro ou falso</option><option>Adaptado ao tipo escolhido acima</option></select></label>
+                <label>Espaço para resposta<select name="answerSpace"><option value="1">Curto</option><option value="2" selected>Médio</option><option value="4">Amplo</option><option value="6">Muito amplo / desenho</option></select></label>
+                <label>Quantidade de alternativas<select name="optionCount"><option value="2">2 alternativas</option><option value="3" selected>3 alternativas</option><option value="4">4 alternativas</option></select></label>
                 <label class="full">Habilidade / referência curricular (opcional)<input name="skill" placeholder="Informe somente referências já conferidas" /></label>
-                <label class="full">Orientações ao aluno<textarea name="instructions" rows="3" placeholder="Ex.: leia com atenção e justifique as questões discursivas."></textarea></label>
-                <label class="full">Critérios / observações do professor<textarea name="notes" rows="3" placeholder="Ex.: aceitar respostas equivalentes; foco em argumentação..."></textarea></label>
+                <label class="full">Orientações ao aluno<textarea name="instructions" rows="3" placeholder="Ex.: faça uma tarefa de cada vez. Você pode marcar, ligar ou desenhar conforme a orientação."></textarea></label>
+                <label class="full">Critérios / observações do professor<textarea name="notes" rows="3" placeholder="Ex.: aceitar resposta oral equivalente; considerar mediação; registrar estratégia usada pelo estudante."></textarea></label>
               </div>
+              <div class="inclusive-note"><strong>Educação inclusiva:</strong> o material deve ser revisado pelo professor e, quando houver, pela equipe pedagógica/AEE. O Aulora adapta atividades; não define necessidades clínicas nem substitui planejamento individualizado.</div>
               <div class="draft-status" id="activityDraftStatus">Rascunho salvo automaticamente neste dispositivo.</div>
-              <div class="form-actions split-actions"><button type="reset" class="ghost-button">Limpar</button><div><button class="ghost-button" type="button" data-local="activity">Gerar com inteligência</button><button class="primary-button smart-action" type="submit"><span>✦</span> Gerar atividade completa</button></div></div>
+              <div class="form-actions"><button type="reset" class="ghost-button">Limpar</button><button class="primary-button smart-action" type="submit"><span>✦</span> Gerar atividade completa</button></div>
+              <small class="account-required-hint" data-guest-only>🔒 Requer conta gratuita. O plano Grátis gera atividades de até 10 tarefas.</small>
             </form>
-            <div class="preview-card empty" id="activityPreview"></div>
+            <div class="preview-card empty" id="activityPreview"><div class="empty-state preview-empty"><span>✎</span><strong>Sua atividade aparecerá aqui</strong><p>Escolha um modelo tradicional ou inclusivo. O Aulora criará enunciados, espaços visuais, gabarito e sugestões de mediação conforme as opções selecionadas.</p></div></div>
           </div>
         </section>
 
@@ -172,7 +205,7 @@
                 <label class="full">Conteúdo avaliado<input name="topic" required placeholder="Ex.: Revolução Industrial" /></label>
                 <label>Data<input name="date" type="date" /></label>
                 <label>Duração prevista<select name="duration"><option>45 minutos</option><option selected>50 minutos</option><option>1 hora</option><option>1h30</option><option>2 aulas</option></select></label>
-                <label>Nº de questões<select name="count"><option>5</option><option selected>10</option><option>15</option><option>20</option></select></label>
+                <label>Nº de questões<select name="count"><option>5</option><option selected>10</option><option value="15" data-pro-only>15 — Pro</option><option value="20" data-pro-only>20 — Pro</option></select><small class="field-hint">Grátis: até 10 questões • Pro: até 20</small></label>
                 <label>Valor total<input name="totalPoints" type="number" min="1" max="100" step="0.5" value="10" /></label>
                 <label>Dificuldade<select name="difficulty"><option>Fácil</option><option selected>Intermediária</option><option>Avançada</option></select></label>
                 <label>Composição<select name="format"><option>70% objetivas + 30% discursivas</option><option>Somente objetivas</option><option>50% objetivas + 50% discursivas</option><option>Somente discursivas</option><option>Verdadeiro ou falso</option></select></label>
@@ -182,16 +215,17 @@
                 <label class="full">Critérios / observações de correção<textarea name="notes" rows="3" placeholder="Ex.: considerar argumentação, domínio conceitual e vocabulário."></textarea></label>
               </div>
               <div class="draft-status" id="examDraftStatus">Rascunho salvo automaticamente neste dispositivo.</div>
-              <div class="form-actions split-actions"><button type="reset" class="ghost-button">Limpar</button><div><button class="ghost-button" type="button" data-local="exam">Gerar com inteligência</button><button class="primary-button smart-action" type="submit"><span>✦</span> Gerar avaliação completa</button></div></div>
+              <div class="form-actions"><button type="reset" class="ghost-button">Limpar</button><button class="primary-button smart-action" type="submit"><span>✦</span> Gerar avaliação completa</button></div>
+              <small class="account-required-hint" data-guest-only>🔒 Requer conta gratuita. Grátis: até 10 questões • Pro: até 20 questões.</small>
             </form>
-            <div class="preview-card empty" id="examPreview"></div>
+            <div class="preview-card empty" id="examPreview"><div class="empty-state preview-empty"><span>✓</span><strong>Sua avaliação aparecerá aqui</strong><p>O Aulora criará questões reais, pontuação e gabarito conforme o conteúdo informado.</p></div></div>
           </div>
         </section>
 
         <section class="view" id="view-abnt">
           <div class="page-intro"><span class="eyebrow">ACADÊMICO</span><h1>Acadêmico / ABNT</h1><p>Estruture trabalhos, formate referências e faça verificações iniciais. O manual da instituição sempre prevalece quando trouxer exigências específicas.</p></div>
           <div class="tabs" role="tablist">
-            <button class="tab active" data-tab="abnt-create">Criar estrutura</button>
+            <button class="tab active" data-tab="abnt-create">Criar trabalho</button>
             <button class="tab" data-tab="abnt-check">Verificar texto</button>
             <button class="tab" data-tab="abnt-reference">Formatar referência</button>
           </div>
@@ -212,9 +246,10 @@
                   <label class="full">Palavras-chave<input name="keywords" placeholder="Ex.: educação; tecnologia; aprendizagem" /></label>
                 </div>
                 <div class="abnt-note"><strong>Importante:</strong> o Aulora não inventa fontes, autores, citações ou referências bibliográficas. A estrutura serve como apoio de normalização e deve ser conferida com o manual da sua instituição.</div>
-                <div class="form-actions split-actions"><button type="reset" class="ghost-button">Limpar</button><div><button class="ghost-button" type="button" data-local="abnt">Montar estrutura manual</button><button class="primary-button smart-action" type="submit"><span>✦</span> Criar estrutura guiada</button></div></div>
+                <div class="form-actions split-actions"><button type="reset" class="ghost-button">Limpar</button><div><button class="ghost-button" type="button" data-local="abnt">Montar modelo manual</button><button class="primary-button smart-action" type="submit"><span>✦</span> Gerar estrutura acadêmica</button></div></div>
+                <small class="account-required-hint" data-guest-only>🔒 A geração inteligente exige conta gratuita. O modelo manual continua disponível sem cadastro.</small>
               </form>
-              <div class="preview-card empty" id="abntPreview"></div>
+              <div class="preview-card empty" id="abntPreview"><div class="empty-state preview-empty"><span>¶</span><strong>Sua estrutura acadêmica aparecerá aqui</strong><p>Preencha os dados do trabalho e gere uma estrutura guiada ou use o modelo manual.</p></div></div>
             </div>
           </div>
 
@@ -270,13 +305,23 @@
               <div class="card-heading"><div><span class="eyebrow">CONTA</span><h2 id="settingsAccountTitle">Você está usando como convidado</h2></div><span class="plan-badge" id="settingsPlanBadge">CONVIDADO</span></div>
               <p class="muted-copy" id="settingsAccountText">Crie uma conta gratuita para salvar materiais na nuvem e usar a geração inteligente.</p>
               <div class="data-summary account-summary"><div><span>Gerações neste mês</span><strong id="settingsAiUsage">—</strong></div><div><span>Materiais na conta</span><strong id="settingsCloudCount">—</strong></div></div>
-              <div class="stack-actions account-actions"><button class="primary-button" id="settingsLoginBtn" type="button">Entrar / criar conta</button><button class="ghost-button" id="syncCloudBtn" type="button" hidden>Atualizar da nuvem</button><button class="ghost-button" id="logoutBtn" type="button" hidden>Sair da conta</button></div>
+              <div class="stack-actions account-actions"><button class="primary-button" id="settingsLoginBtn" type="button">Criar conta grátis</button><button class="ghost-button" id="settingsEnterBtn" type="button">Já tenho conta</button><button class="ghost-button" id="syncCloudBtn" type="button" hidden>Atualizar da nuvem</button><button class="ghost-button" id="logoutBtn" type="button" hidden>Sair da conta</button></div>
             </div>
-            <div class="form-card plan-card">
-              <div class="card-heading"><div><span class="eyebrow">PLANO</span><h2>Aulora Pro</h2></div><span class="price-tag">R$ 14,90/mês</span></div>
-              <ul class="feature-list"><li>Até 200 gerações inteligentes por mês</li><li>Até 1.000 materiais sincronizados</li><li>Acesso aos materiais em qualquer dispositivo</li><li>Plano de aula, atividade, avaliação e apoio acadêmico</li></ul>
-              <div class="stack-actions"><button class="primary-button" id="upgradeBtn" type="button">Assinar Pro</button><button class="ghost-button" id="manageBillingBtn" type="button" hidden>Gerenciar assinatura</button></div>
-              <small class="billing-note" id="billingNote">A conta gratuita inclui 5 gerações inteligentes por mês e até 25 materiais na nuvem.</small>
+            <div class="form-card plan-card plan-comparison-card">
+              <div class="card-heading"><div><span class="eyebrow">PLANOS</span><h2>Grátis ou Pro</h2></div><span class="price-tag">Pro R$ 14,90/mês</span></div>
+              <div class="plan-comparison">
+                <article class="plan-option free-option">
+                  <div class="plan-option-head"><div><span>PARA COMEÇAR</span><h3>Aulora Grátis</h3></div><strong>R$ 0</strong></div>
+                  <ul class="feature-list"><li>5 gerações inteligentes por mês</li><li>Até 25 materiais sincronizados</li><li>Plano de aula, atividade, avaliação e Acadêmico/ABNT</li><li>Atividades e provas com até 10 questões</li><li>Exportação Word/PDF e backup local</li></ul>
+                  <button class="ghost-button" id="freePlanSignupBtn" type="button">Criar conta grátis</button>
+                </article>
+                <article class="plan-option pro-option">
+                  <div class="plan-option-head"><div><span>PARA USO FREQUENTE</span><h3>Aulora Pro</h3></div><strong>R$ 14,90<small>/mês</small></strong></div>
+                  <ul class="feature-list"><li>200 gerações inteligentes por mês</li><li>Até 1.000 materiais sincronizados</li><li>Atividades e provas com até 20 questões</li><li>Acesso aos materiais em qualquer dispositivo</li><li>Todos os recursos atuais do Aulora com limites ampliados</li></ul>
+                  <div class="stack-actions"><button class="primary-button" id="upgradeBtn" type="button">Assinar Pro</button><button class="ghost-button" id="manageBillingBtn" type="button" hidden>Gerenciar assinatura</button></div>
+                </article>
+              </div>
+              <small class="billing-note" id="billingNote">A conta gratuita inclui 5 gerações inteligentes por mês, 25 materiais na nuvem e até 10 questões por atividade ou avaliação.</small>
             </div>
             <form class="form-card" id="profileForm">
               <div class="card-heading"><div><span class="eyebrow">PERFIL</span><h2>Dados do professor</h2></div></div>

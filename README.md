@@ -23,11 +23,15 @@ Aulora é uma aplicação web/PWA para professores com planejamento de aula, ati
 ### Gratuito
 - 5 gerações inteligentes por mês
 - 25 materiais na nuvem
-- Modelos locais continuam disponíveis
+- Atividades e avaliações com até 10 questões
+- Plano de aula, atividade, avaliação e Acadêmico/ABNT
+- Exportação Word/PDF e backup local
 
 ### Pro
 - 200 gerações inteligentes por mês
 - 1.000 materiais na nuvem
+- Atividades e avaliações com até 20 questões
+- Todos os recursos atuais com limites ampliados
 - Preço exibido no app: R$ 14,90/mês
 
 O valor real cobrado é definido pelo Price criado na Stripe e informado em `STRIPE_PRICE_PRO`.
@@ -58,3 +62,13 @@ O manual específico da instituição continua prevalecendo quando houver exigê
 - As chaves de cobrança ficam apenas como secrets/variables do Worker.
 - Evite inserir dados pessoais desnecessários de estudantes na geração inteligente.
 - Antes de abrir o produto ao público em escala, recomenda-se adicionar proteção anti-bot/rate limiting ao cadastro e login.
+
+
+## Interface de convidado e cache
+- Visitantes veem Entrar + Criar conta grátis no topo.
+- Geração inteligente não cria conteúdo genérico quando não há sessão.
+- O service worker prioriza a rede para HTML/JS/CSS para evitar interface antiga após deploy.
+- O backend migra colunas de bancos D1 criados por versões anteriores.
+
+## Atividades inclusivas
+O módulo de Atividade possui presets e controles pedagógicos para TEA/autismo, educação especial, alfabetização, atividades visuais, desenho guiado, associação, sequência, marcar/pintar e múltiplas formas de resposta. Esses recursos apoiam o planejamento docente e não realizam diagnóstico ou substituem AEE/plano individualizado quando aplicável.
