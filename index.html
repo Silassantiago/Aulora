@@ -25,11 +25,16 @@
       <nav class="nav" aria-label="Navegação principal">
         <button class="nav-item active" data-view="dashboard"><span>⌂</span> Início</button>
         <button class="nav-item" data-view="plan"><span>▤</span> Plano de aula</button>
-        <button class="nav-item" data-view="activity"><span>✎</span> Atividade</button>
-        <div class="nav-inclusion-group" aria-label="Atalhos de educação inclusiva">
-          <button class="nav-special" type="button" data-inclusive-preset="special"><span>🌱</span> Educação especial</button>
-          <button class="nav-special" type="button" data-inclusive-preset="tea"><span>🧩</span> TEA / autismo</button>
-          <button class="nav-special" type="button" data-inclusive-preset="drawing"><span>🎨</span> Desenho e visual</button>
+        <div class="nav-expandable" id="activityNavGroup">
+          <button class="nav-item nav-parent" type="button" id="activityNavToggle" aria-expanded="false" aria-controls="activityNavSubmenu">
+            <span>✎</span><span class="nav-label">Atividade</span><span class="nav-chevron" aria-hidden="true">⌄</span>
+          </button>
+          <div class="nav-inclusion-group nav-submenu" id="activityNavSubmenu" aria-label="Opções de atividade" hidden>
+            <button class="nav-special" type="button" data-go="activity"><span>＋</span> Criar atividade</button>
+            <button class="nav-special" type="button" data-inclusive-preset="special"><span>🌱</span> Educação especial</button>
+            <button class="nav-special" type="button" data-inclusive-preset="tea"><span>🧩</span> TEA / autismo</button>
+            <button class="nav-special" type="button" data-inclusive-preset="drawing"><span>🎨</span> Desenho e visual</button>
+          </div>
         </div>
         <button class="nav-item" data-view="exam"><span>✓</span> Avaliação</button>
         <button class="nav-item" data-view="abnt"><span>¶</span> Acadêmico / ABNT</button>

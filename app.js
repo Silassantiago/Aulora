@@ -185,9 +185,19 @@
     try{const r=await apiFetch('/api/billing/portal',{method:'POST'});location.href=r.url;}catch(err){toast(err.message);}finally{hideLoading();}
   });
 
+  function setActivityMenu(open){
+    const toggle=$('#activityNavToggle'), submenu=$('#activityNavSubmenu');
+    if(!toggle||!submenu)return;
+    toggle.setAttribute('aria-expanded',open?'true':'false');
+    submenu.hidden=!open;
+  }
+
   function go(view){
     $$('.view').forEach(v=>v.classList.toggle('active', v.id===`view-${view}`));
-    $$('.nav-item').forEach(b=>b.classList.toggle('active', b.dataset.view===view));
+    $$('.nav-item[data-view]').forEach(b=>b.classList.toggle('active', b.dataset.view===view));
+    const activityToggle=$('#activityNavToggle');
+    if(activityToggle) activityToggle.classList.toggle('active',view==='activity');
+    if(view!=='activity') setActivityMenu(false);
     const meta=titles[view]||titles.dashboard; $('#pageTitle').textContent=meta[0]; $('#pageSubtitle').textContent=meta[1];
     $('#sidebar').classList.remove('open');
     if(view==='materials') renderMaterials();
@@ -195,7 +205,11 @@
     window.scrollTo({top:0,behavior:'smooth'});
   }
 
-  $$('.nav-item').forEach(b=>b.addEventListener('click',()=>go(b.dataset.view)));
+  $$('.nav-item[data-view]').forEach(b=>b.addEventListener('click',()=>go(b.dataset.view)));
+  $('#activityNavToggle')?.addEventListener('click',()=>{
+    const isOpen=$('#activityNavToggle').getAttribute('aria-expanded')==='true';
+    setActivityMenu(!isOpen);
+  });
   $$('[data-go]').forEach(b=>b.addEventListener('click',()=>go(b.dataset.go)));
 
   const inclusivePresets = {
