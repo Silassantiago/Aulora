@@ -285,12 +285,43 @@ ${payload}`;
 Crie uma AVALIAÇÃO FINAL, pronta para revisão do professor, com exatamente ${d.count || 10} questões REAIS e ESPECÍFICAS sobre o tema informado e total de ${d.totalPoints || 10} pontos. Cada questão deve ficar dentro de <div class="question">. Distribua a pontuação de modo que a soma seja exatamente o total. Respeite disciplina, etapa/turma, formato e dificuldade. Se houver texto-base, use-o de forma efetiva. Se não houver, use conhecimento geral consolidado e apropriado ao nível escolar, sem inventar fontes ou dados. Questões objetivas devem ter exatamente 4 alternativas A-D plausíveis e somente uma correta; discursivas devem ter enunciado completo e critério de correção. Não escreva placeholders, colchetes para preencher, 'personalize', 'defina a alternativa', 'insira aqui' ou qualquer questão genérica do tipo 'fale sobre o tema'. Inclua <div class="answer-key"><h2>GABARITO / CRITÉRIOS DE CORREÇÃO</h2>...</div> com resposta correspondente a TODAS as questões e pontuação coerente.
 Dados:
 ${payload}`;
+  if (kind === 'report') return `${commonSystem()}
+Crie um RELATÓRIO PEDAGÓGICO profissional, claro, respeitoso e pronto para revisão do professor, usando SOMENTE as observações fornecidas.
+
+REGRAS OBRIGATÓRIAS:
+- Este documento é pedagógico, não clínico. Não diagnostique, não confirme diagnóstico e não atribua causa médica, psicológica, neurológica ou familiar a comportamento ou aprendizagem.
+- Nunca invente laudo, CID, medicação, terapia, profissional de saúde, data, ocorrência, comportamento ou evolução que não tenha sido informado.
+- Se o campo conditionMention indicar que a condição não deve ser mencionada, NÃO escreva TEA, TDAH, dislexia ou qualquer outra condição no relatório, mesmo que conste em pedagogicalContext; traduza apenas as necessidades educacionais observadas em linguagem pedagógica.
+- Se o campo conditionMention autorizar menção, use formulação prudente, como “conforme informação previamente comunicada à escola”, sem afirmar diagnóstico próprio.
+- Descreva comportamentos observáveis e contextos: prefira “necessita de mediação para iniciar tarefas longas” a rótulos como “é desatento”, “é agressivo”, “não consegue” ou “tem déficit”.
+- Preserve dignidade, potencial e autonomia do estudante. Não infantilize e não use linguagem capacitista, moralizante ou culpabilizadora.
+- Diferencie fatos observados, evolução e próximos objetivos. Não apresente opinião como fato.
+- Para TEA/autismo, TDAH, dislexia, disgrafia, discalculia e demais condições informadas, foque nas estratégias pedagógicas e necessidades de acesso descritas pelo professor, sem prescrever tratamento.
+- Para relatório destinado à família, use linguagem acessível e acolhedora, sem jargão desnecessário. Para AEE/coordenação, use linguagem pedagógica técnica, mas compreensível.
+- O relatório deve ser individualizado: use exemplos e avanços concretos dos campos informados, sem frases genéricas que poderiam servir para qualquer aluno.
+- Não use placeholders, colchetes para preencher ou recomendações clínicas.
+
+ESTRUTURA SUGERIDA:
+1. Identificação do estudante, turma, período e finalidade do relatório.
+2. Contextualização breve do acompanhamento.
+3. Aprendizagens e pontos fortes.
+4. Participação, comunicação e interação, quando informadas.
+5. Necessidades/dificuldades pedagógicas observadas.
+6. Estratégias e adaptações utilizadas e resposta do estudante a elas.
+7. Evolução observada no período, comparando momentos quando houver dados.
+8. Objetivos e próximos passos pedagógicos.
+9. Fechamento coerente com o destinatário.
+10. Ao final inclua um parágrafo em <div class="pedagogical-disclaimer"><strong>Natureza do documento:</strong> ...</div> esclarecendo que se trata de registro pedagógico baseado nas observações informadas pelo educador e que não constitui diagnóstico clínico.
+
+Dados:
+${payload}`;
   return `${commonSystem()}\nCrie uma ESTRUTURA GUIADA DE TRABALHO ACADÊMICO. Não produza texto pronto para ser apresentado como autoria do estudante. Monte capa textual, resumo orientativo, palavras-chave, introdução, objetivos, referencial teórico, metodologia, resultados/discussão, considerações finais e referências. Onde depender de pesquisa, oriente a inserir fontes realmente consultadas. Inclua nota final para conferir o manual institucional.\nDados:\n${payload}`;
 }
 function defaultMeta(kind, d) {
   if (kind === 'plan') return { title: `Plano de aula — ${d.topic || 'Sem tema'}`, subtitle: `${d.discipline || ''} • ${d.grade || ''}`, typeLabel: 'Plano de aula' };
   if (kind === 'activity') return { title: `Atividade — ${d.topic || 'Sem tema'}`, subtitle: `${d.discipline || ''} • ${d.grade || ''}`, typeLabel: 'Atividade' };
   if (kind === 'exam') return { title: `Avaliação — ${d.topic || 'Sem tema'}`, subtitle: `${d.discipline || ''} • ${d.grade || ''}`, typeLabel: 'Avaliação' };
+  if (kind === 'report') return { title: `${d.reportType || 'Relatório pedagógico'} — ${d.studentName || 'Estudante'}`, subtitle: `${d.grade || ''} • ${d.period || ''}`, typeLabel: 'Relatório pedagógico' };
   return { title: d.title || 'Estrutura acadêmica', subtitle: `${d.workType || 'Trabalho acadêmico'} • ${d.author || ''}`, typeLabel: 'Acadêmico / ABNT' };
 }
 function generatedMaterialValid(kind, html, d) {
@@ -301,6 +332,11 @@ function generatedMaterialValid(kind, html, d) {
   if (/<(?:td|th)>\s*(?:&nbsp;)?\s*<\/(?:td|th)>/i.test(text)) return false;
   if (/<div>\s*[1-5]\s*<\/div>\s*<div>\s*[1-5]\s*<\/div>/i.test(text)) return false;
   if (/complete a tabela abaixo[^<]{0,120}<table/i.test(text) && /<td>\s*<\/td>/i.test(text)) return false;
+  if (kind === 'report') {
+    if (!/Natureza do documento/i.test(text) || !/registro pedag[oó]gico/i.test(text)) return false;
+    if (/(?:CID|medica[cç][aã]o|prescrev|diagnosticamos|diagn[oó]stico confirmado)/i.test(text)) return false;
+    if (String(d.conditionMention || '').startsWith('Não mencionar') && /(?:TEA|TDAH|autis|dislex|disgraf|discalcul|defici[eê]ncia intelectual)/i.test(text)) return false;
+  }
   if (kind === 'activity' || kind === 'exam') {
     const expected = Math.max(1, Math.min(20, Number(d.count) || 10));
     const questions = (text.match(/class=["']question["']/gi) || []).length;
@@ -316,7 +352,7 @@ async function runGeneration(env, kind, d, repair = false) {
   const instruction = repair
     ? `${promptFor(kind, d)}\nATENÇÃO: a tentativa anterior foi rejeitada por qualidade insuficiente. Refaça DO ZERO. Verifique uma a uma: nenhuma tabela vazia; nenhum rótulo do tipo Palavra 1/Etapa 1; nenhuma sequência sem conteúdo; enunciados sem ambiguidade; gabarito compatível; exatamente a quantidade pedida; adaptação coerente com o tema. Não reaproveite a formulação rejeitada.`
     : promptFor(kind, d);
-  const model = (kind === 'activity' || kind === 'exam') ? MODEL_QUALITY : MODEL_FAST;
+  const model = (kind === 'activity' || kind === 'exam' || kind === 'report') ? MODEL_QUALITY : MODEL_FAST;
   const result = await env.AI.run(model, {
     messages: [{ role: 'system', content: 'Siga rigorosamente as instruções. Gere conteúdo pedagógico específico e devolva JSON válido no esquema solicitado.' }, { role: 'user', content: instruction }],
     response_format: { type: 'json_schema', json_schema: schema }, max_tokens: 5000, temperature: 0.25
@@ -480,13 +516,14 @@ async function api(request, env, url) {
     const auth = await requireUser(request, env); if (auth.response) return auth.response;
     const len = Number(request.headers.get('content-length') || 0); if (len > 60000) return json({ error: 'Conteúdo muito grande.' }, 413);
     const body = await request.json().catch(() => ({})); const kind = cleanText(body.kind, 20);
-    if (!['plan', 'activity', 'exam', 'abnt'].includes(kind)) return json({ error: 'Tipo de material inválido.' }, 400);
+    if (!['plan', 'activity', 'exam', 'report', 'abnt'].includes(kind)) return json({ error: 'Tipo de material inválido.' }, 400);
     const d = sanitizeData(body.data || {});
     const limits = planLimits(auth.user.plan);
     if ((kind === 'activity' || kind === 'exam') && Number(d.count || 0) > limits.questions) {
       return json({ error: auth.user.plan === 'pro' ? 'O Aulora Pro permite até 20 questões por material.' : 'O Aulora Grátis permite até 10 questões por atividade ou avaliação. Assine o Pro para criar até 20.', code: 'QUESTION_LIMIT', limits }, 403);
     }
-    if (kind !== 'abnt' && (!d.topic || !d.discipline || !d.grade)) return json({ error: 'Preencha tema, disciplina e turma.' }, 400);
+    if (!['abnt','report'].includes(kind) && (!d.topic || !d.discipline || !d.grade)) return json({ error: 'Preencha tema, disciplina e turma.' }, 400);
+    if (kind === 'report' && (!d.studentName || !d.grade || !d.strengths || !d.progress)) return json({ error: 'Preencha estudante, turma, pontos fortes e evolução observada.' }, 400);
     if (kind === 'abnt' && (!d.title || !d.author)) return json({ error: 'Preencha título e autor.' }, 400);
     if (!env.AI) return json({ error: 'Geração inteligente não configurada.' }, 503);
     const usage = await usageFor(env, auth.user); if (usage.ai >= usage.limits.ai) return json({ error: 'Seu limite mensal de gerações inteligentes foi atingido.', code: 'AI_LIMIT', usage }, 429);

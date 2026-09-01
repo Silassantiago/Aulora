@@ -23,6 +23,7 @@
     plan:['Plano de aula','Planejamento pedagógico'],
     activity:['Atividade','Exercícios, práticas e gabaritos'],
     exam:['Avaliação','Provas, pontuação e critérios'],
+    reports:['Relatórios','Pareceres e acompanhamento pedagógico'],
     abnt:['Acadêmico / ABNT','Estrutura, referências e verificação'],
     materials:['Meus materiais','Sua biblioteca sincronizada'],
     settings:['Perfil e plano','Conta, preferências e armazenamento']
@@ -269,10 +270,11 @@
     restore(); return save;
   }
 
-  const planForm=$('#planForm'), activityForm=$('#activityForm'), examForm=$('#examForm'), abntForm=$('#abntForm');
+  const planForm=$('#planForm'), activityForm=$('#activityForm'), examForm=$('#examForm'), reportForm=$('#reportForm'), abntForm=$('#abntForm');
   const savePlanDraft=initDraft(planForm,'plan','#planDraftStatus');
   const saveActivityDraft=initDraft(activityForm,'activity','#activityDraftStatus');
   const saveExamDraft=initDraft(examForm,'exam','#examDraftStatus');
+  const saveReportDraft=initDraft(reportForm,'report','#reportDraftStatus');
 
   function showLoading(title='Preparando seu material…', text='Isso costuma levar alguns segundos.'){
     $('#loadingTitle').textContent=title; $('#loadingText').textContent=text; $('#loadingOverlay').hidden=false;
@@ -369,7 +371,7 @@
     return newMaterial('abnt',d.title,`${d.workType} • ${d.author}`,d,localAbnt(d),'Acadêmico / ABNT');
   }
 
-  function previewFor(kind){ return $(`#${kind==='abnt'?'abnt':kind}Preview`); }
+  function previewFor(kind){ return $(`#${kind==='abnt'?'abnt':kind==='report'?'report':kind}Preview`); }
 
   async function generateSmart(kind,d){
     if(!app.user){
@@ -382,11 +384,11 @@
       go('settings');
       return;
     }
-    showLoading(kind==='plan'?'Criando o plano de aula…':kind==='activity'?'Criando a atividade…':kind==='exam'?'Montando a avaliação…':'Estruturando o trabalho…','O Aulora está gerando conteúdo específico para os dados informados.');
+    showLoading(kind==='plan'?'Criando o plano de aula…':kind==='activity'?'Criando a atividade…':kind==='exam'?'Montando a avaliação…':kind==='report'?'Redigindo o relatório pedagógico…':'Estruturando o trabalho…','O Aulora está gerando conteúdo específico para os dados informados.');
     try{
       const payload=await apiFetch('/api/generate',{method:'POST',body:{kind,data:d}});
       if(payload.usage){app.usage=payload.usage;if(app.user)app.user.usage=payload.usage;updateAccountUI();}
-      const material=newMaterial(kind,payload.title||`${kind} — ${d.topic||d.title}`,payload.subtitle||'',d,payload.html||'',payload.typeLabel||({plan:'Plano de aula',activity:'Atividade',exam:'Avaliação',abnt:'Acadêmico / ABNT'}[kind]));
+      const material=newMaterial(kind,payload.title||`${kind} — ${d.topic||d.title}`,payload.subtitle||'',d,payload.html||'',payload.typeLabel||({plan:'Plano de aula',activity:'Atividade',exam:'Avaliação',report:'Relatório pedagógico',abnt:'Acadêmico / ABNT'}[kind]));
       bindPreview(previewFor(kind),material); toast('Material gerado. Revise, edite e salve quando estiver pronto.');
     }catch(err){
       if(err.code==='AI_LIMIT'){
@@ -404,9 +406,10 @@
   planForm.addEventListener('submit',e=>{e.preventDefault();savePlanDraft();generateSmart('plan',formData(e.currentTarget));});
   activityForm.addEventListener('submit',e=>{e.preventDefault();saveActivityDraft();generateSmart('activity',formData(e.currentTarget));});
   examForm.addEventListener('submit',e=>{e.preventDefault();saveExamDraft();generateSmart('exam',formData(e.currentTarget));});
+  reportForm.addEventListener('submit',e=>{e.preventDefault();saveReportDraft();generateSmart('report',formData(e.currentTarget));});
   abntForm.addEventListener('submit',e=>{e.preventDefault();generateSmart('abnt',formData(e.currentTarget));});
   $$('[data-local]').forEach(btn=>btn.addEventListener('click',()=>{
-    const kind=btn.dataset.local,form={plan:planForm,activity:activityForm,exam:examForm,abnt:abntForm}[kind];
+    const kind=btn.dataset.local,form={plan:planForm,activity:activityForm,exam:examForm,report:reportForm,abnt:abntForm}[kind];
     if(!form.reportValidity())return;
     if(kind==='activity'||kind==='exam'){
       if(!app.user){openAuth('signup');return;}
@@ -453,11 +456,11 @@
   });
 
   function persist(){persistMaterialCache();updateStats();}
-  function typeIcon(type){return({plan:'▤',activity:'✎',exam:'✓',abnt:'¶',reference:'§'})[type]||'▣';}
+  function typeIcon(type){return({plan:'▤',activity:'✎',exam:'✓',report:'📋',abnt:'¶',reference:'§'})[type]||'▣';}
   function renderMaterials(){
     const q=$('#materialsSearch').value.trim().toLowerCase(),filter=$('#materialsFilter').value;
     const list=app.materials.filter(m=>(filter==='all'||m.type===filter)&&`${m.title} ${m.subtitle||''} ${m.typeLabel||''}`.toLowerCase().includes(q)); const el=$('#materialsList');
-    if(!list.length){el.innerHTML=`<div class="library-empty"><strong>${app.materials.length?'Nenhum material encontrado.':'Sua biblioteca ainda está vazia.'}</strong><p>${app.materials.length?'Tente alterar a busca ou o filtro.':'Crie um plano, atividade, avaliação ou material acadêmico e salve aqui.'}</p></div>`;return;}
+    if(!list.length){el.innerHTML=`<div class="library-empty"><strong>${app.materials.length?'Nenhum material encontrado.':'Sua biblioteca ainda está vazia.'}</strong><p>${app.materials.length?'Tente alterar a busca ou o filtro.':'Crie um plano, atividade, avaliação, relatório ou material acadêmico e salve aqui.'}</p></div>`;return;}
     el.innerHTML=list.map(m=>`<article class="material-item"><div class="material-type-icon">${typeIcon(m.type)}</div><div><h3>${esc(m.title)}</h3><p>${esc(m.typeLabel||'Material')} • ${esc(m.subtitle||'')} • ${new Intl.DateTimeFormat('pt-BR').format(new Date(m.updatedAt||m.createdAt))} <span class="cloud-pill sync-state ${app.user?'':'local'}">${app.user?'☁ Nuvem':'Neste dispositivo'}</span></p></div><div class="material-actions"><button class="mini-button" data-open="${m.id}">Abrir</button><button class="mini-button" data-doc="${m.id}">Word</button><button class="mini-button" data-duplicate="${m.id}">Duplicar</button><button class="mini-button" data-delete="${m.id}">Excluir</button></div></article>`).join('');
     $$('[data-open]',el).forEach(b=>b.onclick=()=>openMaterial(b.dataset.open)); $$('[data-doc]',el).forEach(b=>b.onclick=()=>exportDoc(app.materials.find(m=>m.id===b.dataset.doc))); $$('[data-duplicate]',el).forEach(b=>b.onclick=()=>duplicateMaterial(b.dataset.duplicate)); $$('[data-delete]',el).forEach(b=>b.onclick=()=>deleteMaterial(b.dataset.delete));
   }
@@ -498,7 +501,7 @@
   $('#resetAppBtn').onclick=()=>{if(confirm('Apagar cache local, perfil local e rascunhos deste dispositivo? Materiais já sincronizados na nuvem não serão excluídos.')){Object.keys(localStorage).filter(k=>k.startsWith('aulora.')).forEach(k=>localStorage.removeItem(k));app.materials=[];app.profile={...DEFAULT_PROFILE};location.reload();}};
 
   function updateStats(){
-    $('#statMaterials').textContent=app.materials.length;$('#statPlans').textContent=app.materials.filter(m=>m.type==='plan').length;$('#statActivities').textContent=app.materials.filter(m=>m.type==='activity').length;$('#statExams').textContent=app.materials.filter(m=>m.type==='exam').length;$('#statAbnt').textContent=app.materials.filter(m=>['abnt','reference'].includes(m.type)).length;updateSettingsStats();
+    $('#statMaterials').textContent=app.materials.length;$('#statPlans').textContent=app.materials.filter(m=>m.type==='plan').length;$('#statActivities').textContent=app.materials.filter(m=>m.type==='activity').length;$('#statExams').textContent=app.materials.filter(m=>m.type==='exam').length;$('#statReports').textContent=app.materials.filter(m=>m.type==='report').length;$('#statAbnt').textContent=app.materials.filter(m=>['abnt','reference'].includes(m.type)).length;updateSettingsStats();
   }
   function updateSettingsStats(){
     if(!$('#settingsMaterialCount'))return;$('#settingsMaterialCount').textContent=app.materials.length;let bytes=0;try{bytes=new Blob([localStorage.getItem(materialCacheKey())||'']).size;}catch{}$('#settingsStorageSize').textContent=bytes<1024?`${bytes} B`:`${(bytes/1024).toFixed(1)} KB`;if($('#settingsCloudCount'))$('#settingsCloudCount').textContent=app.user?String(app.materials.length):'—';

@@ -72,3 +72,7 @@ O manual específico da instituição continua prevalecendo quando houver exigê
 
 ## Atividades inclusivas
 O módulo de Atividade possui presets e controles pedagógicos para TEA/autismo, educação especial, alfabetização, atividades visuais, desenho guiado, associação, sequência, marcar/pintar e múltiplas formas de resposta. Esses recursos apoiam o planejamento docente e não realizam diagnóstico ou substituem AEE/plano individualizado quando aplicável.
+
+
+## Relatórios pedagógicos
+O Aulora inclui gerador de relatório pedagógico individual, parecer descritivo, evolução, AEE, coordenação, família, adaptação escolar, alfabetização e acompanhamento. Contextos como TEA, TDAH, dislexia, disgrafia, discalculia e deficiências são usados somente como informações pedagógicas fornecidas pelo educador. O gerador não realiza diagnóstico clínico e inclui aviso de natureza pedagógica no documento final.

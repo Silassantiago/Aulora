@@ -37,6 +37,7 @@
           </div>
         </div>
         <button class="nav-item" data-view="exam"><span>✓</span> Avaliação</button>
+        <button class="nav-item" data-view="reports"><span>📋</span> Relatórios</button>
         <button class="nav-item" data-view="abnt"><span>¶</span> Acadêmico / ABNT</button>
         <button class="nav-item" data-view="materials"><span>▣</span> Meus materiais</button>
         <button class="nav-item" data-view="settings"><span>⚙</span> Perfil e dados</button>
@@ -121,6 +122,7 @@
             <button class="quick-card" data-go="plan"><span class="quick-icon">▤</span><strong>Plano de aula</strong><small>Objetivos, metodologia, recursos, inclusão e avaliação.</small><em>Planejar →</em></button>
             <button class="quick-card" data-go="activity"><span class="quick-icon">✎</span><strong>Atividade inclusiva</strong><small>Questões, desenho, associação, TEA, educação especial, gabarito e versão do aluno.</small><em>Criar →</em></button>
             <button class="quick-card" data-go="exam"><span class="quick-icon">✓</span><strong>Avaliação</strong><small>Prova com pontuação, questões e critérios de correção.</small><em>Montar →</em></button>
+            <button class="quick-card" data-go="reports"><span class="quick-icon">📋</span><strong>Relatórios</strong><small>Pareceres pedagógicos, AEE, evolução, família e acompanhamento individual.</small><em>Gerar →</em></button>
             <button class="quick-card" data-go="abnt"><span class="quick-icon">¶</span><strong>Acadêmico / ABNT</strong><small>Estrutura, referências e verificação de normalização.</small><em>Acessar →</em></button>
           </div>
 
@@ -129,6 +131,7 @@
             <article class="stat-card"><span>Planos de aula</span><strong id="statPlans">0</strong></article>
             <article class="stat-card"><span>Atividades</span><strong id="statActivities">0</strong></article>
             <article class="stat-card"><span>Avaliações</span><strong id="statExams">0</strong></article>
+            <article class="stat-card"><span>Relatórios</span><strong id="statReports">0</strong></article>
             <article class="stat-card"><span>Acadêmicos</span><strong id="statAbnt">0</strong></article>
           </div>
         </section>
@@ -247,6 +250,40 @@
           </div>
         </section>
 
+        <section class="view" id="view-reports">
+          <div class="page-intro"><span class="eyebrow">ACOMPANHAMENTO PEDAGÓGICO</span><h1>Relatórios e pareceres</h1><p>Transforme observações do professor em um relatório pedagógico claro, respeitoso e pronto para revisão. O Aulora não realiza diagnóstico clínico.</p></div>
+          <div class="workspace-grid">
+            <form class="form-card generator-form" id="reportForm" autocomplete="off">
+              <div class="card-heading"><div><span class="eyebrow">NOVO RELATÓRIO</span><h2>Dados do acompanhamento</h2></div><span class="smart-pill">✦ Geração inteligente</span></div>
+              <div class="form-grid two-col">
+                <label>Tipo de relatório<select name="reportType" required><option>Relatório pedagógico individual</option><option>Parecer descritivo</option><option>Relatório de evolução</option><option>Relatório bimestral</option><option>Relatório trimestral</option><option>Relatório semestral</option><option>Relatório anual</option><option>Relatório para AEE</option><option>Relatório para coordenação pedagógica</option><option>Relatório para família</option><option>Relatório de adaptação escolar</option><option>Relatório de alfabetização</option><option>Relatório de interação e comportamento escolar</option></select></label>
+                <label>Contexto pedagógico<select name="pedagogicalContext"><option>Sem condição específica informada</option><option>TEA / autismo — condição informada</option><option>TDAH — condição informada</option><option>Dislexia — condição informada</option><option>Disgrafia — condição informada</option><option>Discalculia — condição informada</option><option>Deficiência intelectual — condição informada</option><option>Deficiência visual — condição informada</option><option>Deficiência auditiva — condição informada</option><option>Deficiência física — condição informada</option><option>Dificuldade de aprendizagem</option><option>Alfabetização em desenvolvimento</option><option>Necessidade de apoio na comunicação</option><option>Necessidade de apoio na interação social</option><option>Educação especial — acompanhamento geral</option></select></label>
+                <label>Aluno(a)<input name="studentName" required placeholder="Nome do estudante" /></label>
+                <label>Turma / ano<input name="grade" required placeholder="Ex.: 5º ano A" /></label>
+                <label>Professor(a)<input name="teacher" data-profile="teacher" placeholder="Nome do professor" /></label>
+                <label>Escola<input name="school" data-profile="school" placeholder="Nome da escola" /></label>
+                <label>Período<input name="period" placeholder="Ex.: 2º bimestre de 2026" /></label>
+                <label>Destinatário<select name="audience"><option>Registro pedagógico interno</option><option>Família / responsáveis</option><option>Coordenação pedagógica</option><option>AEE / equipe de apoio</option><option>Conselho de classe</option><option>Outro profissional da educação</option></select></label>
+                <label>Tom do texto<select name="tone"><option>Pedagógico técnico e respeitoso</option><option>Objetivo e conciso</option><option>Acolhedor e acessível para família</option><option>Detalhado para equipe pedagógica</option></select></label>
+                <label>Extensão<select name="length"><option>Curto — cerca de 1 página</option><option selected>Médio — 1 a 2 páginas</option><option>Detalhado — 2 a 3 páginas</option></select></label>
+                <label class="full">Aprendizagens e pontos fortes<textarea name="strengths" rows="3" required placeholder="Ex.: demonstra interesse por leitura, reconhece palavras com autonomia, participa melhor quando recebe instruções objetivas..."></textarea></label>
+                <label class="full">Dificuldades ou necessidades observadas<textarea name="challenges" rows="3" placeholder="Descreva somente observações pedagógicas verificáveis, sem diagnosticar. Ex.: mantém atenção por períodos curtos em atividades longas..."></textarea></label>
+                <label class="full">Comunicação, interação e participação<textarea name="interaction" rows="3" placeholder="Ex.: interage com colegas em atividades estruturadas; comunica necessidades; participa de rodas de conversa com mediação..."></textarea></label>
+                <label class="full">Estratégias e adaptações utilizadas<textarea name="strategies" rows="3" placeholder="Ex.: rotina visual, instruções em etapas, tempo ampliado, apoio de imagens, leitura compartilhada, redução de cópia..."></textarea></label>
+                <label class="full">Evolução observada no período<textarea name="progress" rows="3" required placeholder="Compare o início e o final do período com exemplos concretos de avanços, estabilidade ou pontos que ainda precisam de apoio."></textarea></label>
+                <label class="full">Objetivos e próximos passos<textarea name="nextSteps" rows="3" placeholder="Ex.: ampliar autonomia na leitura de enunciados; fortalecer participação em atividades em dupla; manter apoio visual..."></textarea></label>
+                <label class="full">Informações adicionais que podem constar no relatório<textarea name="notes" rows="3" placeholder="Somente informações pertinentes ao contexto escolar. Evite dados pessoais ou clínicos desnecessários."></textarea></label>
+                <label>Como mencionar a condição<select name="conditionMention"><option>Não mencionar diagnóstico/condição no texto</option><option>Mencionar apenas como informação previamente comunicada à escola</option></select></label>
+                <label>Fechamento<select name="closingStyle"><option>Com recomendações pedagógicas</option><option>Com síntese da evolução</option><option>Com próximos objetivos</option><option>Sem recomendações adicionais</option></select></label>
+              </div>
+              <div class="safety-note"><strong>Importante:</strong> este gerador produz registro pedagógico com base nas observações informadas pelo educador. Não substitui avaliação médica, psicológica, fonoaudiológica ou outro diagnóstico clínico.</div>
+              <div class="draft-line"><span id="reportDraftStatus">Rascunho salvo automaticamente neste dispositivo.</span></div>
+              <div class="form-actions"><button class="primary-button smart-action" type="submit">✦ Gerar relatório pedagógico</button><button class="ghost-button" type="reset">Limpar</button></div>
+            </form>
+            <div class="preview-card empty" id="reportPreview"><div class="empty-state"><span>📋</span><strong>Seu relatório aparecerá aqui</strong><p>Preencha observações concretas do período. O texto gerado poderá ser editado antes de salvar ou exportar.</p></div></div>
+          </div>
+        </section>
+
         <section class="view" id="view-abnt">
           <div class="page-intro"><span class="eyebrow">ACADÊMICO</span><h1>Acadêmico / ABNT</h1><p>Estruture trabalhos, formate referências e faça verificações iniciais. O manual da instituição sempre prevalece quando trouxer exigências específicas.</p></div>
           <div class="tabs" role="tablist">
@@ -319,7 +356,7 @@
             <div><span class="eyebrow">BIBLIOTECA</span><h1>Meus materiais</h1><p id="libraryStorageMode">Materiais salvos neste dispositivo. Entre para sincronizar na nuvem.</p></div>
             <div class="header-actions"><button class="ghost-button" id="exportBackupBtn">Exportar backup</button><label class="ghost-button file-label">Importar backup<input type="file" id="importBackupInput" accept="application/json" hidden /></label><button class="ghost-button danger-text" id="clearMaterialsBtn">Limpar biblioteca</button></div>
           </div>
-          <div class="materials-toolbar"><input id="materialsSearch" placeholder="Buscar por título, disciplina ou turma..." /><select id="materialsFilter"><option value="all">Todos os tipos</option><option value="plan">Planos de aula</option><option value="activity">Atividades</option><option value="exam">Avaliações</option><option value="abnt">Acadêmicos</option><option value="reference">Referências</option></select></div>
+          <div class="materials-toolbar"><input id="materialsSearch" placeholder="Buscar por título, disciplina ou turma..." /><select id="materialsFilter"><option value="all">Todos os tipos</option><option value="plan">Planos de aula</option><option value="activity">Atividades</option><option value="exam">Avaliações</option><option value="report">Relatórios</option><option value="abnt">Acadêmicos</option><option value="reference">Referências</option></select></div>
           <div class="materials-list" id="materialsList"></div>
         </section>
 
@@ -337,7 +374,7 @@
               <div class="plan-comparison">
                 <article class="plan-option free-option">
                   <div class="plan-option-head"><div><span>PARA COMEÇAR</span><h3>Aulora Grátis</h3></div><strong>R$ 0</strong></div>
-                  <ul class="feature-list"><li>5 gerações inteligentes por mês</li><li>Até 25 materiais sincronizados</li><li>Plano de aula, atividade, avaliação e Acadêmico/ABNT</li><li>Atividades e provas com até 10 questões</li><li>Exportação Word/PDF e backup local</li></ul>
+                  <ul class="feature-list"><li>5 gerações inteligentes por mês</li><li>Até 25 materiais sincronizados</li><li>Plano de aula, atividade, avaliação, relatórios e Acadêmico/ABNT</li><li>Atividades e provas com até 10 questões</li><li>Exportação Word/PDF e backup local</li></ul>
                   <button class="ghost-button" id="freePlanSignupBtn" type="button">Criar conta grátis</button>
                 </article>
                 <article class="plan-option pro-option">
