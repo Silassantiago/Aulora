@@ -4,11 +4,11 @@ const MODEL_IMAGE = '@cf/black-forest-labs/flux-1-schnell';
 const IBGE_BASE = 'https://servicodados.ibge.gov.br/api/v1/localidades';
 const SESSION_COOKIE = 'aulora_session';
 const SESSION_DAYS = 30;
-const FREE_AI_LIMIT = 3;
+const FREE_AI_LIMIT = 2;
 const PRO_AI_LIMIT = 200;
-const FREE_MATERIAL_LIMIT = 5;
+const FREE_MATERIAL_LIMIT = 3;
 const PRO_MATERIAL_LIMIT = 1000;
-const PASSWORD_KDF_ITERATIONS = 10000;
+const PASSWORD_KDF_ITERATIONS = 120000;
 const PRO_PIX_PRICE_CENTS = 1490;
 const PRO_PIX_DAYS = 30;
 const jsonHeaders = {
@@ -29,6 +29,15 @@ function cleanEmail(value) {
 }
 function isEmail(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+function adminEmailSet(env) {
+  return new Set(String(env.ADMIN_EMAILS || '').split(/[\s,;]+/).map(cleanEmail).filter(isEmail));
+}
+function isAdminUser(user, env) {
+  return Boolean(user && adminEmailSet(env).has(cleanEmail(user.email)));
+}
+function hasProAccess(user, env) {
+  return Boolean(user && (user.plan === 'pro' || isAdminUser(user, env)));
 }
 function sanitizeData(raw = {}) {
   const out = {};
@@ -60,8 +69,8 @@ function sanitizeHtml(html = '') {
 }
 function nowIso() { return new Date().toISOString(); }
 function monthKey() { return new Date().toISOString().slice(0, 7); }
-function planLimits(plan) {
-  const pro = plan === 'pro';
+function planLimits(plan, admin = false) {
+  const pro = plan === 'pro' || admin;
   return { ai: pro ? PRO_AI_LIMIT : FREE_AI_LIMIT, materials: pro ? PRO_MATERIAL_LIMIT : FREE_MATERIAL_LIMIT, questions: pro ? 20 : 5 };
 }
 function parseCookies(request) {
@@ -105,6 +114,12 @@ async function hashPassword(password, saltBytes = crypto.getRandomValues(new Uin
 async function verifyPassword(password, salt, expected, iterations = PASSWORD_KDF_ITERATIONS) {
   const derived = await hashPassword(password, base64ToBytes(salt), Number(iterations) || PASSWORD_KDF_ITERATIONS);
   return constantTimeEqual(base64ToBytes(derived.hash), base64ToBytes(expected));
+}
+async function verifyStoredPassword(user, password) {
+  const storedIterations = Number(user?.password_iterations) || PASSWORD_KDF_ITERATIONS;
+  if (await verifyPassword(password, user.password_salt, user.password_hash, storedIterations)) return true;
+  if (storedIterations !== 10000 && await verifyPassword(password, user.password_salt, user.password_hash, 10000)) return true;
+  return false;
 }
 async function ensureSchema(db) {
   if (schemaReady) return;
@@ -257,7 +272,13 @@ function safeProfile(value) {
   if (typeof value === 'string') { try { raw = JSON.parse(value); } catch { raw = {}; } }
   raw = raw && typeof raw === 'object' ? raw : {};
   return {
-    teacher: cleanText(raw.teacher, 120), school: cleanText(raw.school, 160), city: cleanText(raw.city, 100),
+    teacher: cleanText(raw.teacher, 120),
+    role: cleanText(raw.role, 100),
+    school: cleanText(raw.school, 160),
+    network: cleanText(raw.network, 60),
+    state: cleanText(raw.state, 2).toUpperCase(),
+    city: cleanText(raw.city || raw.municipality, 100),
+    municipalityId: cleanText(raw.municipalityId, 20),
     stage: cleanText(raw.stage, 100) || 'Anos finais do Ensino Fundamental'
   };
 }
@@ -290,6 +311,7 @@ async function resendEmail(env, { to, subject, html, attachmentName, attachmentH
   return { sent:true, id:data?.id || '' };
 }
 async function sendMaterialCopy(env, user, material, event='generated') {
+  if (!hasProAccess(user, env)) return {sent:false,reason:'pro-required'};
   const prefs = safeEmailPrefs(user.email_prefs_json);
   if ((event==='generated' && !prefs.generated) || (event!=='generated' && !prefs.saved) || (String(material.type||'')==='report' && !prefs.reports)) return {sent:false,reason:'preference'};
   const title = cleanText(material.title || 'Material Aulora',180);
@@ -306,20 +328,30 @@ async function sendSecurityEmail(env, user, subject, message) {
 async function usageFor(env, user) {
   const month = monthKey();
   const row = await env.DB.prepare('SELECT ai_count FROM aulora_usage_monthly WHERE user_id=? AND month=?').bind(user.id, month).first();
-  return { month, ai: Number(row?.ai_count || 0), limits: planLimits(user.plan) };
+  return { month, ai: Number(row?.ai_count || 0), limits: planLimits(user.plan, isAdminUser(user, env)) };
 }
 async function userPayload(env, user) {
   const usage = await usageFor(env, user);
+  const admin = isAdminUser(user, env);
+  const pro = user.plan === 'pro' || admin;
   return {
     id: user.id, email: user.email, name: user.name, plan: user.plan, planStatus: user.plan_status,
+    isAdmin: admin, accountRole: admin ? 'admin' : 'user',
     profile: safeProfile(user.profile_json), emailPrefs: safeEmailPrefs(user.email_prefs_json), usage,
-    emailDelivery: { enabled: emailDeliveryEnabled(env) },
+    features: { images:pro, reports:pro, abnt:pro, henryAI:pro, exports:pro, emailCopies:pro, advancedInclusion:pro },
+    emailDelivery: { enabled: pro && emailDeliveryEnabled(env) },
     billing: { enabled: Boolean(env.MERCADO_PAGO_ACCESS_TOKEN), provider: 'mercadopago', method: 'pix_card', methods: ['pix','card'], customer: false, expiresAt: user.pro_expires_at || null, priceCents: PRO_PIX_PRICE_CENTS, periodDays: PRO_PIX_DAYS }
   };
 }
 async function requireUser(request, env) {
   const user = await currentUser(request, env);
   return user ? { user } : { response: json({ error: 'Faça login para continuar.', code: 'AUTH_REQUIRED' }, 401) };
+}
+async function requireAdmin(request, env) {
+  const auth = await requireUser(request, env);
+  if (auth.response) return auth;
+  if (!isAdminUser(auth.user, env)) return { response: json({ error:'Acesso restrito ao administrador do Aulora.', code:'ADMIN_REQUIRED' }, 403) };
+  return auth;
 }
 
 async function fetchIbge(path) {
@@ -420,10 +452,52 @@ Se imageMode não for 'Sem imagens', produza também no campo JSON imagePrompt u
 Ao final inclua <div class="answer-key"><h2>GABARITO / ORIENTAÇÕES DE CORREÇÃO</h2>...</div> com resposta correspondente a TODAS as tarefas. Se uma resposta for aberta, forneça critérios claros. Quando houver adaptação, inclua <div class="teacher-support"><strong>Sugestões de mediação</strong>...</div> com sugestões específicas ao tipo de tarefa, sem orientações clínicas genéricas.
 Dados:
 ${payload}`;
-  if (kind === 'exam') return `${commonSystem()}
-Crie uma AVALIAÇÃO FINAL, pronta para revisão do professor, com exatamente ${d.count || 10} questões REAIS e ESPECÍFICAS sobre o tema informado e total de ${d.totalPoints || 10} pontos.${curriculum} Cada questão deve ficar dentro de <div class="question">. Distribua a pontuação de modo que a soma seja exatamente o total. Respeite disciplina, etapa/turma, formato e dificuldade. Se houver texto-base, use-o de forma efetiva. Se não houver, use conhecimento geral consolidado e apropriado ao nível escolar, sem inventar fontes ou dados. Questões objetivas devem ter exatamente 4 alternativas A-D plausíveis e somente uma correta; discursivas devem ter enunciado completo e critério de correção. Não escreva placeholders, colchetes para preencher, 'personalize', 'defina a alternativa', 'insira aqui' ou qualquer questão genérica do tipo 'fale sobre o tema'. Se imageMode não for 'Sem imagens', produza também no campo JSON imagePrompt uma descrição visual curta, segura e pedagógica, em português, SEM texto/letras dentro da figura. O servidor poderá gerar uma figura geral, figuras para até 3 questões ou uma figura por questão, conforme imageMode. Nenhuma figura pode revelar diretamente a resposta. Se for painel, descreva três cenas em uma única imagem. Inclua <div class="answer-key"><h2>GABARITO / CRITÉRIOS DE CORREÇÃO</h2>...</div> com resposta correspondente a TODAS as questões e pontuação coerente.
-Dados:
+  if (kind === 'exam') {
+    const optionMark = d.optionStyle === 'square' ? '[   ]' : d.optionStyle === 'plain' ? '' : '(   )';
+    const answerLines = Math.max(2, Math.min(8, Number(d.discursiveSpace) || 4));
+    return `${commonSystem()}
+Crie uma AVALIAÇÃO ESCOLAR PROFISSIONAL, pronta para impressão e revisão do professor, com exatamente ${d.count || 10} questões REAIS e ESPECÍFICAS sobre o conteúdo informado e total de ${d.totalPoints || 10} pontos.${curriculum}
+
+REGRA CRÍTICA DE DISCIPLINA E CONTEÚDO:
+- DISCIPLINA AUTORITATIVA: "${d.discipline || ''}".
+- CONTEÚDO/TEMA AUTORITATIVO: "${d.topic || ''}".
+- Todas as questões devem avaliar conhecimentos que pertencem claramente à disciplina acima e ao conteúdo acima. NÃO substitua a disciplina por outra e NÃO mude o tema.
+- Exemplo de erro proibido: se a disciplina for Ciências, não crie questões sobre gramática, língua portuguesa, história ou outro componente apenas porque o tema foi interpretado de forma vaga.
+- Só faça abordagem interdisciplinar se o texto-base ou as instruções do professor pedirem explicitamente isso; mesmo assim, mantenha o foco avaliativo na disciplina informada.
+- Antes de devolver a prova, revise mentalmente cada questão perguntando: "um professor de ${d.discipline || 'esta disciplina'} reconheceria esta questão como avaliação de ${d.topic || 'este conteúdo'}?". Se a resposta for não, reescreva.
+
+PADRÃO DE PROVA OBRIGATÓRIO:
+- Cada questão deve ficar dentro de <div class="question">.
+- Use linguagem adequada a ${d.grade || 'turma informada'} e dificuldade ${d.difficulty || 'intermediária'}.
+- Distribua a pontuação de forma clara e coerente, com soma total exatamente igual a ${d.totalPoints || 10} pontos.
+- Respeite a composição escolhida: ${d.format || '70% objetivas + 30% discursivas'}.
+- Não produza perguntas genéricas repetitivas como "qual é a importância...", "qual é a função..." ou "fale sobre..." em sequência. Varie operações cognitivas: identificar, interpretar, aplicar, comparar, relacionar, analisar situação, justificar ou resolver, conforme a disciplina e o nível escolar.
+- Questões objetivas devem ter exatamente 4 alternativas plausíveis A-D, apenas UMA correta e distratores relacionados ao conteúdo, sem alternativas absurdas só para completar.
+- Para cada questão objetiva use EXATAMENTE este padrão HTML, com texto real nas alternativas:
+<div class="markable-options">
+<p>${optionMark ? `<span class="answer-mark">${optionMark}</span> ` : ''}<strong>A)</strong> alternativa real</p>
+<p>${optionMark ? `<span class="answer-mark">${optionMark}</span> ` : ''}<strong>B)</strong> alternativa real</p>
+<p>${optionMark ? `<span class="answer-mark">${optionMark}</span> ` : ''}<strong>C)</strong> alternativa real</p>
+<p>${optionMark ? `<span class="answer-mark">${optionMark}</span> ` : ''}<strong>D)</strong> alternativa real</p>
+</div>
+- NÃO use listas <ol> ou <ul> para as alternativas da avaliação; use markable-options conforme acima.
+- Em questões de verdadeiro ou falso, apresente explicitamente ${optionMark || '(   )'} Verdadeiro e ${optionMark || '(   )'} Falso.
+- Nas discursivas, escreva um enunciado objetivo e inclua ${answerLines} elementos <div class="response-line"></div> depois do enunciado, para existir espaço real de resposta na impressão.
+- Se houver texto-base, use-o efetivamente e formule questões que dependam de compreensão ou aplicação dele, sem simplesmente copiar frases.
+- Se não houver texto-base, use conhecimento geral consolidado e apropriado à etapa, sem inventar fontes, estatísticas, datas ou dados específicos desnecessários.
+- Não escreva placeholders, colchetes para preencher, "personalize", "defina a alternativa", "insira aqui", "resposta do aluno" ou conteúdo que o professor precise completar antes de imprimir.
+- Não faça questões cuja alternativa correta seja discutível. Se duas opções puderem ser defendidas, reescreva a questão.
+- O gabarito deve ser conferido contra cada enunciado e deve conter resposta de TODAS as questões. Para discursivas, forneça critérios concretos do que precisa aparecer na resposta para receber a pontuação.
+- Separe o gabarito em <div class="answer-key"><h2>GABARITO / CRITÉRIOS DE CORREÇÃO</h2>...</div>.
+${d.instructions ? `- Orientações adicionais do professor: ${d.instructions}` : ''}
+${d.notes ? `- Critérios/observações adicionais: ${d.notes}` : ''}
+
+IMAGENS:
+Se imageMode não for 'Sem imagens', produza também no campo JSON imagePrompt uma descrição visual curta, segura e pedagógica, em português, SEM texto/letras dentro da figura. O servidor poderá gerar uma figura geral, figuras para até 3 questões ou uma figura por questão, conforme imageMode. Nenhuma figura pode revelar diretamente a resposta. Se for painel, descreva três cenas em uma única imagem.
+
+Dados completos:
 ${payload}`;
+  }
   if (kind === 'report') return `${commonSystem()}
 Crie um RELATÓRIO PEDAGÓGICO profissional, claro, respeitoso e pronto para revisão do professor, usando SOMENTE as observações fornecidas.
 
@@ -487,13 +561,21 @@ function generatedMaterialValid(kind, html, d) {
     if (!/class=["']answer-key["']/i.test(text)) return false;
     if (kind === 'activity' && /Desenho guiado/i.test(String(d.activityType || '')) && !/class=["']drawing-box["']/i.test(text)) return false;
     if (kind === 'activity' && /Ligar \/ associar/i.test(String(d.activityType || '')) && !/(<table|class=["']visual-task["'])/i.test(text)) return false;
+    if (kind === 'exam') {
+      const fmt = String(d.format || '');
+      const hasObjectives = !/Somente discursivas|Verdadeiro ou falso/i.test(fmt);
+      if (hasObjectives && !/class=["']markable-options["']/i.test(text)) return false;
+      if (/Somente discursivas/i.test(fmt) && !/class=["']response-line["']/i.test(text)) return false;
+      const genericStems = (text.match(/(?:qual (?:é )?a importância|descreva a importância|discuta a importância|qual é a função|fale sobre)/gi) || []).length;
+      if (genericStems >= 3) return false;
+    }
   }
   return true;
 }
 async function runGeneration(env, kind, d, repair = false) {
   const schema = { type: 'object', properties: { title: { type: 'string' }, subtitle: { type: 'string' }, typeLabel: { type: 'string' }, html: { type: 'string' }, imagePrompt: { type: 'string' } }, required: ['title', 'subtitle', 'typeLabel', 'html'] };
   const instruction = repair
-    ? `${promptFor(kind, d)}\nATENÇÃO: a tentativa anterior foi rejeitada por qualidade insuficiente. Refaça DO ZERO. Verifique uma a uma: nenhuma tabela vazia; nenhum rótulo do tipo Palavra 1/Etapa 1; nenhuma sequência sem conteúdo; enunciados sem ambiguidade; gabarito compatível; exatamente a quantidade pedida; adaptação coerente com o tema. Não reaproveite a formulação rejeitada.`
+    ? `${promptFor(kind, d)}\nATENÇÃO: a tentativa anterior foi rejeitada por qualidade insuficiente. Refaça DO ZERO. Verifique uma a uma: conteúdo estritamente coerente com a DISCIPLINA e o TEMA informados; nenhuma troca de componente curricular; nenhuma tabela vazia; nenhum rótulo do tipo Palavra 1/Etapa 1; nenhuma sequência sem conteúdo; enunciados sem ambiguidade; alternativas com marcação pronta para o aluno; gabarito compatível; exatamente a quantidade pedida. Não reaproveite a formulação rejeitada.`
     : promptFor(kind, d);
   const preferred = (kind === 'activity' || kind === 'exam' || kind === 'report') ? MODEL_QUALITY : MODEL_FAST;
   const models = preferred === MODEL_FAST ? [MODEL_FAST] : [preferred, MODEL_FAST];
@@ -502,7 +584,7 @@ async function runGeneration(env, kind, d, repair = false) {
     try {
       result = await env.AI.run(model, {
         messages: [{ role: 'system', content: 'Siga rigorosamente as instruções. Gere conteúdo pedagógico específico e devolva JSON válido no esquema solicitado.' }, { role: 'user', content: instruction }],
-        response_format: { type: 'json_schema', json_schema: schema }, max_tokens: 5000, temperature: 0.25
+        response_format: { type: 'json_schema', json_schema: schema }, max_tokens: kind==='exam'?7000:5000, temperature: kind==='exam'?0.18:0.25
       });
       break;
     } catch (err) { lastError = err; console.warn('Aulora model fallback', model, err?.message || err); }
@@ -602,17 +684,64 @@ function ensureReportDisclaimer(html) {
   return `${text}<div class="pedagogical-disclaimer"><strong>Natureza do documento:</strong> Este relatório constitui registro pedagógico elaborado a partir das observações informadas pelo educador. Não substitui avaliação, laudo ou diagnóstico clínico.</div>`;
 }
 
+async function validateExamFocus(env, html, d) {
+  if (!env.AI || !d?.discipline || !d?.topic) return { ok: true, reason: '' };
+  const plain = cleanText(String(html || '')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/\s+/g, ' '), 12000);
+  const schema = {
+    type: 'object',
+    properties: {
+      relevant: { type: 'boolean' },
+      wrongDiscipline: { type: 'boolean' },
+      reason: { type: 'string' }
+    },
+    required: ['relevant','wrongDiscipline','reason']
+  };
+  try {
+    const result = await env.AI.run(MODEL_FAST, {
+      messages: [
+        { role: 'system', content: 'Você é um validador pedagógico estrito. Não reescreva a prova. Apenas decida se o conteúdo avalia de fato a disciplina e o tema informados. Marque wrongDiscipline=true quando a maior parte das questões pertence claramente a outro componente curricular. Seja conservador: uma questão interdisciplinar isolada não reprova a prova.' },
+        { role: 'user', content: `Disciplina: ${cleanText(d.discipline,120)}\nTema/conteúdo: ${cleanText(d.topic,300)}\nTurma: ${cleanText(d.grade,120)}\nTexto-base fornecido pelo professor: ${cleanText(d.sourceText||'',1500)}\n\nProva gerada:\n${plain}` }
+      ],
+      response_format: { type: 'json_schema', json_schema: schema },
+      max_tokens: 220,
+      temperature: 0
+    });
+    let data = result?.response ?? result;
+    if (result?.choices?.[0]?.message?.content) data = result.choices[0].message.content;
+    if (typeof data === 'string') data = JSON.parse(data.replace(/^```(?:json)?\s*/i,'').replace(/\s*```$/,'').trim());
+    const ok = Boolean(data?.relevant) && !Boolean(data?.wrongDiscipline);
+    return { ok, reason: cleanText(data?.reason || '', 500) };
+  } catch (err) {
+    console.warn('Aulora exam focus validator unavailable', err?.message || err);
+    return { ok: true, reason: '' };
+  }
+}
+
 async function generateAI(env, kind, d) {
   const meta = defaultMeta(kind, d);
   let data = await runGeneration(env, kind, d, false);
   let html = sanitizeHtml(data.html || '');
   if (kind === 'report') html = ensureReportDisclaimer(html);
-  if (!generatedMaterialValid(kind, html, d)) {
+  let valid = generatedMaterialValid(kind, html, d);
+  let focus = { ok: true, reason: '' };
+  if (valid && kind === 'exam') focus = await validateExamFocus(env, html, d);
+  if (!valid || !focus.ok) {
     data = await runGeneration(env, kind, d, true);
     html = sanitizeHtml(data.html || '');
     if (kind === 'report') html = ensureReportDisclaimer(html);
+    valid = generatedMaterialValid(kind, html, d);
+    if (valid && kind === 'exam') focus = await validateExamFocus(env, html, d);
   }
-  if (!generatedMaterialValid(kind, html, d)) throw new Error('A geração não atingiu o padrão mínimo de qualidade');
+  if (!valid || (kind === 'exam' && !focus.ok)) {
+    console.warn('Aulora quality rejection', kind, focus.reason || 'estrutura inválida');
+    throw new Error('A geração não atingiu o padrão mínimo de qualidade');
+  }
   let imageGenerated = false, imageCount = 0;
   if ((kind === 'activity' || kind === 'exam') && d.imageMode && d.imageMode !== 'Sem imagens') {
     try {
@@ -684,23 +813,27 @@ async function api(request, env, url, ctx) {
   const path = url.pathname;
 
   if (path === '/api/health' && request.method === 'GET') {
-    return json({ ok: true, ai: Boolean(env.AI), db: true, billing: Boolean(env.MERCADO_PAGO_ACCESS_TOKEN), email: emailDeliveryEnabled(env), auth: 'pbkdf2-sha256', authIterations: PASSWORD_KDF_ITERATIONS, service: 'Aulora' });
+    return json({ ok: true, ai: Boolean(env.AI), db: true, billing: Boolean(env.MERCADO_PAGO_ACCESS_TOKEN), email: emailDeliveryEnabled(env), adminConfigured: adminEmailSet(env).size > 0, auth: 'pbkdf2-sha256', authIterations: PASSWORD_KDF_ITERATIONS, service: 'Aulora' });
   }
   if (path === '/api/auth/signup' && request.method === 'POST') {
     if (!mutationOriginAllowed(request)) return json({ error: 'Origem não autorizada.', code: 'ORIGIN_BLOCKED' }, 403);
     const body = await request.json().catch(() => ({}));
     const email = cleanEmail(body.email), name = cleanText(body.name, 120), password = String(body.password || '');
-    if (!name) return json({ error: 'Informe seu nome.', code: 'NAME_REQUIRED' }, 400);
+    const role = cleanText(body.role, 100), stage = cleanText(body.stage, 100);
+    if (!name) return json({ error: 'Informe seu nome completo.', code: 'NAME_REQUIRED' }, 400);
+    if (!role) return json({ error: 'Informe sua atuação.', code: 'ROLE_REQUIRED' }, 400);
+    if (!stage) return json({ error: 'Informe a etapa principal de ensino.', code: 'STAGE_REQUIRED' }, 400);
     if (!isEmail(email)) return json({ error: 'Informe um e-mail válido.', code: 'EMAIL_INVALID' }, 400);
     if (password.length < 8 || password.length > 128) return json({ error: 'A senha deve ter entre 8 e 128 caracteres.', code: 'PASSWORD_INVALID' }, 400);
     const existing = await env.DB.prepare('SELECT id FROM aulora_users WHERE email=?').bind(email).first();
     if (existing) return json({ error: 'Já existe uma conta com este e-mail. Use a opção Entrar.', code: 'EMAIL_EXISTS' }, 409);
+    if (adminEmailSet(env).has(email)) return json({ error:'Por segurança, uma conta marcada como administradora precisa existir antes de o e-mail ser colocado em ADMIN_EMAILS. Remova temporariamente o e-mail da variável, crie a conta e depois adicione-o novamente.', code:'ADMIN_BOOTSTRAP_BLOCKED' },403);
     let signupStage = 'HASH';
     try {
       const id = crypto.randomUUID(), ts = nowIso();
       const hp = await hashPassword(password);
       signupStage = 'INSERT';
-      const profile = JSON.stringify({ teacher: name, school: '', city: '', stage: 'Anos finais do Ensino Fundamental' });
+      const profile = JSON.stringify({ teacher:name, role, school:cleanText(body.school,160), network:cleanText(body.network,60), state:cleanText(body.state,2).toUpperCase(), city:cleanText(body.city,100), municipalityId:'', stage });
       const emailPrefs = JSON.stringify({ generated:true, saved:true, security:true, reports:false });
       await env.DB.prepare('INSERT INTO aulora_users(id,email,name,password_hash,password_salt,password_iterations,plan,plan_status,profile_json,email_prefs_json,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)')
         .bind(id, email, name, hp.hash, hp.salt, hp.iterations, 'free', 'active', profile, emailPrefs, ts, ts).run();
@@ -737,7 +870,7 @@ async function api(request, env, url, ctx) {
     const body = await request.json().catch(() => ({}));
     const email = cleanEmail(body.email), password = String(body.password || '');
     const user = await env.DB.prepare('SELECT * FROM aulora_users WHERE email=?').bind(email).first();
-    if (!user || !(await verifyPassword(password, user.password_salt, user.password_hash, user.password_iterations || 120000))) return json({ error: 'E-mail ou senha incorretos.' }, 401);
+    if (!user || !(await verifyStoredPassword(user,password))) return json({ error: 'E-mail ou senha incorretos.' }, 401);
     const session = await createSession(env.DB, user.id, request);
     return json({ user: await userPayload(env, user) }, 200, { 'set-cookie': session.cookie });
   }
@@ -752,7 +885,7 @@ async function api(request, env, url, ctx) {
     const body = await request.json().catch(() => ({}));
     const currentPassword = String(body.currentPassword || ''), newPassword = String(body.newPassword || '');
     if (newPassword.length < 8 || newPassword.length > 128) return json({ error:'A nova senha deve ter entre 8 e 128 caracteres.', code:'PASSWORD_INVALID' },400);
-    if (!(await verifyPassword(currentPassword, auth.user.password_salt, auth.user.password_hash, auth.user.password_iterations || PASSWORD_KDF_ITERATIONS))) return json({ error:'A senha atual está incorreta.', code:'CURRENT_PASSWORD_INVALID' },401);
+    if (!(await verifyStoredPassword(auth.user,currentPassword))) return json({ error:'A senha atual está incorreta.', code:'CURRENT_PASSWORD_INVALID' },401);
     const hp = await hashPassword(newPassword), ts=nowIso();
     await env.DB.prepare('UPDATE aulora_users SET password_hash=?,password_salt=?,password_iterations=?,updated_at=? WHERE id=?').bind(hp.hash,hp.salt,hp.iterations,ts,auth.user.id).run();
     await env.DB.prepare('DELETE FROM aulora_sessions WHERE user_id=?').bind(auth.user.id).run();
@@ -764,6 +897,7 @@ async function api(request, env, url, ctx) {
   if (path === '/api/email/test' && request.method === 'POST') {
     if (!mutationOriginAllowed(request)) return json({ error:'Origem não autorizada.' },403);
     const auth=await requireUser(request,env); if(auth.response)return auth.response;
+    if(!hasProAccess(auth.user,env)) return json({error:'Cópias e testes por e-mail fazem parte do Aulora Pro.',code:'PRO_REQUIRED',feature:'email'},403);
     if(!emailDeliveryEnabled(env)) return json({error:'O envio de e-mail ainda não foi configurado pelo administrador.',code:'EMAIL_NOT_CONFIGURED'},503);
     try { await resendEmail(env,{to:auth.user.email,subject:'Aulora — e-mail de teste',html:'<div style="font-family:Arial,sans-serif"><h2 style="color:#103f35">Aulora</h2><p>Pronto! As cópias por e-mail estão funcionando nesta conta.</p></div>',tag:'test'}); return json({ok:true}); }
     catch(err){ console.error('Aulora test email failed',err); return json({error:'Não foi possível enviar o e-mail de teste agora.',code:'EMAIL_SEND_FAILED'},502); }
@@ -799,14 +933,14 @@ async function api(request, env, url, ctx) {
     if (existing && existing.user_id !== auth.user.id) return json({ error: 'Material não pertence a esta conta.' }, 403);
     if (!existing) {
       const count = await env.DB.prepare('SELECT COUNT(*) AS n FROM aulora_materials WHERE user_id=?').bind(auth.user.id).first();
-      if (Number(count?.n || 0) >= planLimits(auth.user.plan).materials) return json({ error: 'Limite de materiais na nuvem atingido.', code: 'MATERIAL_LIMIT' }, 429);
+      if (Number(count?.n || 0) >= planLimits(auth.user.plan,isAdminUser(auth.user,env)).materials) return json({ error: 'Limite de materiais na nuvem atingido.', code: 'MATERIAL_LIMIT' }, 429);
     }
     const ts = nowIso(), created = cleanText(m.createdAt, 40) || ts;
     const values = [id, auth.user.id, type, cleanText(m.typeLabel, 80), title, cleanText(m.subtitle, 300), JSON.stringify(sanitizeData(m.data || {})).slice(0, 50000), sanitizeHtml(m.html || ''), created, ts];
     if (existing) await env.DB.prepare('UPDATE aulora_materials SET type=?,type_label=?,title=?,subtitle=?,data_json=?,html=?,updated_at=? WHERE id=? AND user_id=?').bind(type, values[3], title, values[5], values[6], values[7], ts, id, auth.user.id).run();
     else await env.DB.prepare('INSERT INTO aulora_materials(id,user_id,type,type_label,title,subtitle,data_json,html,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)').bind(...values).run();
-    if (ctx && emailDeliveryEnabled(env)) ctx.waitUntil(sendMaterialCopy(env,auth.user,{type,typeLabel:values[3],title,html:values[7]},existing?'updated':'saved').catch(err=>console.warn('Aulora saved email failed',err?.message||err)));
-    return json({ ok: true, id, updatedAt: ts, emailQueued: emailDeliveryEnabled(env) && safeEmailPrefs(auth.user.email_prefs_json).saved });
+    if (ctx && hasProAccess(auth.user,env) && emailDeliveryEnabled(env)) ctx.waitUntil(sendMaterialCopy(env,auth.user,{type,typeLabel:values[3],title,html:values[7]},existing?'updated':'saved').catch(err=>console.warn('Aulora saved email failed',err?.message||err)));
+    return json({ ok: true, id, updatedAt: ts, emailQueued: hasProAccess(auth.user,env) && emailDeliveryEnabled(env) && safeEmailPrefs(auth.user.email_prefs_json).saved });
   }
   if (path === '/api/materials' && request.method === 'DELETE' && url.searchParams.get('all') === '1') {
     if (!mutationOriginAllowed(request)) return json({ error: 'Origem não autorizada.' }, 403);
@@ -818,6 +952,44 @@ async function api(request, env, url, ctx) {
     const auth = await requireUser(request, env); if (auth.response) return auth.response;
     const id = decodeURIComponent(path.slice('/api/materials/'.length));
     await env.DB.prepare('DELETE FROM aulora_materials WHERE id=? AND user_id=?').bind(id, auth.user.id).run(); return json({ ok: true });
+  }
+
+  if (path === '/api/admin/stats' && request.method === 'GET') {
+    const auth = await requireAdmin(request, env); if (auth.response) return auth.response;
+    await env.DB.prepare(`UPDATE aulora_users SET plan='free',plan_status='expired',updated_at=? WHERE plan='pro' AND pro_expires_at IS NOT NULL AND pro_expires_at<=?`).bind(nowIso(),nowIso()).run();
+    const users = await env.DB.prepare(`SELECT COUNT(*) total, SUM(CASE WHEN plan='pro' THEN 1 ELSE 0 END) pro_count FROM aulora_users`).first();
+    const materials = await env.DB.prepare(`SELECT COUNT(*) total FROM aulora_materials`).first();
+    const revenue = await env.DB.prepare(`SELECT COALESCE(SUM(amount_cents),0) cents, COUNT(*) payments FROM aulora_payments WHERE lower(status)='approved'`).first();
+    return json({ users:Number(users?.total||0), pro:Number(users?.pro_count||0), basic:Math.max(0,Number(users?.total||0)-Number(users?.pro_count||0)), materials:Number(materials?.total||0), revenueCents:Number(revenue?.cents||0), approvedPayments:Number(revenue?.payments||0) });
+  }
+  if (path === '/api/admin/users' && request.method === 'GET') {
+    const auth = await requireAdmin(request, env); if (auth.response) return auth.response;
+    await env.DB.prepare(`UPDATE aulora_users SET plan='free',plan_status='expired',updated_at=? WHERE plan='pro' AND pro_expires_at IS NOT NULL AND pro_expires_at<=?`).bind(nowIso(),nowIso()).run();
+    const q = cleanText(url.searchParams.get('q'),120).toLowerCase();
+    let rows;
+    if (q) rows = await env.DB.prepare(`SELECT id,email,name,plan,plan_status,pro_expires_at,created_at,updated_at FROM aulora_users WHERE lower(email) LIKE ? OR lower(name) LIKE ? ORDER BY created_at DESC LIMIT 100`).bind(`%${q}%`,`%${q}%`).all();
+    else rows = await env.DB.prepare(`SELECT id,email,name,plan,plan_status,pro_expires_at,created_at,updated_at FROM aulora_users ORDER BY created_at DESC LIMIT 100`).all();
+    return json({ users:(rows.results||[]).map(u=>({ id:u.id,email:u.email,name:u.name,plan:u.plan,planStatus:u.plan_status,proExpiresAt:u.pro_expires_at||null,createdAt:u.created_at,isAdmin:isAdminUser(u,env) })) });
+  }
+  if (path === '/api/admin/user-plan' && request.method === 'POST') {
+    if (!mutationOriginAllowed(request)) return json({ error:'Origem não autorizada.' },403);
+    const auth = await requireAdmin(request, env); if (auth.response) return auth.response;
+    const body = await request.json().catch(()=>({}));
+    const userId = cleanText(body.userId,80), plan = cleanText(body.plan,20);
+    if (!userId || !['free','pro'].includes(plan)) return json({error:'Usuário ou plano inválido.',code:'ADMIN_PLAN_INVALID'},400);
+    const target = await env.DB.prepare('SELECT * FROM aulora_users WHERE id=?').bind(userId).first();
+    if (!target) return json({error:'Usuário não encontrado.',code:'USER_NOT_FOUND'},404);
+    const ts=nowIso();
+    if (plan==='pro') {
+      const days=Math.max(1,Math.min(365,Number(body.days)||30));
+      const base = target.pro_expires_at && new Date(target.pro_expires_at).getTime()>Date.now() ? new Date(target.pro_expires_at).getTime() : Date.now();
+      const expires=new Date(base+days*86400_000).toISOString();
+      await env.DB.prepare(`UPDATE aulora_users SET plan='pro',plan_status='active',pro_expires_at=?,updated_at=? WHERE id=?`).bind(expires,ts,userId).run();
+    } else {
+      await env.DB.prepare(`UPDATE aulora_users SET plan='free',plan_status='active',pro_expires_at=NULL,updated_at=? WHERE id=?`).bind(ts,userId).run();
+    }
+    const fresh=await env.DB.prepare('SELECT * FROM aulora_users WHERE id=?').bind(userId).first();
+    return json({ok:true,user:{id:fresh.id,email:fresh.email,name:fresh.name,plan:fresh.plan,proExpiresAt:fresh.pro_expires_at||null,isAdmin:isAdminUser(fresh,env)}});
   }
 
   if (path === '/api/locations/states' && request.method === 'GET') {
@@ -843,6 +1015,7 @@ async function api(request, env, url, ctx) {
   if (path === '/api/assistant' && request.method === 'POST') {
     if (!mutationOriginAllowed(request)) return json({ error: 'Origem não autorizada.' }, 403);
     const auth = await requireUser(request, env); if (auth.response) return auth.response;
+    if (!hasProAccess(auth.user, env)) return json({ error:'O Henry com conversa por IA faz parte do Aulora Pro.', code:'PRO_REQUIRED', feature:'henry' }, 403);
     if (!env.AI) return json({ error: 'A IA do Henry não está configurada.', code: 'AI_NOT_CONFIGURED' }, 503);
     const len = Number(request.headers.get('content-length') || 0); if (len > 18000) return json({ error: 'Mensagem muito grande.' }, 413);
     const body = await request.json().catch(() => ({}));
@@ -855,8 +1028,8 @@ async function api(request, env, url, ctx) {
     const profile = safeProfile(auth.user.profile_json);
     const teacherName = cleanText(auth.user.name || profile.teacher || '', 100);
     const location = [cleanText(profile.city || profile.municipality || '', 100), cleanText(profile.state || '', 2).toUpperCase()].filter(Boolean).join(' / ');
-    const system = `Você é Henry Ribeiro, assistente educacional do Aulora. Responda em português do Brasil, de forma clara, cordial, prática e normalmente curta.\n\nSeu papel:\n- orientar o professor a usar os módulos do Aulora: Plano de aula, Atividade, Avaliação, Relatórios, Acadêmico/ABNT, Meus materiais, Perfil e dados;\n- tirar dúvidas pedagógicas e ajudar a estruturar ideias para aulas, exercícios, avaliações, inclusão e relatórios;\n- sugerir que o usuário abra o módulo apropriado quando quiser gerar/salvar um material completo;\n- não inventar códigos da BNCC, currículos municipais, leis, fontes ou recursos que não tenham sido fornecidos; se uma norma oficial específica for necessária, diga para conferir a fonte oficial/rede de ensino;\n- em educação inclusiva, ofereça adaptações pedagógicas, mas não faça diagnóstico clínico nem prescrição;\n- não diga que executou, salvou, enviou, publicou ou alterou algo se você apenas estiver conversando;\n- nunca peça senha, token, chave de API ou dado financeiro.\n\nPlano da conta: ${auth.user.plan === 'pro' ? 'Aulora Pro' : 'Aulora Básico (grátis)'}.
-${auth.user.plan === 'pro' ? '- Como usuário Pro, você pode aprofundar orientações e ajudar a estruturar materiais completos, sempre sugerindo o módulo adequado para gerar e salvar.' : '- Como usuário do plano Básico, responda com orientação curta, exemplos pequenos e ajuda de navegação. Não entregue atividades, provas, relatórios ou trabalhos completos no chat; explique que a geração completa e recursos avançados ficam no Pro.'}
+    const system = `Você é Henry Ribeiro, assistente educacional do Aulora. Responda em português do Brasil, de forma clara, cordial, prática e normalmente curta.\n\nSeu papel:\n- orientar o professor a usar os módulos do Aulora: Plano de aula, Atividade, Avaliação, Relatórios, Acadêmico/ABNT, Meus materiais, Perfil e dados;\n- tirar dúvidas pedagógicas e ajudar a estruturar ideias para aulas, exercícios, avaliações, inclusão e relatórios;\n- sugerir que o usuário abra o módulo apropriado quando quiser gerar/salvar um material completo;\n- não inventar códigos da BNCC, currículos municipais, leis, fontes ou recursos que não tenham sido fornecidos; se uma norma oficial específica for necessária, diga para conferir a fonte oficial/rede de ensino;\n- em educação inclusiva, ofereça adaptações pedagógicas, mas não faça diagnóstico clínico nem prescrição;\n- não diga que executou, salvou, enviou, publicou ou alterou algo se você apenas estiver conversando;\n- nunca peça senha, token, chave de API ou dado financeiro.\n\nPlano da conta: ${hasProAccess(auth.user,env) ? (isAdminUser(auth.user,env)?'Aulora Admin':'Aulora Pro') : 'Aulora Básico (grátis)'}.
+${hasProAccess(auth.user,env) ? '- Esta conta tem acesso completo aos recursos avançados; você pode aprofundar orientações e ajudar a estruturar materiais completos, sempre sugerindo o módulo adequado para gerar e salvar.' : '- Como usuário do plano Básico, responda com orientação curta, exemplos pequenos e ajuda de navegação. Não entregue atividades, provas, relatórios ou trabalhos completos no chat; explique que a geração completa e recursos avançados ficam no Pro.'}
 
 Professor: ${teacherName || 'usuário do Aulora'}${location ? `; localidade cadastrada: ${location}` : ''}.`;
     try {
@@ -883,13 +1056,16 @@ Professor: ${teacherName || 'usuário do Aulora'}${location ? `; localidade cada
     const body = await request.json().catch(() => ({})); const kind = cleanText(body.kind, 20);
     if (!['plan', 'activity', 'exam', 'report', 'abnt'].includes(kind)) return json({ error: 'Tipo de material inválido.' }, 400);
     const d = sanitizeData(body.data || {});
-    const limits = planLimits(auth.user.plan);
-    const isPro = auth.user.plan === 'pro';
+    const limits = planLimits(auth.user.plan,isAdminUser(auth.user,env));
+    const isPro = hasProAccess(auth.user, env);
     if (!isPro && ['report','abnt'].includes(kind)) {
       return json({ error: kind === 'report' ? 'Relatórios pedagógicos com IA fazem parte do Aulora Pro.' : 'Acadêmico / ABNT com IA faz parte do Aulora Pro.', code: 'PRO_REQUIRED', feature: kind, limits }, 403);
     }
     if (!isPro && (kind === 'activity' || kind === 'exam') && d.imageMode && d.imageMode !== 'Sem imagens') {
       return json({ error: 'Imagens geradas por IA em atividades e avaliações fazem parte do Aulora Pro.', code: 'PRO_REQUIRED', feature: 'images', limits }, 403);
+    }
+    if (!isPro && kind === 'activity') {
+      d.adaptationProfile=''; d.supportLevel='Independência predominante'; d.activityType='Questões tradicionais'; d.visualStyle='Padrão'; d.responseMode='Escrita'; d.languageStyle='Padrão escolar'; d.interests=''; d.accessNotes='';
     }
     if ((kind === 'activity' || kind === 'exam') && Number(d.count || 0) > limits.questions) {
       return json({ error: isPro ? 'O Aulora Pro permite até 20 questões por material.' : 'O Aulora Básico permite até 5 questões por atividade ou avaliação. O Pro libera até 20.', code: 'QUESTION_LIMIT', limits }, 403);
@@ -906,8 +1082,8 @@ Professor: ${teacherName || 'usuário do Aulora'}${location ? `; localidade cada
       }
       const output = await generateAI(env, kind, d);
       await env.DB.prepare(`INSERT INTO aulora_usage_monthly(user_id,month,ai_count) VALUES(?,?,1) ON CONFLICT(user_id,month) DO UPDATE SET ai_count=ai_count+1`).bind(auth.user.id, usage.month).run();
-      if (ctx && emailDeliveryEnabled(env)) ctx.waitUntil(sendMaterialCopy(env,auth.user,{type:kind,typeLabel:output.typeLabel,title:output.title,html:output.html},'generated').catch(err=>console.warn('Aulora generated email failed',err?.message||err)));
-      const after = await usageFor(env, auth.user); return json({ ...output, usage: after, emailQueued: emailDeliveryEnabled(env) && safeEmailPrefs(auth.user.email_prefs_json).generated });
+      if (ctx && hasProAccess(auth.user,env) && emailDeliveryEnabled(env)) ctx.waitUntil(sendMaterialCopy(env,auth.user,{type:kind,typeLabel:output.typeLabel,title:output.title,html:output.html},'generated').catch(err=>console.warn('Aulora generated email failed',err?.message||err)));
+      const after = await usageFor(env, auth.user); return json({ ...output, usage: after, emailQueued: hasProAccess(auth.user,env) && emailDeliveryEnabled(env) && safeEmailPrefs(auth.user.email_prefs_json).generated });
     } catch (err) {
       console.error('Aulora generation error', err);
       if (err?.code === 'IMAGE_GENERATION_FAILED') return json({ error: cleanText(err.message, 500), code: 'IMAGE_GENERATION_FAILED' }, 503);
@@ -1013,14 +1189,6 @@ Professor: ${teacherName || 'usuário do Aulora'}${location ? `; localidade cada
   }
   if (path === '/api/billing/portal' && request.method === 'POST') {
     return json({ error: 'O Aulora Pro é liberado por 30 dias por pagamento. Não há renovação automática nesta modalidade.', code:'NO_SUBSCRIPTION_PORTAL' }, 409);
-  }
-
-  if (path === '/api/admin/set-plan' && request.method === 'POST') {
-    if (!env.AULORA_ADMIN_KEY) return json({ error: 'Administração não configurada.' }, 404);
-    const supplied = request.headers.get('x-aulora-admin-key') || '';
-    if (!constantTimeEqual(new TextEncoder().encode(supplied), new TextEncoder().encode(String(env.AULORA_ADMIN_KEY)))) return json({ error: 'Não autorizado.' }, 401);
-    const body = await request.json().catch(() => ({})), email = cleanEmail(body.email), plan = body.plan === 'pro' ? 'pro' : 'free';
-    await env.DB.prepare('UPDATE aulora_users SET plan=?,plan_status=?,updated_at=? WHERE email=?').bind(plan, 'active', nowIso(), email).run(); return json({ ok: true, email, plan });
   }
 
   return json({ error: 'Rota não encontrada.' }, 404);

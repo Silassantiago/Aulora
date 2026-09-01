@@ -5,7 +5,7 @@
   const PROFILE_KEY = 'aulora.profile';
   const DRAFT_PREFIX = 'aulora.draft.';
   const GUEST_STORAGE_KEY = STORAGE_KEY;
-  const DEFAULT_PROFILE = { teacher:'', school:'', city:'', stage:'Anos finais do Ensino Fundamental' };
+  const DEFAULT_PROFILE = { teacher:'', role:'', school:'', network:'', state:'', city:'', municipalityId:'', stage:'Anos finais do Ensino Fundamental' };
   const app = {
     materials: loadJson(GUEST_STORAGE_KEY, loadJson('aulora.materials.v1', [])),
     profile: loadJson(PROFILE_KEY, DEFAULT_PROFILE),
@@ -26,7 +26,8 @@
     reports:['Relatórios','Pareceres e acompanhamento pedagógico'],
     abnt:['Acadêmico / ABNT','Estrutura, referências e verificação'],
     materials:['Meus materiais','Sua biblioteca sincronizada'],
-    settings:['Perfil e plano','Conta, preferências e armazenamento']
+    settings:['Perfil e plano','Conta, preferências e armazenamento'],
+    admin:['Administração','Usuários, planos e indicadores do Aulora']
   };
 
   const $ = (sel, root=document) => root.querySelector(sel);
@@ -120,8 +121,8 @@
   $('#authCloseBtn').addEventListener('click',closeAuth);
   $('#authDialog').addEventListener('click',e=>{if(e.target===$('#authDialog'))closeAuth();});
 
-  function planName(user){return user?.plan==='pro'?'Pro':user?'Básico':'Sem conta';}
-  function planChipName(user){return user?.plan==='pro'?'Plano Pro':user?'Plano Básico':'Sem conta';}
+  function planName(user){return user?.isAdmin?'Admin':user?.plan==='pro'?'Pro':user?'Básico':'Sem conta';}
+  function planChipName(user){return user?.isAdmin?'Administrador':user?.plan==='pro'?'Plano Pro':user?'Plano Básico':'Sem conta';}
   function formatDisplayName(value){
     return String(value||'').trim().replace(/\s+/g,' ').toLowerCase().replace(/(^|[\s-])([\p{L}])/gu,(m,p1,p2)=>p1+p2.toUpperCase());
   }
@@ -129,15 +130,34 @@
     const formatted=formatDisplayName(user?.name||'');
     return formatted || (user?.email||'Professor(a)');
   }
+  function isPro(){ return Boolean(app.user && (app.user.plan==='pro' || app.user.isAdmin)); }
+  function isAdmin(){ return Boolean(app.user?.isAdmin); }
+  function updateAccessGate(){
+    const gate=$('#accessGate'), shell=$('#appShell');
+    if(gate)gate.hidden=Boolean(app.user);
+    if(shell)shell.hidden=!app.user;
+  }
+  function focusUpgrade(message='Este recurso faz parte do Aulora Pro.') {
+    if(!app.user){openAuth('login');return false;}
+    if(isPro())return true;
+    const target='settings';
+    document.body.dataset.view=target;
+    $$('.view').forEach(v=>v.classList.toggle('active',v.id===`view-${target}`));
+    $$('.nav-item[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===target));
+    const meta=titles.settings; $('#pageTitle').textContent=meta[0]; $('#pageSubtitle').textContent=meta[1];
+    toast(message+' Veja o Plano Pro.');
+    setTimeout(()=>$('.plan-comparison-card')?.scrollIntoView({behavior:'smooth',block:'start'}),100);
+    return false;
+  }
   function applyUser(user){
     app.user=user||null; app.usage=user?.usage||null; app.billingEnabled=Boolean(user?.billing?.enabled);
     if(user){
       app.profile=user.profile||loadJson(profileCacheKey(),DEFAULT_PROFILE); persistProfileCache();
     }else app.profile=loadJson(PROFILE_KEY,DEFAULT_PROFILE);
-    applyProfile(true); updateAccountUI();
+    applyProfile(true); updateAccountUI(); updateAccessGate();
   }
   function updateAccountUI(){
-    const user=app.user, plan=planName(user), chipPlan=planChipName(user), isPro=user?.plan==='pro', displayName=userDisplayName(user);
+    const user=app.user, plan=planName(user), chipPlan=planChipName(user), admin=Boolean(user?.isAdmin), pro=Boolean(user&&(user.plan==='pro'||admin)), displayName=userDisplayName(user);
     $('#accountPlan').textContent=chipPlan; $('#accountName').textContent=user?displayName:''; $('#profileShortcut').textContent=user?String(displayName||user.email||'A').trim().charAt(0).toUpperCase():'A';
     if($('#accountTopAvatar')) $('#accountTopAvatar').textContent=user?String(displayName||user.email||'A').trim().charAt(0).toUpperCase():'A';
     $('#guestAuthActions').hidden=Boolean(user); $('#accountMenuWrap').hidden=!user; $('#profileShortcut').hidden=true;
@@ -147,30 +167,35 @@
       $('#accountMenuPlan').textContent=chipPlan; $('#accountMenuUsage').textContent=app.usage?`${app.usage.ai} / ${app.usage.limits.ai} gerações neste mês`:'';
     } else { $('#accountMenu').hidden=true; $('#accountBtn').setAttribute('aria-expanded','false'); }
     $$('[data-guest-only]').forEach(el=>el.hidden=Boolean(user));
-    $$('[data-pro-only]').forEach(option=>{ option.disabled=Boolean(user)&&!isPro || !user; option.classList.toggle('option-pro-locked',!isPro); });
-    [$('#activityForm'),$('#examForm')].forEach(form=>{ if(form && !isPro){ if(Number(form.elements.count?.value||0)>5) form.elements.count.value='5'; if(form.elements.imageMode && form.elements.imageMode.value!=='Sem imagens') form.elements.imageMode.value='Sem imagens'; } });
-    $('#planMiniBadge').textContent=user?'PLANO ATIVO':'COMECE GRÁTIS'; $('#planMiniBadge').className=isPro?'plan-pro':user?'plan-free':'';
-    $('#planMiniTitle').textContent=user?(isPro?'Aulora Pro ativo':'Aulora Básico ativo'):'Crie sua conta gratuita';
+    $$('[data-pro-only]').forEach(option=>{ option.disabled=Boolean(user)&&!pro || !user; option.classList.toggle('option-pro-locked',!pro); });
+    [$('#activityForm'),$('#examForm')].forEach(form=>{ if(form && !pro){ if(Number(form.elements.count?.value||0)>5) form.elements.count.value='5'; if(form.elements.imageMode && form.elements.imageMode.value!=='Sem imagens') form.elements.imageMode.value='Sem imagens'; } });
+    $('#planMiniBadge').textContent=user?'PLANO ATIVO':'COMECE GRÁTIS'; $('#planMiniBadge').className=pro?'plan-pro':user?'plan-free':'';
+    $('#planMiniTitle').textContent=user?(admin?'Aulora Admin':pro?'Aulora Pro ativo':'Aulora Básico ativo'):'Crie sua conta gratuita';
     $('#planMiniUsage').textContent=user&&app.usage?`${app.usage.ai}/${app.usage.limits.ai} gerações inteligentes usadas neste mês.`:'Geração inteligente exige uma conta gratuita.';
     $('#settingsAccountTitle').textContent=user?(displayName||user.email):'Você ainda não entrou';
-    $('#settingsPlanBadge').textContent=plan.toUpperCase(); $('#settingsPlanBadge').className=`plan-badge ${isPro?'plan-pro':user?'plan-free':''}`;
+    $('#settingsPlanBadge').textContent=plan.toUpperCase(); $('#settingsPlanBadge').className=`plan-badge ${pro?'plan-pro':user?'plan-free':''}`;
     $('#settingsAccountText').textContent=user?`Conta: ${user.email}. Seus novos materiais são salvos também na nuvem.`:'Ainda não é cadastrado? Crie sua conta grátis para gerar materiais, salvar na nuvem e sincronizar entre dispositivos.';
     $('#settingsAiUsage').textContent=user&&app.usage?`${app.usage.ai} / ${app.usage.limits.ai}`:'—';
     $('#settingsCloudCount').textContent=user?String(app.materials.length):'—';
     $('#settingsLoginBtn').hidden=Boolean(user); $('#settingsEnterBtn').hidden=Boolean(user); $('#syncCloudBtn').hidden=!user; $('#logoutBtn').hidden=!user;
-    $('#freePlanSignupBtn').hidden=Boolean(user); $('#upgradeBtn').hidden=!user||isPro; if($('#cardCheckoutBtn')) $('#cardCheckoutBtn').hidden=!user||isPro; $('#manageBillingBtn').hidden=!user||!isPro;
+    $('#freePlanSignupBtn').hidden=Boolean(user); $('#upgradeBtn').hidden=!user||pro; if($('#cardCheckoutBtn')) $('#cardCheckoutBtn').hidden=!user||pro; $('#manageBillingBtn').hidden=!user||!pro;
     const proExpiry=user?.billing?.expiresAt?new Date(user.billing.expiresAt):null;
     const expiryText=proExpiry&&!Number.isNaN(proExpiry.getTime())?proExpiry.toLocaleDateString('pt-BR'):'';
-    $('#billingNote').textContent=isPro?`Plano Pro ativo${expiryText?' até '+expiryText:''}: 200 gerações/mês, até 1.000 materiais, imagens, relatórios e avaliações/atividades com até 20 questões.`:user?'Aulora Básico: 3 gerações/mês, 5 materiais e até 5 questões. Ative o Pro por Pix ou cartão para liberar todos os recursos por 30 dias.':'Crie uma conta no Básico para testar. O Pro pode ser ativado por Pix ou cartão.';
-    $('#libraryStorageMode').textContent=user?'Materiais sincronizados com sua conta. Uma cópia local fica neste dispositivo para acesso rápido.':'Materiais salvos somente neste dispositivo. Entre para sincronizar na nuvem.';
-    $('#settingsStorageCopy').textContent=user?'Seus materiais ficam no banco do Aulora e também em cache neste navegador. Você pode baixar um backup a qualquer momento.':'Sem entrar, os materiais ficam somente neste navegador. Com uma conta gratuita, o Aulora também mantém uma cópia sincronizada na nuvem.';
+    $('#billingNote').textContent=admin?'Conta administrativa: acesso completo aos recursos do Aulora para gestão e testes.':pro?`Plano Pro ativo${expiryText?' até '+expiryText:''}: 200 gerações/mês, até 1.000 materiais, imagens, relatórios, Henry IA, exportação e avaliações/atividades com até 20 questões.`:user?'Aulora Básico: 2 gerações/mês, 3 materiais e até 5 questões. O Pro libera imagens, relatórios, ABNT, Henry IA, Word/PDF e recursos avançados.':'Crie uma conta Básica para experimentar o Aulora.';
+    $('#libraryStorageMode').textContent=user?'Materiais sincronizados com sua conta. Uma cópia local fica neste dispositivo para acesso rápido.':'Entre para acessar sua biblioteca.';
+    $('#settingsStorageCopy').textContent=user?'Seus materiais ficam no banco do Aulora e também em cache neste navegador. Você pode baixar um backup a qualquer momento.':'Entre para acessar dados e armazenamento.';
     $$('.smart-action').forEach(btn=>btn.classList.toggle('locked',!user));
-    const text=$('#smartBannerText'); if(text)text.textContent=user?`${app.usage?.ai||0} de ${app.usage?.limits?.ai||0} gerações inteligentes usadas neste mês. Seus materiais podem ser salvos na nuvem.`:'Entre com uma conta gratuita para gerar materiais e acessá-los em outros dispositivos. O modo local continua disponível sem cadastro.';
+    const text=$('#smartBannerText'); if(text)text.textContent=user?`${app.usage?.ai||0} de ${app.usage?.limits?.ai||0} gerações inteligentes usadas neste mês.`:'Entre para acessar o Aulora.';
     if($('#settingsAccountEmail')) $('#settingsAccountEmail').textContent=user?user.email:'—';
     if($('#securitySettingsCard')) $('#securitySettingsCard').hidden=!user;
+    if($('#adminNavBtn')) $('#adminNavBtn').hidden=!admin;
+    if($('#accountAdminItem')) $('#accountAdminItem').hidden=!admin;
+    document.body.classList.toggle('plan-basic-mode',Boolean(user&&!pro));
+    const inclusionDefaults={adaptationProfile:'',supportLevel:'Independência predominante',activityType:'Questões tradicionais',visualStyle:'Padrão',responseMode:'Escrita',languageStyle:'Padrão escolar',interests:'',accessNotes:''};
+    if($('#activityForm')){Object.entries(inclusionDefaults).forEach(([name,value])=>{const field=$('#activityForm').elements[name];if(!field)return;field.disabled=Boolean(user&&!pro);if(user&&!pro)field.value=value;});}
     if($('#emailPrefsForm')) {
-      $('#emailPrefsForm').hidden=!user;
-      if(user){ const prefs=user.emailPrefs||{generated:true,saved:true,security:true,reports:false}; const f=$('#emailPrefsForm'); f.elements.generated.checked=prefs.generated!==false; f.elements.saved.checked=prefs.saved!==false; f.elements.reports.checked=prefs.reports===true; f.elements.security.checked=prefs.security!==false; const enabled=Boolean(user.emailDelivery?.enabled); $('#emailDeliveryBadge').textContent=enabled?'ATIVO':'CONFIGURAR'; $('#emailDeliveryBadge').className=`email-status-badge ${enabled?'active':'pending'}`; $('#emailProviderNote').textContent=enabled?'Cópias serão enviadas para '+user.email+'.':'Preferências salvas. O administrador ainda precisa configurar o serviço de envio para as mensagens saírem de verdade.'; $('#sendTestEmailBtn').disabled=!enabled; }
+      $('#emailPrefsForm').hidden=!user||!pro;
+      if(user&&pro){ const prefs=user.emailPrefs||{generated:true,saved:true,security:true,reports:false}; const f=$('#emailPrefsForm'); f.elements.generated.checked=prefs.generated!==false; f.elements.saved.checked=prefs.saved!==false; f.elements.reports.checked=prefs.reports===true; f.elements.security.checked=prefs.security!==false; const enabled=Boolean(user.emailDelivery?.enabled); $('#emailDeliveryBadge').textContent=enabled?'ATIVO':'CONFIGURAR'; $('#emailDeliveryBadge').className=`email-status-badge ${enabled?'active':'pending'}`; $('#emailProviderNote').textContent=enabled?'Cópias serão enviadas para '+user.email+'.':'O envio precisa estar configurado pelo administrador do Aulora.'; $('#sendTestEmailBtn').disabled=!enabled; }
     }
     updateSettingsStats();
   }
@@ -199,6 +224,8 @@
   $('#settingsEnterBtn').addEventListener('click',()=>openAuth('login'));
   $('#topLoginBtn').addEventListener('click',()=>openAuth('login'));
   $('#topSignupBtn').addEventListener('click',()=>openAuth('signup'));
+  $('#gateLoginBtn')?.addEventListener('click',()=>openAuth('login'));
+  $('#gateSignupBtn')?.addEventListener('click',()=>openAuth('signup'));
   $('#freePlanSignupBtn').addEventListener('click',()=>app.user?toast('Sua conta gratuita já está ativa.'):openAuth('signup'));
   $('#syncCloudBtn').addEventListener('click',()=>syncCloudMaterials(true));
   $('#loginForm').addEventListener('submit',async e=>{
@@ -207,7 +234,9 @@
     catch(err){setAuthError('login',err.message);}finally{hideLoading();}
   });
   $('#signupForm').addEventListener('submit',async e=>{
-    e.preventDefault();const d=formData(e.currentTarget);showLoading('Criando sua conta…','Preparando sua biblioteca na nuvem.');
+    e.preventDefault();const d=formData(e.currentTarget);
+    if(d.password!==d.confirmPassword){setAuthError('signup','As senhas não são iguais.');return;}
+    showLoading('Criando sua conta…','Preparando sua biblioteca na nuvem.');
     try{
       const r=await apiFetch('/api/auth/signup',{method:'POST',body:d});
       if(r.loginRequired){
@@ -222,7 +251,7 @@
   });
   async function performLogout(){
     try{await apiFetch('/api/auth/logout',{method:'POST'});}catch{}
-    app.user=null;app.usage=null;app.materials=loadJson(GUEST_STORAGE_KEY,[]);app.profile=loadJson(PROFILE_KEY,DEFAULT_PROFILE);applyProfile(true);updateAccountUI();updateStats();renderMaterials();toast('Você saiu da conta.');
+    app.materials=[];app.profile=loadJson(PROFILE_KEY,DEFAULT_PROFILE);applyUser(null);updateStats();renderMaterials();toast('Você saiu da conta.');
   }
   $('#logoutBtn').addEventListener('click',performLogout);
   $('#logoutSettingsBtn').addEventListener('click',performLogout);
@@ -327,6 +356,9 @@
   }
 
   function go(view){
+    if(!app.user){updateAccessGate();openAuth('login');return;}
+    if(['reports','abnt'].includes(view) && !isPro()){ focusUpgrade(view==='reports'?'Relatórios pedagógicos fazem parte do Aulora Pro.':'Acadêmico / ABNT faz parte do Aulora Pro.'); return; }
+    if(view==='admin' && !isAdmin()){toast('Esta área é restrita ao administrador.');return;}
     document.body.dataset.view=view;
     $$('.view').forEach(v=>v.classList.toggle('active', v.id===`view-${view}`));
     $$('.nav-item[data-view]').forEach(b=>b.classList.toggle('active', b.dataset.view===view));
@@ -337,6 +369,7 @@
     $('#sidebar').classList.remove('open');
     if(view==='materials') renderMaterials();
     if(view==='settings') updateSettingsStats();
+    if(view==='admin') loadAdminDashboard();
     window.scrollTo({top:0,behavior:'smooth'});
   }
 
@@ -356,6 +389,7 @@
     visual:{adaptationProfile:'Leitura acessível / linguagem simples',supportLevel:'Apoio leve',activityType:'Visual e objetiva',visualStyle:'Alto contraste e poucos elementos',responseMode:'Marcar / circular',languageStyle:'Frases curtas e diretas',difficulty:'Fácil',count:'5',optionCount:'3'}
   };
   $$('[data-inclusive-preset]').forEach(btn=>btn.addEventListener('click',()=>{
+    if(!isPro()){focusUpgrade('Os modelos avançados de educação inclusiva fazem parte do Aulora Pro.');return;}
     const preset=inclusivePresets[btn.dataset.inclusivePreset]; if(!preset)return;
     go('activity');
     Object.entries(preset).forEach(([name,value])=>{const field=activityForm.elements[name];if(field)field.value=value;});
@@ -378,7 +412,7 @@
   const accountMenu=$('#accountMenu');
   $('#accountBtn').addEventListener('click',e=>{e.stopPropagation();const open=accountMenu.hidden;accountMenu.hidden=!open;$('#accountBtn').setAttribute('aria-expanded',String(open));});
   document.addEventListener('click',e=>{if(!$('#accountMenuWrap').contains(e.target)){accountMenu.hidden=true;$('#accountBtn').setAttribute('aria-expanded','false');}});
-  accountMenu.addEventListener('click',e=>{const btn=e.target.closest('[data-account-action]');if(!btn)return;const action=btn.dataset.accountAction;accountMenu.hidden=true;$('#accountBtn').setAttribute('aria-expanded','false');if(action==='profile'){go('settings');setTimeout(()=>$('#profileForm')?.scrollIntoView({behavior:'smooth',block:'center'}),80);}if(action==='password')openPasswordDialog();if(action==='email'){go('settings');setTimeout(()=>$('#emailPrefsForm')?.scrollIntoView({behavior:'smooth',block:'center'}),80);}if(action==='logout')performLogout();});
+  accountMenu.addEventListener('click',e=>{const btn=e.target.closest('[data-account-action]');if(!btn)return;const action=btn.dataset.accountAction;accountMenu.hidden=true;$('#accountBtn').setAttribute('aria-expanded','false');if(action==='profile'){go('settings');setTimeout(()=>$('#profileForm')?.scrollIntoView({behavior:'smooth',block:'center'}),80);}if(action==='password')openPasswordDialog();if(action==='email'){if(!isPro())focusUpgrade('Cópias automáticas por e-mail fazem parte do Aulora Pro.');else{go('settings');setTimeout(()=>$('#emailPrefsForm')?.scrollIntoView({behavior:'smooth',block:'center'}),80);}}if(action==='admin')go('admin');if(action==='logout')performLogout();});
   $('#menuBtn').addEventListener('click',()=>$('#sidebar').classList.toggle('open'));
   document.addEventListener('click',e=>{ if(innerWidth<=800 && $('#sidebar').classList.contains('open') && !e.target.closest('#sidebar') && !e.target.closest('#menuBtn')) $('#sidebar').classList.remove('open'); });
 
@@ -436,7 +470,7 @@
       dot.classList.toggle('online',app.smartOnline);dot.classList.toggle('offline',!app.smartOnline);
       status.textContent=app.smartOnline?'IA ativa • Banco ativo':'Modo local disponível';
       detail.textContent=app.smartOnline?'Imagens • Relatórios • Sincronização disponíveis':'A geração inteligente está indisponível agora. Os modelos locais continuam funcionando.';
-      badge.textContent=app.user?(app.user.plan==='pro'?'Pro':'Básico'):'Conta opcional'; badge.className=`smart-badge ${app.smartOnline?'online':'offline'}`;
+      badge.textContent=app.user?(app.user.plan==='pro'?'Pro':'Básico'):'Login necessário'; badge.className=`smart-badge ${app.smartOnline?'online':'offline'}`;
     }catch{
       app.smartOnline=false; dot.classList.add('offline'); dot.classList.remove('online'); status.textContent='Modo local disponível'; detail.textContent='Não foi possível conectar aos serviços do Aulora agora.'; badge.textContent='Modo local'; badge.className='smart-badge offline';
     }
@@ -465,10 +499,17 @@
   }
   function stripAnswerKey(html){ const wrap=document.createElement('div');wrap.innerHTML=html;$$('.answer-key',wrap).forEach(x=>x.remove());return wrap.innerHTML; }
   async function saveMaterial(material){
-    material.updatedAt=nowIso(); const ix=app.materials.findIndex(x=>x.id===material.id); if(ix>=0)app.materials[ix]=material;else app.materials.unshift(material); persistMaterialCache(); updateStats(); renderMaterials();
+    if(!app.user){openAuth('login');return;}
+    const ix=app.materials.findIndex(x=>x.id===material.id);
+    const materialLimit=Number(app.usage?.limits?.materials || (isPro()?1000:3));
+    if(ix<0 && app.materials.length>=materialLimit){focusUpgrade(`O Plano Básico salva até ${materialLimit} materiais. O Pro libera até 1.000.`);return;}
+    material.updatedAt=nowIso(); if(ix>=0)app.materials[ix]=material;else app.materials.unshift(material); persistMaterialCache(); updateStats(); renderMaterials();
     if(app.user){
       try{const result=await apiFetch('/api/materials',{method:'POST',body:{material}});toast(result.emailQueued?'Material salvo na nuvem. Uma cópia atualizada será enviada ao seu e-mail.':'Material salvo e sincronizado na nuvem.');}
-      catch(err){toast(err.code==='MATERIAL_LIMIT'?'Limite da nuvem atingido. O material ficou salvo neste dispositivo.':`Material salvo localmente. Nuvem: ${err.message}`);}
+      catch(err){
+        if(err.code==='MATERIAL_LIMIT'&&ix<0){app.materials=app.materials.filter(m=>m.id!==material.id);persistMaterialCache();updateStats();renderMaterials();focusUpgrade('O limite de materiais do Plano Básico foi atingido.');}
+        else toast(`Não foi possível sincronizar o material: ${err.message}`);
+      }
     }else toast('Material salvo neste dispositivo. Entre para sincronizar na nuvem.');
   }
 
@@ -488,6 +529,48 @@
   }
   function sourceBlock(d){ return d.sourceText?`<div class="source-text"><strong>Texto / conteúdo-base</strong><p>${esc(d.sourceText).replace(/\n/g,'<br>')}</p></div>`:''; }
   function responseLines(n=2){ return Array.from({length:Number(n)||2},()=>'<div class="response-line"></div>').join(''); }
+  function examMark(style){ return style==='square'?'[   ]':style==='plain'?'':'(   )'; }
+  function normalizeExamHtml(html,d){
+    const wrap=document.createElement('div'); wrap.innerHTML=sanitizeHtml(html||'');
+    const firstH1=wrap.querySelector('h1');
+    if(firstH1 && /avalia[cç][aã]o|prova/i.test(firstH1.textContent||'')) firstH1.remove();
+    if(!wrap.querySelector('.school-head')){
+      const head=document.createElement('div');
+      head.innerHTML=learningHeader(d,`AVALIAÇÃO — ${d.topic}`,true);
+      wrap.prepend(...[...head.childNodes]);
+    }
+    const mark=examMark(d.optionStyle||'parentheses');
+    wrap.querySelectorAll('.question .alternatives').forEach(list=>{
+      const items=[...list.children].filter(el=>el.tagName==='LI');
+      if(!items.length)return;
+      const block=document.createElement('div'); block.className='markable-options';
+      items.slice(0,4).forEach((li,idx)=>{
+        const row=document.createElement('p');
+        const marker=mark?`<span class="answer-mark">${esc(mark)}</span> `:'';
+        row.innerHTML=`${marker}<strong>${String.fromCharCode(65+idx)})</strong> ${sanitizeHtml(li.innerHTML)}`;
+        block.appendChild(row);
+      });
+      list.replaceWith(block);
+    });
+    const lines=Math.max(2,Math.min(8,Number(d.discursiveSpace)||4));
+    wrap.querySelectorAll('.question').forEach(q=>{
+      if(q.closest('.answer-key'))return;
+      const txt=(q.textContent||'').toLocaleLowerCase('pt-BR');
+      if(/verdadeiro/.test(txt)&&/falso/.test(txt)){
+        if(!q.querySelector('.vf-options')){
+          const vf=document.createElement('div'); vf.className='vf-options';
+          const m=mark||'(   )';
+          vf.innerHTML=`<span>${esc(m)} Verdadeiro</span><span>${esc(m)} Falso</span>`;
+          q.appendChild(vf);
+        }
+        return;
+      }
+      if(!q.querySelector('.markable-options,.alternatives,.response-line')){
+        const area=document.createElement('div'); area.className='discursive-answer'; area.innerHTML=responseLines(lines); q.appendChild(area);
+      }
+    });
+    return sanitizeHtml(wrap.innerHTML);
+  }
   function questionKind(d,i,isExam){
     const f=d.format||'Mista', count=Number(d.count)||10;
     if(/Somente objetivas|Objetivas/.test(f))return'objective'; if(/Somente discursivas|Discursivas/.test(f))return'discursive'; if(/Verdadeiro/.test(f))return'tf'; if(isExam&&f.startsWith('70%'))return i>Math.ceil(count*.7)?'discursive':'objective'; if(isExam&&f.startsWith('50%'))return i>Math.ceil(count*.5)?'discursive':'objective'; return i%3===0?'discursive':'objective';
@@ -499,7 +582,7 @@
     const n=Number(d.count)||10,total=Number(d.totalPoints||10);let html='',key='';
     for(let i=1;i<=n;i++){
       const kind=questionKind(d,i,isExam),point=isExam?total/n:0; html+=`<div class="question"><div class="question-title"><strong>${i}.</strong><span>${localPrompt(d.topic,i,kind)}</span>${isExam?`<b>${point.toLocaleString('pt-BR',{maximumFractionDigits:2})} pt</b>`:''}</div>`;
-      if(kind==='objective'){html+=`<ol type="A" class="alternatives"><li>[Preencha a alternativa.]</li><li>[Preencha a alternativa.]</li><li>[Preencha a alternativa.]</li><li>[Preencha a alternativa.]</li></ol>`;key+=`<p><strong>${i}.</strong> Defina a alternativa correta depois de personalizar a questão.</p>`;}
+      if(kind==='objective'){const mk=examMark(d.optionStyle||'parentheses');html+=`<div class="markable-options">${['A','B','C','D'].map(l=>`<p>${mk?`<span class="answer-mark">${esc(mk)}</span> `:''}<strong>${l})</strong> Alternativa a ser definida no modelo manual.</p>`).join('')}</div>`;key+=`<p><strong>${i}.</strong> Defina a alternativa correta depois de personalizar a questão.</p>`;}
       else if(kind==='tf'){html+=`<p>( &nbsp; ) Verdadeiro &nbsp;&nbsp; ( &nbsp; ) Falso</p>${responseLines(1)}`;key+=`<p><strong>${i}.</strong> Defina V/F e a justificativa esperada.</p>`;}
       else{html+=responseLines(d.answerSpace||3);key+=`<p><strong>${i}.</strong> Critérios: domínio conceitual, coerência e justificativa.</p>`;} html+='</div>';
     }
@@ -545,7 +628,8 @@
     try{
       const payload=await apiFetch('/api/generate',{method:'POST',body:{kind,data:d}});
       if(payload.usage){app.usage=payload.usage;if(app.user)app.user.usage=payload.usage;updateAccountUI();}
-      const material=newMaterial(kind,payload.title||`${kind} — ${d.topic||d.title}`,payload.subtitle||'',d,payload.html||'',payload.typeLabel||({plan:'Plano de aula',activity:'Atividade',exam:'Avaliação',report:'Relatório pedagógico',abnt:'Acadêmico / ABNT'}[kind]));
+      const generatedHtml=kind==='exam'?normalizeExamHtml(payload.html||'',d):(payload.html||'');
+      const material=newMaterial(kind,payload.title||`${kind} — ${d.topic||d.title}`,payload.subtitle||'',d,generatedHtml,payload.typeLabel||({plan:'Plano de aula',activity:'Atividade',exam:'Avaliação',report:'Relatório pedagógico',abnt:'Acadêmico / ABNT'}[kind]));
       bindPreview(previewFor(kind),material); toast(payload.emailQueued?'Material gerado. Uma cópia está sendo enviada ao seu e-mail.':'Material gerado. Revise, edite e salve quando estiver pronto.');
     }catch(err){
       if(err.code==='AI_LIMIT'){
@@ -648,12 +732,16 @@
   $('#dialogDocBtn').onclick=()=>app.currentMaterial&&exportDoc(app.currentMaterial);$('#dialogPrintBtn').onclick=()=>app.currentMaterial&&printMaterial(app.currentMaterial);$('#dialogDuplicateBtn').onclick=()=>{if(app.currentMaterial){duplicateMaterial(app.currentMaterial.id);dialog.close();}};
 
   function exportDoc(material,htmlOverride=null,suffix=''){
-    if(!material)return;const isAbnt=material.type==='abnt';const style=isAbnt?`@page{size:A4;margin:3cm 2cm 2cm 3cm}body{font-family:'Times New Roman',serif;font-size:12pt;line-height:1.5;text-align:justify}`:`@page{size:A4;margin:2cm}body{font-family:Arial,sans-serif;font-size:11pt;line-height:1.4}`;
-    const content=`<!doctype html><html><head><meta charset="UTF-8"><style>${style}h1{text-align:center;font-size:14pt}h2{font-size:12pt;margin-top:18pt}.meta{padding:8pt;background:#f4f4f4}.answer-key{page-break-before:always}.cover{min-height:22cm;text-align:center;display:flex;flex-direction:column;justify-content:space-between}.question{margin:12pt 0}.generated-figure{margin:12pt auto;text-align:center;page-break-inside:avoid}.generated-figure img{max-width:100%;max-height:11cm;object-fit:contain}.generated-figure figcaption{font-size:9pt;color:#666}.response-line{height:22pt;border-bottom:1px solid #bbb}</style></head><body>${sanitizeHtml(htmlOverride??material.html)}</body></html>`;
+    if(!material)return;
+    if(!isPro()){focusUpgrade('Exportação para Word faz parte do Aulora Pro.');return;}
+    const isAbnt=material.type==='abnt';const style=isAbnt?`@page{size:A4;margin:3cm 2cm 2cm 3cm}body{font-family:'Times New Roman',serif;font-size:12pt;line-height:1.5;text-align:justify}`:`@page{size:A4;margin:2cm}body{font-family:Arial,sans-serif;font-size:11pt;line-height:1.4}`;
+    const content=`<!doctype html><html><head><meta charset="UTF-8"><style>${style}h1{text-align:center;font-size:14pt}h2{font-size:12pt;margin-top:18pt}.meta{padding:8pt;background:#f4f4f4}.answer-key{page-break-before:always}.cover{min-height:22cm;text-align:center;display:flex;flex-direction:column;justify-content:space-between}.question{margin:12pt 0}.markable-options p{margin:7pt 0}.answer-mark{display:inline-block;min-width:28pt;font-family:monospace;font-weight:bold}.vf-options{display:flex;gap:28pt;margin:10pt 0}.generated-figure{margin:12pt auto;text-align:center;page-break-inside:avoid}.generated-figure img{max-width:100%;max-height:11cm;object-fit:contain}.generated-figure figcaption{font-size:9pt;color:#666}.response-line{height:22pt;border-bottom:1px solid #bbb}.markable-options p{margin:7pt 0}.answer-mark{display:inline-block;min-width:28pt;font-family:monospace;font-weight:bold}.vf-options{display:flex;gap:28pt;margin:10pt 0}</style></head><body>${sanitizeHtml(htmlOverride??material.html)}</body></html>`;
     downloadBlob(`${slug(material.title)}${suffix?'-'+suffix:''}.doc`,'\ufeff'+content,'application/msword');toast('Arquivo para Word gerado.');
   }
   function printMaterial(material,htmlOverride=null){
-    if(!material)return;const w=window.open('','_blank');if(!w){toast('Permita pop-ups para imprimir.');return;}const isAbnt=material.type==='abnt';w.document.write(`<!doctype html><html><head><title>${esc(material.title)}</title><style>@page{size:A4;margin:${isAbnt?'3cm 2cm 2cm 3cm':'2cm'}}body{font-family:${isAbnt?"'Times New Roman',serif":"Arial,sans-serif"};font-size:${isAbnt?'12pt':'11pt'};line-height:${isAbnt?'1.5':'1.4'};color:#111}h1{text-align:center;font-size:15pt}h2{font-size:12pt;margin-top:18pt}.meta{padding:8pt;background:#f4f4f4}.answer-key{page-break-before:always}.cover{height:22cm;text-align:center;display:flex;flex-direction:column;justify-content:space-between}.response-line{height:22pt;border-bottom:1px solid #bbb}</style></head><body>${sanitizeHtml(htmlOverride??material.html)}</body></html>`);w.document.close();w.focus();setTimeout(()=>w.print(),300);
+    if(!material)return;
+    if(!isPro()){focusUpgrade('Exportação e impressão em PDF fazem parte do Aulora Pro.');return;}
+    const w=window.open('','_blank');if(!w){toast('Permita pop-ups para imprimir.');return;}const isAbnt=material.type==='abnt';w.document.write(`<!doctype html><html><head><title>${esc(material.title)}</title><style>@page{size:A4;margin:${isAbnt?'3cm 2cm 2cm 3cm':'2cm'}}body{font-family:${isAbnt?"'Times New Roman',serif":"Arial,sans-serif"};font-size:${isAbnt?'12pt':'11pt'};line-height:${isAbnt?'1.5':'1.4'};color:#111}h1{text-align:center;font-size:15pt}h2{font-size:12pt;margin-top:18pt}.meta{padding:8pt;background:#f4f4f4}.answer-key{page-break-before:always}.cover{height:22cm;text-align:center;display:flex;flex-direction:column;justify-content:space-between}.response-line{height:22pt;border-bottom:1px solid #bbb}.markable-options p{margin:7pt 0}.answer-mark{display:inline-block;min-width:28pt;font-family:monospace;font-weight:bold}.vf-options{display:flex;gap:28pt;margin:10pt 0}.question{page-break-inside:avoid}</style></head><body>${sanitizeHtml(htmlOverride??material.html)}</body></html>`);w.document.close();w.focus();setTimeout(()=>w.print(),300);
   }
 
   function makeBackup(){return {format:'aulora-backup',createdAt:nowIso(),profile:app.profile,materials:app.materials};}
@@ -701,6 +789,47 @@
   window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();app.deferredInstall=e;$('#installBtn').hidden=false;});
   $('#installBtn').addEventListener('click',async()=>{if(!app.deferredInstall)return;app.deferredInstall.prompt();await app.deferredInstall.userChoice;app.deferredInstall=null;$('#installBtn').hidden=true;});
   if('serviceWorker' in navigator && location.protocol.startsWith('http'))window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+
+  function moneyBRL(cents){ return new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format((Number(cents)||0)/100); }
+  async function loadAdminDashboard(){
+    if(!isAdmin())return;
+    const list=$('#adminUsersList');
+    if(list)list.innerHTML='<div class="library-empty"><strong>Carregando usuários…</strong></div>';
+    try{
+      const [stats,users]=await Promise.all([apiFetch('/api/admin/stats',{cache:'no-store'}),loadAdminUsers(false)]);
+      $('#adminStatUsers').textContent=String(stats.users||0);
+      $('#adminStatPro').textContent=String(stats.pro||0);
+      $('#adminStatMaterials').textContent=String(stats.materials||0);
+      $('#adminStatRevenue').textContent=moneyBRL(stats.revenueCents||0);
+      return users;
+    }catch(err){if(list)list.innerHTML=`<div class="library-empty"><strong>Não foi possível carregar o painel.</strong><p>${esc(err.message||'Erro')}</p></div>`;}
+  }
+  async function loadAdminUsers(showToast=false){
+    if(!isAdmin())return;
+    const q=$('#adminUserSearch')?.value?.trim()||'';
+    const data=await apiFetch(`/api/admin/users${q?`?q=${encodeURIComponent(q)}`:''}`,{cache:'no-store'});
+    const users=Array.isArray(data.users)?data.users:[]; const list=$('#adminUsersList'); if(!list)return users;
+    if(!users.length){list.innerHTML='<div class="library-empty"><strong>Nenhum usuário encontrado.</strong></div>';return users;}
+    list.innerHTML=users.map(u=>{
+      const pro=u.plan==='pro', adminUser=Boolean(u.isAdmin); const expiry=u.proExpiresAt?new Date(u.proExpiresAt).toLocaleDateString('pt-BR'):'';
+      const planLabel=adminUser?'ADMIN':pro?'PRO':'BÁSICO';
+      const planSub=adminUser?'acesso completo':pro&&expiry?'até '+expiry:'gratuito';
+      return `<article class="admin-user-row" data-admin-user="${esc(u.id)}"><div class="admin-user-avatar">${esc(String(u.name||u.email||'A').trim().charAt(0).toUpperCase())}</div><div class="admin-user-main"><strong>${esc(formatDisplayName(u.name)||u.email)}</strong><small>${esc(u.email)}${adminUser?' • ADMIN':''}</small><span>Criado em ${u.createdAt?esc(new Date(u.createdAt).toLocaleDateString('pt-BR')):'—'}</span></div><div class="admin-user-plan"><b class="${pro||adminUser?'pro':''}">${planLabel}</b><small>${esc(planSub)}</small></div><div class="admin-user-actions"><button class="mini-button" data-admin-pro="${esc(u.id)}">+30 dias Pro</button><button class="mini-button danger-text" data-admin-basic="${esc(u.id)}">Definir Básico</button></div></article>`;
+    }).join('');
+    $$('[data-admin-pro]',list).forEach(b=>b.onclick=()=>setAdminPlan(b.dataset.adminPro,'pro'));
+    $$('[data-admin-basic]',list).forEach(b=>b.onclick=()=>setAdminPlan(b.dataset.adminBasic,'free'));
+    if(showToast)toast(`${users.length} conta(s) carregada(s).`); return users;
+  }
+  async function setAdminPlan(userId,plan){
+    if(!isAdmin())return;
+    const label=plan==='pro'?'adicionar 30 dias de Pro':'alterar para Básico';
+    if(!confirm(`Deseja ${label} nesta conta?`))return;
+    try{await apiFetch('/api/admin/user-plan',{method:'POST',body:{userId,plan,days:30}});toast(plan==='pro'?'Pro atualizado por 30 dias.':'Conta alterada para Básico.');await loadAdminDashboard();}
+    catch(err){toast(err.message||'Não foi possível alterar o plano.');}
+  }
+  $('#adminRefreshBtn')?.addEventListener('click',()=>loadAdminDashboard());
+  $('#adminUserSearchBtn')?.addEventListener('click',()=>loadAdminUsers(true));
+  $('#adminUserSearch')?.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();loadAdminUsers(true);}});
 
   // Henry Ribeiro — assistente educacional com IA do Aulora.
   const henryHelpPanel=$('#henryHelpPanel');
@@ -766,6 +895,9 @@
       if(err.code==='AUTH_REQUIRED'){
         appendHenryMessage('assistant','Sua sessão expirou. Entre novamente para continuar conversando comigo.');
         setTimeout(()=>openAuth('login'),250);
+      }else if(err.code==='PRO_REQUIRED'){
+        appendHenryMessage('assistant','A conversa com Henry IA faz parte do Plano Pro. No Básico, use os módulos de teste; no Pro eu posso ajudar diretamente por aqui.');
+        setTimeout(()=>focusUpgrade('Henry IA faz parte do Aulora Pro.'),500);
       }else appendHenryMessage('assistant',err.message||'A IA do Henry está indisponível agora. Tente novamente em alguns instantes.');
     }finally{setHenryChatBusy(false);setTimeout(()=>henryChatInput?.focus(),30);}
   }

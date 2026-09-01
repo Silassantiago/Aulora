@@ -12,7 +12,24 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <div class="app-shell">
+  <section class="access-gate" id="accessGate">
+    <div class="access-gate-card">
+      <div class="access-gate-brand"><div class="brand-mark">A</div><div><strong>Aulora</strong><span>Planeje. Crie. Ensine.</span></div></div>
+      <span class="access-gate-kicker">PLATAFORMA PARA PROFESSORES</span>
+      <h1>Entre para acessar o Aulora.</h1>
+      <p>Seus materiais, gerações e recursos ficam vinculados à sua conta. Crie uma conta Básica para testar ou entre para continuar.</p>
+      <div class="access-gate-features">
+        <span>✦ Plano de aula</span><span>✎ Atividades</span><span>✓ Avaliações</span><span>🤖 Henry IA no Pro</span>
+      </div>
+      <div class="access-gate-actions">
+        <button class="primary-button" id="gateLoginBtn" type="button">Entrar</button>
+        <button class="ghost-button" id="gateSignupBtn" type="button">Criar conta</button>
+      </div>
+      <small>O Plano Básico permite testar o Aulora. Recursos avançados ficam no Pro.</small>
+    </div>
+  </section>
+
+  <div class="app-shell" id="appShell" hidden>
     <aside class="sidebar" id="sidebar">
       <div class="brand">
         <div class="brand-mark" aria-hidden="true">A</div>
@@ -31,20 +48,21 @@
           </button>
           <div class="nav-inclusion-group nav-submenu" id="activityNavSubmenu" aria-label="Opções de atividade" hidden>
             <button class="nav-special" type="button" data-go="activity"><span>＋</span> Criar atividade</button>
-            <button class="nav-special" type="button" data-inclusive-preset="special"><span>🌱</span> Educação especial</button>
-            <button class="nav-special" type="button" data-inclusive-preset="tea"><span>🧩</span> TEA / autismo</button>
-            <button class="nav-special" type="button" data-inclusive-preset="drawing"><span>🎨</span> Desenho e visual</button>
+            <button class="nav-special" type="button" data-inclusive-preset="special"><span>🌱</span> Educação especial <em class="nav-pro-badge">PRO</em></button>
+            <button class="nav-special" type="button" data-inclusive-preset="tea"><span>🧩</span> TEA / autismo <em class="nav-pro-badge">PRO</em></button>
+            <button class="nav-special" type="button" data-inclusive-preset="drawing"><span>🎨</span> Desenho e visual <em class="nav-pro-badge">PRO</em></button>
           </div>
         </div>
         <button class="nav-item" data-view="exam"><span>✓</span> Avaliação</button>
-        <button class="nav-item" data-view="reports"><span>📋</span> Relatórios</button>
+        <button class="nav-item" data-view="reports"><span>📋</span> Relatórios <em class="nav-pro-badge">PRO</em></button>
         <button class="nav-item" data-view="abnt"><span>¶</span> Acadêmico / ABNT <em class="nav-pro-badge">PRO</em></button>
         <button class="nav-item" data-view="materials"><span>▣</span> Meus materiais</button>
         <button class="nav-item" data-view="settings"><span>⚙</span> Perfil e dados</button>
+        <button class="nav-item admin-nav-item" id="adminNavBtn" data-view="admin" hidden><span>◈</span> Administração</button>
       </nav>
 
       <div class="sidebar-bottom">
-        <div class="plan-mini" id="planMini"><span id="planMiniBadge">COMECE GRÁTIS</span><strong id="planMiniTitle">Crie sua conta gratuita</strong><small id="planMiniUsage">3 gerações inteligentes por mês no Plano Básico.</small></div>
+        <div class="plan-mini" id="planMini"><span id="planMiniBadge">COMECE GRÁTIS</span><strong id="planMiniTitle">Crie sua conta gratuita</strong><small id="planMiniUsage">2 gerações inteligentes por mês no Plano Básico.</small></div>
         <div class="status-card">
           <div class="status-line"><span class="status-dot" id="aiDot"></span><strong>Serviços Aulora</strong></div>
           <small id="aiStatus">Verificando serviços…</small>
@@ -77,10 +95,11 @@
                 <span class="account-menu-avatar" id="accountMenuAvatar">A</span>
                 <div><strong id="accountMenuName">Conta</strong><small id="accountMenuEmail"></small></div>
               </div>
-              <div class="account-menu-plan"><span id="accountMenuPlan">Básico</span><small id="accountMenuUsage">0 / 3 gerações</small></div>
+              <div class="account-menu-plan"><span id="accountMenuPlan">Básico</span><small id="accountMenuUsage">0 / 2 gerações</small></div>
               <button type="button" role="menuitem" data-account-action="profile"><span>⚙</span><div><strong>Perfil e dados</strong><small>Escola, cidade e preferências</small></div></button>
               <button type="button" role="menuitem" data-account-action="password"><span>🔐</span><div><strong>Alterar senha</strong><small>Atualize sua senha com segurança</small></div></button>
-              <button type="button" role="menuitem" data-account-action="email"><span>✉</span><div><strong>Cópias por e-mail</strong><small>Materiais e avisos da conta</small></div></button>
+              <button type="button" role="menuitem" data-account-action="email"><span>✉</span><div><strong>Cópias por e-mail</strong><small>Materiais e avisos • Pro</small></div></button>
+              <button type="button" role="menuitem" id="accountAdminItem" data-account-action="admin" hidden><span>◈</span><div><strong>Administração</strong><small>Usuários, planos e receita</small></div></button>
               <div class="account-menu-separator"></div>
               <button type="button" role="menuitem" class="account-menu-danger" data-account-action="logout"><span>↪</span><div><strong>Sair da conta</strong><small>Encerrar esta sessão</small></div></button>
             </div>
@@ -229,7 +248,7 @@
               </div>
               <div class="draft-status" id="planDraftStatus">Rascunho salvo automaticamente neste dispositivo.</div>
               <div class="form-actions split-actions"><button type="reset" class="ghost-button">Limpar</button><div><button class="ghost-button" type="button" data-local="plan">Montar modelo manual</button><button class="primary-button smart-action" type="submit"><span>✦</span> Gerar plano completo</button></div></div>
-              <small class="account-required-hint" data-guest-only>🔒 O Plano Básico inclui 3 gerações inteligentes por mês. O Pro amplia os limites e libera recursos avançados.</small>
+              <small class="account-required-hint" data-guest-only>🔒 O Plano Básico inclui 2 gerações inteligentes por mês. O Pro amplia os limites e libera recursos avançados.</small>
             </form>
             <div class="preview-card empty" id="planPreview"><div class="empty-state preview-empty"><span>▤</span><strong>Seu plano de aula aparecerá aqui</strong><p>Preencha os campos e gere com o Aulora ou monte um modelo manual para editar.</p></div></div>
           </div>
@@ -269,7 +288,7 @@
                 <label class="full">Objetivo da atividade<textarea name="objective" rows="2" placeholder="Ex.: reconhecer personagens, ordenar acontecimentos e expressar compreensão por fala, marcação ou desenho."></textarea></label>
                 <label class="full">Texto-base / conteúdo trabalhado<textarea name="sourceText" rows="6" placeholder="Cole um texto, resumo, situação-problema ou conceitos já trabalhados. Se a atividade for visual, descreva os elementos que podem ser representados."></textarea></label>
 
-                <div class="form-section-title full inclusive-title"><span>2</span><div><strong>Adaptação e educação inclusiva</strong><small>Opcional. O Aulora adapta a forma de apresentar e responder; não realiza diagnóstico.</small></div></div>
+                <div class="form-section-title full inclusive-title"><span>2</span><div><strong>Adaptação e educação inclusiva <em class="nav-pro-badge">PRO</em></strong><small>Recursos avançados de adaptação ficam no Pro. O Aulora adapta a forma de apresentar e responder; não realiza diagnóstico.</small></div></div>
                 <label>Perfil de apoio pedagógico<select name="adaptationProfile"><option value="">Sem adaptação específica</option><option>Estudante autista / TEA</option><option>Educação especial — apoio ampliado</option><option>Alfabetização / pré-leitor</option><option>Comunicação alternativa / pouco texto</option><option>Leitura acessível / linguagem simples</option></select></label>
                 <label>Nível de mediação<select name="supportLevel"><option>Independência predominante</option><option>Apoio leve</option><option selected>Apoio moderado</option><option>Apoio frequente</option></select></label>
                 <label>Tipo de atividade<select name="activityType"><option>Questões tradicionais</option><option>Mista inclusiva</option><option>Visual e objetiva</option><option>Desenho guiado</option><option>Ligar / associar</option><option>Pintar / marcar</option><option>Sequência visual / ordenar</option><option>Completar palavras ou frases</option><option>Recortar e colar — imprimível</option></select></label>
@@ -323,6 +342,8 @@
                 <label>Valor total<input name="totalPoints" type="number" min="1" max="100" step="0.5" value="10" /></label>
                 <label>Dificuldade<select name="difficulty"><option>Fácil</option><option selected>Intermediária</option><option>Avançada</option></select></label>
                 <label>Composição<select name="format"><option>70% objetivas + 30% discursivas</option><option>Somente objetivas</option><option>50% objetivas + 50% discursivas</option><option>Somente discursivas</option><option>Verdadeiro ou falso</option></select></label>
+                <label>Marcação das alternativas<select name="optionStyle"><option value="parentheses" selected>( &nbsp;&nbsp; ) A) Alternativa</option><option value="square">[ &nbsp;&nbsp; ] A) Alternativa</option><option value="plain">A) Alternativa</option></select><small class="field-hint">Define como o aluno marcará a resposta nas questões objetivas.</small></label>
+                <label>Espaço nas discursivas<select name="discursiveSpace"><option value="2">2 linhas</option><option value="4" selected>4 linhas</option><option value="6">6 linhas</option><option value="8">8 linhas</option></select></label>
                 <label class="full">Texto-base / conteúdo trabalhado<textarea name="sourceText" rows="7" placeholder="Cole o conteúdo, resumo ou texto-base que deve orientar a avaliação."></textarea></label>
                 <label class="full">Habilidade / referência curricular (opcional)<input name="skill" placeholder="Informe apenas referências já conferidas" /></label>
                 <label class="full">Instruções da avaliação<textarea name="instructions" rows="3" placeholder="Ex.: responda de forma legível e revise antes de entregar."></textarea></label>
@@ -395,7 +416,7 @@
                 </div>
                 <div class="abnt-note"><strong>Importante:</strong> o Aulora não inventa fontes, autores, citações ou referências bibliográficas. A estrutura serve como apoio de normalização e deve ser conferida com o manual da sua instituição.</div>
                 <div class="form-actions split-actions"><button type="reset" class="ghost-button">Limpar</button><div><button class="ghost-button" type="button" data-local="abnt">Montar modelo manual</button><button class="primary-button smart-action" type="submit"><span>✦</span> Gerar estrutura acadêmica</button></div></div>
-                <small class="account-required-hint" data-guest-only>🔒 A geração inteligente exige conta gratuita. O modelo manual continua disponível sem cadastro.</small>
+                <small class="account-required-hint" data-guest-only>🔒 Acadêmico / ABNT é um recurso do Plano Pro e exige login.</small>
               </form>
               <div class="preview-card empty" id="abntPreview"><div class="empty-state preview-empty"><span>¶</span><strong>Sua estrutura acadêmica aparecerá aqui</strong><p>Preencha os dados do trabalho e gere uma estrutura guiada ou use o modelo manual.</p></div></div>
             </div>
@@ -460,25 +481,28 @@
               <div class="plan-comparison">
                 <article class="plan-option free-option">
                   <div class="plan-option-head"><div><span>PARA TESTAR</span><h3>Aulora Básico</h3></div><strong>R$ 0</strong></div>
-                  <ul class="feature-list basic-feature-list"><li><strong>3</strong> gerações inteligentes por mês</li><li>Até <strong>5</strong> materiais sincronizados</li><li>Plano de aula, atividade e avaliação</li><li>Atividades e provas com até <strong>5 questões</strong></li><li>Sem imagens geradas por IA</li><li>Henry em modo de orientação básica</li></ul>
+                  <ul class="feature-list basic-feature-list"><li><strong>2</strong> gerações inteligentes por mês</li><li>Até <strong>3</strong> materiais sincronizados</li><li>Plano de aula, atividade e avaliação básicos</li><li>Atividades e provas com até <strong>5 questões</strong></li><li>Sem imagens por IA</li><li>Sem relatórios, ABNT, Henry IA ou exportação Word/PDF</li></ul>
                   <button class="ghost-button" id="freePlanSignupBtn" type="button">Começar grátis</button>
                 </article>
                 <article class="plan-option pro-option">
                   <div class="plan-option-head"><div><span>MAIS COMPLETO</span><h3>Aulora Pro <b class="recommended-badge">RECOMENDADO</b></h3></div><strong>R$ 14,90<small>/30 dias</small></strong></div>
-                  <ul class="feature-list"><li><strong>200</strong> gerações inteligentes por mês</li><li>Até <strong>1.000</strong> materiais sincronizados</li><li>Atividades e provas com até <strong>20 questões</strong></li><li>Imagens pedagógicas geradas por IA</li><li>Relatórios pedagógicos e Acadêmico/ABNT com IA</li><li>Henry com assistência pedagógica completa</li><li>Acesso aos materiais em qualquer dispositivo</li></ul>
+                  <ul class="feature-list pro-feature-list"><li><strong>200</strong> gerações inteligentes por mês</li><li>Até <strong>1.000</strong> materiais sincronizados</li><li>Atividades e provas com até <strong>20 questões</strong></li><li>Imagens pedagógicas geradas por IA</li><li>Relatórios pedagógicos completos</li><li>Acadêmico / ABNT com IA</li><li>Henry IA com assistência pedagógica completa</li><li>Modelos avançados de educação inclusiva</li><li>Exportação Word e PDF</li><li>Cópias automáticas por e-mail, quando configuradas</li><li>Acesso aos materiais em qualquer dispositivo</li></ul>
                   <div class="payment-choice"><button class="primary-button" id="upgradeBtn" type="button"><span>◆</span> Pagar com Pix</button><button class="ghost-button card-pay-button" id="cardCheckoutBtn" type="button"><span>▣</span> Pagar com cartão</button></div>
                   <small class="payment-choice-note">Pagamento único de R$ 14,90 libera 30 dias de Pro. Sem renovação automática.</small><button class="ghost-button" id="manageBillingBtn" type="button" hidden>Ver situação do Pro</button>
                 </article>
               </div>
-              <small class="billing-note" id="billingNote">O Básico serve para conhecer o Aulora: 3 gerações/mês, 5 materiais e até 5 questões. O Pro libera o conjunto completo de recursos.</small>
+              <small class="billing-note" id="billingNote">O Básico serve somente para experimentar: 2 gerações/mês, 3 materiais e até 5 questões. O Pro libera os recursos profissionais do Aulora.</small>
             </div>
             <form class="form-card" id="profileForm">
               <div class="card-heading"><div><span class="eyebrow">PERFIL</span><h2>Dados do professor</h2></div></div>
               <div class="form-grid two-col">
                 <label>Nome<input name="teacher" placeholder="Seu nome" /></label>
+                <label>Atuação<select name="role"><option value="">Selecione</option><option>Professor(a)</option><option>Coordenador(a) pedagógico(a)</option><option>Diretor(a) / gestor(a)</option><option>Pedagogo(a)</option><option>Estudante de licenciatura</option><option>Outro</option></select></label>
                 <label>Escola / instituição<input name="school" placeholder="Nome da escola" /></label>
+                <label>Rede<select name="network"><option value="">Não informar</option><option>Municipal</option><option>Estadual</option><option>Federal</option><option>Privada</option><option>Outra</option></select></label>
+                <label>Estado<input name="state" maxlength="2" placeholder="Ex.: SC" /></label>
                 <label>Cidade<input name="city" placeholder="Cidade" /></label>
-                <label>Etapa padrão<select name="stage"><option>Educação Infantil</option><option>Anos iniciais do Ensino Fundamental</option><option selected>Anos finais do Ensino Fundamental</option><option>Ensino Médio</option><option>EJA</option><option>Ensino Superior</option><option>Outro</option></select></label>
+                <label class="full">Etapa padrão<select name="stage"><option>Educação Infantil</option><option>Anos iniciais do Ensino Fundamental</option><option selected>Anos finais do Ensino Fundamental</option><option>Ensino Médio</option><option>EJA</option><option>Ensino Superior</option><option>Outro</option></select></label>
               </div>
               <div class="form-actions"><button class="primary-button" type="submit">Salvar perfil</button></div>
             </form>
@@ -505,8 +529,26 @@
             </div>
             <div class="form-card wide-card">
               <div class="card-heading"><div><span class="eyebrow">PRIVACIDADE</span><h2>Como o Aulora usa seus dados</h2></div></div>
-              <div class="privacy-grid"><article><strong>Materiais</strong><p>Quando você entra, seus materiais são vinculados à sua conta no banco do Aulora; sem login, permanecem somente neste navegador.</p></article><article><strong>Geração inteligente</strong><p>Os dados do formulário solicitado são enviados ao serviço de geração para produzir o material. Evite inserir dados pessoais desnecessários de alunos.</p></article><article><strong>Senha</strong><p>A senha não é armazenada em texto aberto. O servidor guarda somente derivação criptográfica e sessões protegidas por cookie HttpOnly.</p></article></div>
+              <div class="privacy-grid"><article><strong>Materiais</strong><p>Seus materiais são vinculados à sua conta no banco do Aulora e também podem ficar em cache neste dispositivo para acesso rápido.</p></article><article><strong>Geração inteligente</strong><p>Os dados do formulário solicitado são enviados ao serviço de geração para produzir o material. Evite inserir dados pessoais desnecessários de alunos.</p></article><article><strong>Senha</strong><p>A senha não é armazenada em texto aberto. O servidor guarda somente derivação criptográfica e sessões protegidas por cookie HttpOnly.</p></article></div>
             </div>
+          </div>
+        </section>
+
+        <section class="view" id="view-admin">
+          <div class="page-intro inline-intro">
+            <div><span class="eyebrow">ADMINISTRAÇÃO</span><h1>Painel do Aulora</h1><p>Visão geral de contas, planos, materiais e pagamentos. Senhas nunca são exibidas.</p></div>
+            <div class="header-actions"><button class="ghost-button" id="adminRefreshBtn" type="button">Atualizar painel</button></div>
+          </div>
+          <div class="admin-stats-grid">
+            <article><span>Usuários</span><strong id="adminStatUsers">—</strong><small>contas cadastradas</small></article>
+            <article><span>Pro ativos</span><strong id="adminStatPro">—</strong><small>assinaturas/períodos ativos</small></article>
+            <article><span>Materiais</span><strong id="adminStatMaterials">—</strong><small>salvos no Aulora</small></article>
+            <article><span>Receita aprovada</span><strong id="adminStatRevenue">—</strong><small>pagamentos registrados</small></article>
+          </div>
+          <div class="form-card admin-users-card">
+            <div class="card-heading"><div><span class="eyebrow">USUÁRIOS</span><h2>Contas cadastradas</h2></div><span class="security-badge">ADMIN</span></div>
+            <div class="admin-toolbar"><input id="adminUserSearch" placeholder="Buscar por nome ou e-mail" /><button class="primary-button" id="adminUserSearchBtn" type="button">Buscar</button></div>
+            <div class="admin-users-list" id="adminUsersList"><div class="library-empty"><strong>Carregando usuários…</strong></div></div>
           </div>
         </section>
       </main>
@@ -564,14 +606,23 @@
         <div class="auth-error" id="loginError" role="alert" hidden></div>
         <button class="primary-button" type="submit">Entrar no Aulora</button>
       </form>
-      <form id="signupForm" class="auth-form" data-auth-panel="signup">
-        <label>Nome<input name="name" autocomplete="name" required placeholder="Seu nome" /></label>
-        <label>E-mail<input name="email" type="email" autocomplete="email" required placeholder="voce@exemplo.com" /></label>
-        <label>Senha<input name="password" type="password" autocomplete="new-password" required minlength="8" placeholder="Mínimo de 8 caracteres" /></label>
+      <form id="signupForm" class="auth-form signup-form" data-auth-panel="signup">
+        <div class="auth-signup-grid">
+          <label>Nome completo<input name="name" autocomplete="name" required maxlength="120" placeholder="Nome e sobrenome" /></label>
+          <label>Atuação<select name="role" required><option value="">Selecione</option><option>Professor(a)</option><option>Coordenador(a) pedagógico(a)</option><option>Diretor(a) / gestor(a)</option><option>Pedagogo(a)</option><option>Estudante de licenciatura</option><option>Outro</option></select></label>
+          <label class="auth-full">E-mail<input name="email" type="email" autocomplete="email" required placeholder="voce@exemplo.com" /></label>
+          <label>Escola / instituição<input name="school" maxlength="160" placeholder="Opcional" /></label>
+          <label>Rede<select name="network"><option value="">Não informar</option><option>Municipal</option><option>Estadual</option><option>Federal</option><option>Privada</option><option>Outra</option></select></label>
+          <label>Estado<select name="state"><option value="">Selecione</option><option>AC</option><option>AL</option><option>AP</option><option>AM</option><option>BA</option><option>CE</option><option>DF</option><option>ES</option><option>GO</option><option>MA</option><option>MT</option><option>MS</option><option>MG</option><option>PA</option><option>PB</option><option>PR</option><option>PE</option><option>PI</option><option>RJ</option><option>RN</option><option>RS</option><option>RO</option><option>RR</option><option>SC</option><option>SP</option><option>SE</option><option>TO</option></select></label>
+          <label>Cidade<input name="city" maxlength="100" placeholder="Sua cidade" /></label>
+          <label class="auth-full">Etapa principal<select name="stage" required><option value="">Selecione</option><option>Educação Infantil</option><option>Anos iniciais do Ensino Fundamental</option><option>Anos finais do Ensino Fundamental</option><option>Ensino Médio</option><option>EJA</option><option>Ensino Superior</option><option>Outra</option></select></label>
+          <label>Senha<input name="password" type="password" autocomplete="new-password" required minlength="8" maxlength="128" placeholder="Mínimo de 8 caracteres" /></label>
+          <label>Confirmar senha<input name="confirmPassword" type="password" autocomplete="new-password" required minlength="8" maxlength="128" placeholder="Repita a senha" /></label>
+        </div>
         <div class="auth-error" id="signupError" role="alert" hidden></div>
-        <button class="primary-button" type="submit">Criar conta gratuita</button>
+        <button class="primary-button" type="submit">Criar conta Básica</button>
       </form>
-      <p class="auth-foot">Plano Básico: 3 gerações inteligentes/mês, até 5 materiais e 5 questões por atividade ou avaliação.</p>
+      <p class="auth-foot">É necessário entrar para acessar o Aulora. O Básico permite 2 gerações/mês e até 3 materiais; o Pro libera os recursos profissionais.</p>
     </div>
   </dialog>
 
