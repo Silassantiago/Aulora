@@ -9,6 +9,8 @@ const PRO_AI_LIMIT = 200;
 const FREE_MATERIAL_LIMIT = 25;
 const PRO_MATERIAL_LIMIT = 1000;
 const PASSWORD_KDF_ITERATIONS = 10000;
+const PRO_PIX_PRICE_CENTS = 1490;
+const PRO_PIX_DAYS = 30;
 const jsonHeaders = {
   'content-type': 'application/json; charset=utf-8',
   'cache-control': 'no-store',
@@ -120,6 +122,8 @@ async function ensureSchema(db) {
       email_prefs_json TEXT NOT NULL DEFAULT '{}',
       stripe_customer_id TEXT,
       stripe_subscription_id TEXT,
+      pro_expires_at TEXT,
+      mp_last_payment_id TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     )`),
@@ -152,6 +156,20 @@ async function ensureSchema(db) {
       PRIMARY KEY(user_id, month),
       FOREIGN KEY(user_id) REFERENCES aulora_users(id) ON DELETE CASCADE
     )`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS aulora_payments (
+      provider_payment_id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      provider TEXT NOT NULL DEFAULT 'mercadopago',
+      amount_cents INTEGER NOT NULL DEFAULT 0,
+      currency TEXT NOT NULL DEFAULT 'BRL',
+      status TEXT NOT NULL DEFAULT 'pending',
+      approved_applied INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      approved_at TEXT NOT NULL DEFAULT '',
+      FOREIGN KEY(user_id) REFERENCES aulora_users(id) ON DELETE CASCADE
+    )`),
+    db.prepare(`CREATE INDEX IF NOT EXISTS idx_aulora_payments_user ON aulora_payments(user_id, created_at DESC)`),
     db.prepare(`CREATE TABLE IF NOT EXISTS aulora_curriculum_sources (
       id TEXT PRIMARY KEY,
       scope TEXT NOT NULL,
@@ -195,6 +213,8 @@ async function ensureSchema(db) {
     ['email_prefs_json', "TEXT NOT NULL DEFAULT '{}'"],
     ['stripe_customer_id', 'TEXT'],
     ['stripe_subscription_id', 'TEXT'],
+    ['pro_expires_at', 'TEXT'],
+    ['mp_last_payment_id', 'TEXT'],
     ['created_at', "TEXT NOT NULL DEFAULT ''"],
     ['updated_at', "TEXT NOT NULL DEFAULT ''"]
   ]);
@@ -226,6 +246,10 @@ async function currentUser(request, env) {
   const token = parseCookies(request)[SESSION_COOKIE]; if (!token) return null;
   const hash = bytesToHex(await sha256(token));
   const row = await env.DB.prepare(`SELECT u.* FROM aulora_sessions s JOIN aulora_users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>?`).bind(hash, nowIso()).first();
+  if (row && row.plan === 'pro' && row.pro_expires_at && new Date(row.pro_expires_at).getTime() <= Date.now()) {
+    await env.DB.prepare(`UPDATE aulora_users SET plan='free',plan_status='expired',updated_at=? WHERE id=?`).bind(nowIso(), row.id).run();
+    row.plan='free'; row.plan_status='expired';
+  }
   return row || null;
 }
 function safeProfile(value) {
@@ -290,7 +314,7 @@ async function userPayload(env, user) {
     id: user.id, email: user.email, name: user.name, plan: user.plan, planStatus: user.plan_status,
     profile: safeProfile(user.profile_json), emailPrefs: safeEmailPrefs(user.email_prefs_json), usage,
     emailDelivery: { enabled: emailDeliveryEnabled(env) },
-    billing: { enabled: Boolean(env.STRIPE_SECRET_KEY && env.STRIPE_PRICE_PRO), customer: Boolean(user.stripe_customer_id) }
+    billing: { enabled: Boolean(env.MERCADO_PAGO_ACCESS_TOKEN), provider: 'mercadopago', method: 'pix', customer: false, expiresAt: user.pro_expires_at || null, priceCents: PRO_PIX_PRICE_CENTS, periodDays: PRO_PIX_DAYS }
   };
 }
 async function requireUser(request, env) {
@@ -604,33 +628,63 @@ async function generateAI(env, kind, d) {
   return { title: cleanText(data.title || meta.title, 180), subtitle: cleanText(data.subtitle || meta.subtitle, 240), typeLabel: cleanText(data.typeLabel || meta.typeLabel, 80), html, imageGenerated, imageCount };
 }
 
-async function stripeRequest(env, path, params) {
-  const body = new URLSearchParams();
-  for (const [key, value] of Object.entries(params)) if (value !== undefined && value !== null && value !== '') body.set(key, String(value));
-  const response = await fetch(`https://api.stripe.com${path}`, { method: 'POST', headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}`, 'Content-Type': 'application/x-www-form-urlencoded' }, body });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data?.error?.message || 'Falha na cobrança.');
+async function mercadoPagoRequest(env, path, options = {}) {
+  if (!env.MERCADO_PAGO_ACCESS_TOKEN) throw Object.assign(new Error('Mercado Pago não configurado.'), { code:'BILLING_NOT_CONFIGURED' });
+  const response = await fetch(`https://api.mercadopago.com${path}`, {
+    method: options.method || 'GET',
+    headers: {
+      'Authorization': `Bearer ${env.MERCADO_PAGO_ACCESS_TOKEN}`,
+      'Accept': 'application/json',
+      ...(options.body ? {'Content-Type':'application/json'} : {}),
+      ...(options.idempotencyKey ? {'X-Idempotency-Key': options.idempotencyKey} : {})
+    },
+    body: options.body ? JSON.stringify(options.body) : undefined
+  });
+  const data = await response.json().catch(()=>({}));
+  if (!response.ok) {
+    const msg = cleanText(data?.message || data?.error || data?.cause?.[0]?.description || `Mercado Pago ${response.status}`, 300);
+    throw Object.assign(new Error(msg || 'Falha no Mercado Pago.'), { code:'MERCADO_PAGO_ERROR', status:response.status });
+  }
   return data;
 }
-async function verifyStripeSignature(rawBody, header, secret) {
-  if (!header || !secret) return false;
-  const parts = header.split(',').map(x => x.trim());
-  const timestamp = Number(parts.find(x => x.startsWith('t='))?.slice(2));
-  const signatures = parts.filter(x => x.startsWith('v1=')).map(x => x.slice(3));
-  if (!timestamp || !signatures.length || Math.abs(Date.now() / 1000 - timestamp) > 300) return false;
-  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
-  const sig = new Uint8Array(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(`${timestamp}.${rawBody}`)));
-  const expected = bytesToHex(sig);
-  return signatures.some(s => s.length === expected.length && constantTimeEqual(new TextEncoder().encode(s), new TextEncoder().encode(expected)));
+function paymentAmountCents(payment) { return Math.round(Number(payment?.transaction_amount || 0) * 100); }
+async function syncMercadoPagoPayment(env, paymentId, expectedUserId = '') {
+  const id = cleanText(paymentId, 80); if (!id) throw new Error('Pagamento inválido.');
+  const payment = await mercadoPagoRequest(env, `/v1/payments/${encodeURIComponent(id)}`);
+  const userId = cleanText(payment?.external_reference, 80);
+  if (!userId) throw new Error('Pagamento sem referência do Aulora.');
+  if (expectedUserId && userId !== expectedUserId) throw Object.assign(new Error('Pagamento não pertence a esta conta.'), { code:'PAYMENT_OWNER_MISMATCH' });
+  const amountCents = paymentAmountCents(payment), currency = cleanText(payment?.currency_id || 'BRL', 8).toUpperCase(), status = cleanText(payment?.status || 'unknown', 40);
+  if (amountCents !== PRO_PIX_PRICE_CENTS || currency !== 'BRL') throw Object.assign(new Error('Valor do pagamento não confere com o Aulora Pro.'), { code:'PAYMENT_VALUE_MISMATCH' });
+  const now = nowIso();
+  await env.DB.prepare(`INSERT INTO aulora_payments(provider_payment_id,user_id,provider,amount_cents,currency,status,approved_applied,created_at,updated_at,approved_at)
+    VALUES(?,?, 'mercadopago', ?, ?, ?, 0, ?, ?, ?)
+    ON CONFLICT(provider_payment_id) DO UPDATE SET status=excluded.status,updated_at=excluded.updated_at,approved_at=CASE WHEN excluded.status='approved' THEN excluded.approved_at ELSE aulora_payments.approved_at END`)
+    .bind(String(payment.id), userId, amountCents, currency, status, now, now, status==='approved'?now:'').run();
+  let granted = false, expiresAt = null;
+  if (status === 'approved') {
+    const claim = await env.DB.prepare(`UPDATE aulora_payments SET approved_applied=1,updated_at=? WHERE provider_payment_id=? AND approved_applied=0`).bind(now, String(payment.id)).run();
+    if (Number(claim?.meta?.changes || 0) > 0) {
+      const user = await env.DB.prepare(`SELECT pro_expires_at FROM aulora_users WHERE id=?`).bind(userId).first();
+      const existing = user?.pro_expires_at ? new Date(user.pro_expires_at).getTime() : 0;
+      const base = Math.max(Date.now(), Number.isFinite(existing) ? existing : 0);
+      expiresAt = new Date(base + PRO_PIX_DAYS * 86400_000).toISOString();
+      await env.DB.prepare(`UPDATE aulora_users SET plan='pro',plan_status='active',pro_expires_at=?,mp_last_payment_id=?,updated_at=? WHERE id=?`).bind(expiresAt,String(payment.id),now,userId).run();
+      granted = true;
+    } else {
+      const user = await env.DB.prepare(`SELECT pro_expires_at FROM aulora_users WHERE id=?`).bind(userId).first();
+      expiresAt = user?.pro_expires_at || null;
+    }
+  }
+  return { payment, status, granted, expiresAt, userId };
 }
-
 async function api(request, env, url, ctx) {
   if (!env.DB) return json({ error: 'Banco de dados não configurado.' }, 503);
   await ensureSchema(env.DB);
   const path = url.pathname;
 
   if (path === '/api/health' && request.method === 'GET') {
-    return json({ ok: true, ai: Boolean(env.AI), db: true, billing: Boolean(env.STRIPE_SECRET_KEY && env.STRIPE_PRICE_PRO), email: emailDeliveryEnabled(env), auth: 'pbkdf2-sha256', authIterations: PASSWORD_KDF_ITERATIONS, service: 'Aulora' });
+    return json({ ok: true, ai: Boolean(env.AI), db: true, billing: Boolean(env.MERCADO_PAGO_ACCESS_TOKEN), email: emailDeliveryEnabled(env), auth: 'pbkdf2-sha256', authIterations: PASSWORD_KDF_ITERATIONS, service: 'Aulora' });
   }
   if (path === '/api/auth/signup' && request.method === 'POST') {
     if (!mutationOriginAllowed(request)) return json({ error: 'Origem não autorizada.', code: 'ORIGIN_BLOCKED' }, 403);
@@ -855,42 +909,53 @@ async function api(request, env, url, ctx) {
   if (path === '/api/billing/checkout' && request.method === 'POST') {
     if (!mutationOriginAllowed(request)) return json({ error: 'Origem não autorizada.' }, 403);
     const auth = await requireUser(request, env); if (auth.response) return auth.response;
-    if (!env.STRIPE_SECRET_KEY || !env.STRIPE_PRICE_PRO) return json({ error: 'Cobrança ainda não configurada pelo administrador.', code: 'BILLING_NOT_CONFIGURED' }, 503);
-    if (auth.user.plan === 'pro' && ['active', 'trialing'].includes(auth.user.plan_status)) return json({ error: 'Sua conta já está no plano Pro.' }, 409);
-    const origin = url.origin;
-    const params = {
-      mode: 'subscription', 'line_items[0][price]': env.STRIPE_PRICE_PRO, 'line_items[0][quantity]': '1',
-      success_url: `${origin}/?billing=success`, cancel_url: `${origin}/?billing=cancel`, client_reference_id: auth.user.id,
-      'metadata[aulora_user_id]': auth.user.id, 'subscription_data[metadata][aulora_user_id]': auth.user.id, allow_promotion_codes: 'true'
+    if (!env.MERCADO_PAGO_ACCESS_TOKEN) return json({ error: 'Pagamento via Pix ainda não configurado.', code: 'BILLING_NOT_CONFIGURED' }, 503);
+    const expires = new Date(Date.now() + 30 * 60_000).toISOString();
+    const payload = {
+      transaction_amount: PRO_PIX_PRICE_CENTS / 100,
+      description: `Aulora Pro - ${PRO_PIX_DAYS} dias`,
+      payment_method_id: 'pix',
+      payer: { email: auth.user.email },
+      external_reference: auth.user.id,
+      notification_url: `${url.origin}/api/billing/mercadopago/webhook`,
+      date_of_expiration: expires
     };
-    if (auth.user.stripe_customer_id) params.customer = auth.user.stripe_customer_id; else params.customer_email = auth.user.email;
-    try { const session = await stripeRequest(env, '/v1/checkout/sessions', params); return json({ url: session.url }); }
-    catch (err) { return json({ error: cleanText(err.message, 300) || 'Não foi possível abrir o pagamento.' }, 502); }
+    try {
+      const payment = await mercadoPagoRequest(env, '/v1/payments', { method:'POST', body:payload, idempotencyKey:crypto.randomUUID() });
+      const tx = payment?.point_of_interaction?.transaction_data || {};
+      await env.DB.prepare(`INSERT INTO aulora_payments(provider_payment_id,user_id,provider,amount_cents,currency,status,approved_applied,created_at,updated_at,approved_at)
+        VALUES(?,?, 'mercadopago', ?, 'BRL', ?, 0, ?, ?, '')
+        ON CONFLICT(provider_payment_id) DO UPDATE SET status=excluded.status,updated_at=excluded.updated_at`)
+        .bind(String(payment.id), auth.user.id, PRO_PIX_PRICE_CENTS, cleanText(payment.status||'pending',40), nowIso(), nowIso()).run();
+      return json({
+        provider:'mercadopago', method:'pix', paymentId:String(payment.id), status:payment.status || 'pending',
+        amount:PRO_PIX_PRICE_CENTS/100, periodDays:PRO_PIX_DAYS, expiresAt:payment.date_of_expiration || expires,
+        qrCode:tx.qr_code || '', qrCodeBase64:tx.qr_code_base64 || '', ticketUrl:tx.ticket_url || ''
+      });
+    } catch (err) {
+      return json({ error: cleanText(err.message,300) || 'Não foi possível gerar o Pix.', code:err.code || 'PAYMENT_CREATE_FAILED' }, err.status===400?400:502);
+    }
+  }
+  if (path === '/api/billing/pix/status' && request.method === 'GET') {
+    const auth = await requireUser(request, env); if (auth.response) return auth.response;
+    const paymentId = cleanText(url.searchParams.get('id'),80); if (!paymentId) return json({error:'Pagamento não informado.'},400);
+    try {
+      const result = await syncMercadoPagoPayment(env,paymentId,auth.user.id);
+      const fresh = await env.DB.prepare(`SELECT * FROM aulora_users WHERE id=?`).bind(auth.user.id).first();
+      return json({ status:result.status, approved:result.status==='approved', user:await userPayload(env,fresh) });
+    } catch(err) { return json({error:cleanText(err.message,300)||'Não foi possível consultar o Pix.',code:err.code||'PAYMENT_STATUS_FAILED'}, err.status===404?404:502); }
+  }
+  if (path === '/api/billing/mercadopago/webhook' && request.method === 'POST') {
+    if (!env.MERCADO_PAGO_ACCESS_TOKEN) return json({ received:true });
+    const body = await request.json().catch(()=>({}));
+    const paymentId = cleanText(body?.data?.id || url.searchParams.get('data.id') || url.searchParams.get('id'),80);
+    if (!paymentId) return json({ received:true });
+    try { await syncMercadoPagoPayment(env,paymentId); }
+    catch(err) { console.warn('Mercado Pago webhook ignored', cleanText(err?.message,200)); }
+    return json({ received:true });
   }
   if (path === '/api/billing/portal' && request.method === 'POST') {
-    if (!mutationOriginAllowed(request)) return json({ error: 'Origem não autorizada.' }, 403);
-    const auth = await requireUser(request, env); if (auth.response) return auth.response;
-    if (!env.STRIPE_SECRET_KEY || !auth.user.stripe_customer_id) return json({ error: 'Portal de assinatura indisponível.' }, 503);
-    try { const portal = await stripeRequest(env, '/v1/billing_portal/sessions', { customer: auth.user.stripe_customer_id, return_url: url.origin }); return json({ url: portal.url }); }
-    catch (err) { return json({ error: cleanText(err.message, 300) || 'Não foi possível abrir a assinatura.' }, 502); }
-  }
-  if (path === '/api/billing/webhook' && request.method === 'POST') {
-    if (!env.STRIPE_WEBHOOK_SECRET) return json({ error: 'Webhook não configurado.' }, 503);
-    const raw = await request.text();
-    if (!(await verifyStripeSignature(raw, request.headers.get('stripe-signature'), env.STRIPE_WEBHOOK_SECRET))) return json({ error: 'Assinatura inválida.' }, 400);
-    const event = JSON.parse(raw), obj = event?.data?.object || {};
-    if (event.type === 'checkout.session.completed') {
-      const userId = obj.client_reference_id || obj.metadata?.aulora_user_id;
-      if (userId) await env.DB.prepare(`UPDATE aulora_users SET plan='pro',plan_status='active',stripe_customer_id=?,stripe_subscription_id=?,updated_at=? WHERE id=?`).bind(obj.customer || null, obj.subscription || null, nowIso(), userId).run();
-    }
-    if (event.type === 'customer.subscription.updated' || event.type === 'customer.subscription.deleted') {
-      const userId = obj.metadata?.aulora_user_id, status = cleanText(obj.status, 30);
-      if (userId) {
-        const pro = ['active', 'trialing'].includes(status) && event.type !== 'customer.subscription.deleted';
-        await env.DB.prepare(`UPDATE aulora_users SET plan=?,plan_status=?,stripe_customer_id=COALESCE(?,stripe_customer_id),stripe_subscription_id=?,updated_at=? WHERE id=?`).bind(pro ? 'pro' : 'free', status || 'inactive', obj.customer || null, obj.id || null, nowIso(), userId).run();
-      }
-    }
-    return json({ received: true });
+    return json({ error: 'O Pix do Aulora Pro é uma compra de 30 dias e não possui portal de assinatura.', code:'PIX_NO_PORTAL' }, 409);
   }
 
   if (path === '/api/admin/set-plan' && request.method === 'POST') {

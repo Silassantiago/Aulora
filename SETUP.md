@@ -43,33 +43,33 @@ Depois do deploy:
 5. Salve o material.
 6. Saia e entre novamente para confirmar a sincronização.
 
-O plano gratuito funciona sem Stripe.
+O plano gratuito funciona mesmo sem configurar o Mercado Pago.
 
-## 4. Ativar cobrança Pro (quando quiser vender)
+## 4. Ativar cobrança Pro via Pix (Mercado Pago)
 
-Crie na Stripe um produto `Aulora Pro` com preço recorrente mensal de R$ 14,90.
+O Aulora está preparado para vender **30 dias de Pro por R$ 14,90 via Pix**, com QR Code e Pix Copia e Cola. A ativação do Pro é automática depois que o Mercado Pago confirma o pagamento.
 
-No Cloudflare, no Worker `aulora`, adicione secrets/variables:
+1. Tenha uma conta Mercado Pago com uma chave Pix cadastrada.
+2. No painel Mercado Pago Developers, crie/abra sua aplicação e copie o **Access Token de produção**.
+3. No Cloudflare, abra o Worker `aulora` > Settings > Variables and Secrets.
+4. Adicione como **Secret**:
 
-- `STRIPE_SECRET_KEY` = chave secreta da Stripe
-- `STRIPE_PRICE_PRO` = ID do preço, por exemplo `price_...`
-- `STRIPE_WEBHOOK_SECRET` = segredo do webhook `whsec_...`
+- `MERCADO_PAGO_ACCESS_TOKEN` = seu Access Token de produção.
 
-Configure na Stripe o webhook apontando para:
+**Nunca coloque esse token em `app.js`, `worker.js`, GitHub ou código público.** O segredo deve existir somente no painel da Cloudflare.
 
-`https://SEU-ENDERECO/api/billing/webhook`
+Depois disso, o botão `Pagar com Pix`:
+- gera um QR Code único;
+- oferece Pix Copia e Cola;
+- consulta o status do pagamento;
+- recebe notificações do Mercado Pago em `/api/billing/mercadopago/webhook`;
+- ativa o Aulora Pro por 30 dias após um pagamento aprovado.
 
-Eventos necessários:
+A URL do Worker já usa HTTPS, requisito para a `notification_url` do pagamento.
 
-- `checkout.session.completed`
-- `customer.subscription.updated`
-- `customer.subscription.deleted`
+## 5. Renovação do Pro
 
-Depois disso, o botão `Assinar Pro` abre o Checkout e o webhook atualiza o plano da conta.
-
-## 5. Portal de assinatura
-
-Ative o Customer Portal no painel da Stripe. Usuários Pro poderão usar o botão `Gerenciar assinatura`.
+O Pix é uma cobrança avulsa. Cada pagamento aprovado adiciona 30 dias de Pro. Não há débito automático via Pix nesta integração. Se futuramente quiser renovação automática, adicione assinatura recorrente por cartão como uma segunda forma de pagamento.
 
 ## 6. Secret administrativo opcional
 

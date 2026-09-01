@@ -14,8 +14,9 @@ Aulora é uma aplicação web/PWA para professores com planejamento de aula, ati
 - Materiais vinculados à conta e cache local por usuário
 - Geração inteligente via Cloudflare Workers AI
 - Limites mensais Free/Pro
-- Checkout e portal de assinatura preparados para Stripe
-- Webhook Stripe para ativar/rebaixar plano automaticamente
+- Checkout Pix integrado ao Mercado Pago
+- QR Code + Pix Copia e Cola dentro do Aulora
+- Confirmação automática e ativação do Pro por 30 dias
 - Backup JSON local
 
 ## Planos definidos no código
@@ -32,9 +33,10 @@ Aulora é uma aplicação web/PWA para professores com planejamento de aula, ati
 - 1.000 materiais na nuvem
 - Atividades e avaliações com até 20 questões
 - Todos os recursos atuais com limites ampliados
-- Preço exibido no app: R$ 14,90/mês
+- Preço via Pix: R$ 14,90 por 30 dias
+- Cada novo pagamento aprovado adiciona 30 dias de acesso Pro
 
-O valor real cobrado é definido pelo Price criado na Stripe e informado em `STRIPE_PRICE_PRO`.
+A cobrança é criada no backend com o valor definido pelo Aulora. O segredo de integração é `MERCADO_PAGO_ACCESS_TOKEN` e fica somente na Cloudflare.
 
 ## Infraestrutura
 
@@ -58,7 +60,7 @@ O manual específico da instituição continua prevalecendo quando houver exigê
 
 ## Segurança e privacidade
 
-- Não coloque segredos de Stripe no JavaScript do navegador.
+- Não coloque segredos de Mercado Pago no JavaScript do navegador.
 - As chaves de cobrança ficam apenas como secrets/variables do Worker.
 - Evite inserir dados pessoais desnecessários de estudantes na geração inteligente.
 - Antes de abrir o produto ao público em escala, recomenda-se adicionar proteção anti-bot/rate limiting ao cadastro e login.

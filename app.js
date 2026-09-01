@@ -159,7 +159,9 @@
     $('#settingsCloudCount').textContent=user?String(app.materials.length):'—';
     $('#settingsLoginBtn').hidden=Boolean(user); $('#settingsEnterBtn').hidden=Boolean(user); $('#syncCloudBtn').hidden=!user; $('#logoutBtn').hidden=!user;
     $('#freePlanSignupBtn').hidden=Boolean(user); $('#upgradeBtn').hidden=!user||isPro; $('#manageBillingBtn').hidden=!user||!isPro||!user.billing?.customer;
-    $('#billingNote').textContent=isPro?'Plano Pro ativo: 200 gerações/mês, até 1.000 materiais e avaliações/atividades com até 20 questões.':user?'Aulora Grátis: 5 gerações/mês, até 25 materiais e avaliações/atividades com até 10 questões.':'Crie uma conta grátis para usar 5 gerações/mês e até 25 materiais. O Pro amplia os limites.';
+    const proExpiry=user?.billing?.expiresAt?new Date(user.billing.expiresAt):null;
+    const expiryText=proExpiry&&!Number.isNaN(proExpiry.getTime())?proExpiry.toLocaleDateString('pt-BR'):'';
+    $('#billingNote').textContent=isPro?`Plano Pro ativo${expiryText?' até '+expiryText:''}: 200 gerações/mês, até 1.000 materiais e avaliações/atividades com até 20 questões.`:user?'Aulora Grátis: pague R$ 14,90 via Pix para liberar o Pro por 30 dias, com 200 gerações/mês, até 1.000 materiais e até 20 questões.':'Crie uma conta grátis para usar 5 gerações/mês. O Pro pode ser ativado por Pix.';
     $('#libraryStorageMode').textContent=user?'Materiais sincronizados com sua conta. Uma cópia local fica neste dispositivo para acesso rápido.':'Materiais salvos somente neste dispositivo. Entre para sincronizar na nuvem.';
     $('#settingsStorageCopy').textContent=user?'Seus materiais ficam no banco do Aulora e também em cache neste navegador. Você pode baixar um backup a qualquer momento.':'Sem entrar, os materiais ficam somente neste navegador. Com uma conta gratuita, o Aulora também mantém uma cópia sincronizada na nuvem.';
     $$('.smart-action').forEach(btn=>btn.classList.toggle('locked',!user));
@@ -245,17 +247,62 @@
   $('#sendTestEmailBtn').addEventListener('click',async()=>{
     if(!app.user)return;try{await apiFetch('/api/email/test',{method:'POST'});toast('E-mail de teste enviado para '+app.user.email+'.');}catch(ex){toast(ex.code==='EMAIL_NOT_CONFIGURED'?'O envio de e-mail ainda não foi configurado no servidor.':(ex.message||'Falha ao enviar o e-mail de teste.'));}
   });
-  $('#upgradeBtn').addEventListener('click',async()=>{
+  let pixPollTimer=null, activePixPaymentId='';
+  function closePixDialog(){
+    const d=$('#pixDialog'); if(d?.open)d.close();
+    if(pixPollTimer){clearInterval(pixPollTimer);pixPollTimer=null;}
+  }
+  function setPixState(state,message=''){
+    const status=$('#pixStatus'); if(!status)return;
+    status.className=`pix-status ${state||''}`;
+    const strong=status.querySelector('strong'),small=status.querySelector('small');
+    if(state==='approved'){strong.textContent='Pagamento confirmado';small.textContent='Aulora Pro ativado com sucesso.';}
+    else if(state==='error'){strong.textContent='Não foi possível confirmar';small.textContent=message||'Tente consultar novamente.';}
+    else {strong.textContent='Aguardando pagamento';small.textContent='O plano será ativado automaticamente.';}
+  }
+  async function checkPixStatus(silent=true){
+    if(!activePixPaymentId)return;
+    try{
+      const r=await apiFetch(`/api/billing/pix/status?id=${encodeURIComponent(activePixPaymentId)}`,{cache:'no-store'});
+      if(r.user)applyUser(r.user);
+      if(r.approved){
+        setPixState('approved');
+        if(pixPollTimer){clearInterval(pixPollTimer);pixPollTimer=null;}
+        setTimeout(()=>{closePixDialog();go('dashboard');toast('Pagamento confirmado! Seu Aulora Pro está ativo. ✨');},1700);
+      }
+    }catch(err){if(!silent)setPixState('error',err.message);}
+  }
+  async function openPixCheckout(){
     if(!app.user){openAuth('signup');return;}
-    showLoading('Abrindo pagamento…','Você será direcionado ao checkout seguro.');
-    try{const r=await apiFetch('/api/billing/checkout',{method:'POST'});location.href=r.url;}
-    catch(err){toast(err.code==='BILLING_NOT_CONFIGURED'?'O pagamento Pro ainda precisa ser ativado no painel do Aulora.':err.message);}
-    finally{hideLoading();}
+    const dialog=$('#pixDialog'),loading=$('#pixLoading'),content=$('#pixContent'),error=$('#pixError');
+    error.hidden=true; content.hidden=true; loading.hidden=false; activePixPaymentId='';
+    if(!dialog.open)dialog.showModal();
+    try{
+      const r=await apiFetch('/api/billing/checkout',{method:'POST'});
+      activePixPaymentId=r.paymentId;
+      $('#pixCode').value=r.qrCode||'';
+      const qr=$('#pixQrImage'); qr.src=r.qrCodeBase64?`data:image/png;base64,${r.qrCodeBase64}`:''; qr.hidden=!r.qrCodeBase64;
+      const ticket=$('#pixTicketLink'); if(r.ticketUrl){ticket.href=r.ticketUrl;ticket.hidden=false}else ticket.hidden=true;
+      const exp=r.expiresAt?new Date(r.expiresAt):null; $('#pixExpiry').textContent=exp&&!Number.isNaN(exp.getTime())?`Este QR Code vence em ${exp.toLocaleString('pt-BR')}.`:'O QR Code tem validade limitada.';
+      loading.hidden=true;content.hidden=false;setPixState('pending');
+      if(pixPollTimer)clearInterval(pixPollTimer);
+      pixPollTimer=setInterval(()=>checkPixStatus(true),4000);
+    }catch(err){
+      loading.hidden=true;error.hidden=false;
+      error.textContent=err.code==='BILLING_NOT_CONFIGURED'?'O Pix ainda precisa ser conectado ao Mercado Pago no Cloudflare.':(err.message||'Não foi possível gerar o Pix.');
+    }
+  }
+  $('#upgradeBtn').addEventListener('click',openPixCheckout);
+  $('#manageBillingBtn').addEventListener('click',()=>toast('O pagamento via Pix libera 30 dias de Pro. A renovação pode ser feita novamente por Pix.'));
+  $('#pixCloseBtn')?.addEventListener('click',closePixDialog);
+  $('#pixDialog')?.addEventListener('click',e=>{if(e.target===$('#pixDialog'))closePixDialog();});
+  $('#pixDialog')?.addEventListener('close',()=>{if(pixPollTimer){clearInterval(pixPollTimer);pixPollTimer=null;}});
+  $('#pixCopyBtn')?.addEventListener('click',async()=>{
+    const code=$('#pixCode').value.trim();if(!code)return;
+    try{await navigator.clipboard.writeText(code);toast('Código Pix copiado.');}
+    catch{ $('#pixCode').select();document.execCommand('copy');toast('Código Pix copiado.'); }
   });
-  $('#manageBillingBtn').addEventListener('click',async()=>{
-    showLoading('Abrindo sua assinatura…','Carregando o portal de cobrança.');
-    try{const r=await apiFetch('/api/billing/portal',{method:'POST'});location.href=r.url;}catch(err){toast(err.message);}finally{hideLoading();}
-  });
+
 
   function setActivityMenu(open){
     const toggle=$('#activityNavToggle'), submenu=$('#activityNavSubmenu');

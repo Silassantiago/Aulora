@@ -456,7 +456,7 @@
               <div class="stack-actions account-actions"><button class="primary-button" id="settingsLoginBtn" type="button">Criar conta grátis</button><button class="ghost-button" id="settingsEnterBtn" type="button">Já tenho conta</button><button class="ghost-button" id="syncCloudBtn" type="button" hidden>Atualizar da nuvem</button><button class="ghost-button" id="logoutBtn" type="button" hidden>Sair da conta</button></div>
             </div>
             <div class="form-card plan-card plan-comparison-card">
-              <div class="card-heading"><div><span class="eyebrow">PLANOS</span><h2>Grátis ou Pro</h2></div><span class="price-tag">Pro R$ 14,90/mês</span></div>
+              <div class="card-heading"><div><span class="eyebrow">PLANOS</span><h2>Grátis ou Pro</h2></div><span class="price-tag">Pro R$ 14,90 / 30 dias</span></div>
               <div class="plan-comparison">
                 <article class="plan-option free-option">
                   <div class="plan-option-head"><div><span>PARA COMEÇAR</span><h3>Aulora Grátis</h3></div><strong>R$ 0</strong></div>
@@ -464,9 +464,9 @@
                   <button class="ghost-button" id="freePlanSignupBtn" type="button">Criar conta grátis</button>
                 </article>
                 <article class="plan-option pro-option">
-                  <div class="plan-option-head"><div><span>PARA USO FREQUENTE</span><h3>Aulora Pro</h3></div><strong>R$ 14,90<small>/mês</small></strong></div>
+                  <div class="plan-option-head"><div><span>PARA USO FREQUENTE</span><h3>Aulora Pro</h3></div><strong>R$ 14,90<small>/30 dias</small></strong></div>
                   <ul class="feature-list"><li>200 gerações inteligentes por mês</li><li>Até 1.000 materiais sincronizados</li><li>Atividades e provas com até 20 questões</li><li>Acesso aos materiais em qualquer dispositivo</li><li>Todos os recursos atuais do Aulora com limites ampliados</li></ul>
-                  <div class="stack-actions"><button class="primary-button" id="upgradeBtn" type="button">Assinar Pro</button><button class="ghost-button" id="manageBillingBtn" type="button" hidden>Gerenciar assinatura</button></div>
+                  <div class="stack-actions"><button class="primary-button" id="upgradeBtn" type="button">Pagar com Pix</button><button class="ghost-button" id="manageBillingBtn" type="button" hidden>Gerenciar assinatura</button></div>
                 </article>
               </div>
               <small class="billing-note" id="billingNote">A conta gratuita inclui 5 gerações inteligentes por mês, 25 materiais na nuvem e até 10 questões por atividade ou avaliação.</small>
@@ -586,6 +586,29 @@
         <button class="primary-button" type="submit">Salvar nova senha</button>
       </form>
       <p class="auth-foot">Ao alterar a senha, as outras sessões da conta serão encerradas.</p>
+    </div>
+  </dialog>
+
+  <dialog id="pixDialog" class="auth-dialog pix-dialog">
+    <div class="pix-shell">
+      <button class="icon-button auth-close" id="pixCloseBtn" type="button" aria-label="Fechar">×</button>
+      <div class="pix-brand-row"><div class="pix-brand-icon">◆</div><div><span class="eyebrow">PAGAMENTO SEGURO</span><h2>Aulora Pro via Pix</h2><p>R$ 14,90 libera o Pro por 30 dias após a confirmação do pagamento.</p></div></div>
+      <div class="pix-loading" id="pixLoading"><div class="spinner"></div><strong>Gerando seu Pix…</strong><small>Aguarde alguns segundos.</small></div>
+      <div class="pix-content" id="pixContent" hidden>
+        <div class="pix-status" id="pixStatus"><span></span><div><strong>Aguardando pagamento</strong><small>O plano será ativado automaticamente.</small></div></div>
+        <div class="pix-grid">
+          <div class="pix-qr-wrap"><img id="pixQrImage" alt="QR Code Pix para pagamento do Aulora Pro" /></div>
+          <div class="pix-copy-panel">
+            <span class="eyebrow">PIX COPIA E COLA</span>
+            <textarea id="pixCode" rows="5" readonly aria-label="Código Pix copia e cola"></textarea>
+            <button class="primary-button" id="pixCopyBtn" type="button">Copiar código Pix</button>
+            <a class="ghost-button pix-ticket-link" id="pixTicketLink" href="#" target="_blank" rel="noopener" hidden>Abrir pagamento no Mercado Pago</a>
+          </div>
+        </div>
+        <div class="pix-instructions"><strong>Como pagar</strong><ol><li>Abra o aplicativo do seu banco.</li><li>Escolha Pix e escaneie o QR Code ou use o código copia e cola.</li><li>Após a confirmação, o Aulora ativa seu Pro automaticamente.</li></ol></div>
+        <small class="pix-expiry" id="pixExpiry"></small>
+      </div>
+      <div class="auth-error" id="pixError" role="alert" hidden></div>
     </div>
   </dialog>
 
