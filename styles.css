@@ -355,6 +355,11 @@ body{
 }
 .ghost-button:hover,.account-chip:hover{background:rgba(20,58,110,.86)!important;border-color:rgba(62,207,223,.36)!important}
 .account-chip #accountPlan{color:#38edcf!important}.account-chip .account-chevron{color:#79a4d3!important}
+
+.account-chip #accountPlan{display:inline-flex;align-items:center;justify-content:center;padding:5px 9px;border-radius:999px;background:rgba(59,236,211,.12);border:1px solid rgba(59,236,211,.22);font-size:10px!important;letter-spacing:.02em!important;text-transform:none!important;color:#66f0dd!important;line-height:1;white-space:nowrap}
+.account-chip strong#accountName{text-transform:none;font-size:13px!important;max-width:170px}
+@media(max-width:760px){.account-chip #accountPlan{padding:4px 8px;font-size:9px!important}.account-chip strong#accountName{max-width:100px}}
+
 .content{max-width:1620px!important;padding:28px 34px 46px!important}
 #view-dashboard{color:#fff}
 
@@ -435,4 +440,129 @@ input,select,textarea{background:#081b39!important;border-color:rgba(84,145,217,
 @media(max-width:980px){.sidebar{width:260px}.main-column{margin-left:260px;width:calc(100% - 260px)}.home-hero{grid-template-columns:1fr!important}.home-hero-stage{min-height:360px!important}.home-tool-grid{grid-template-columns:repeat(2,1fr)!important}}
 @media(max-width:760px){.main-column{margin-left:0;width:100%}.content{padding:18px 13px 38px!important}.topbar{padding:0 14px!important}.home-hero{padding:30px 22px!important}.home-hero h1{font-size:40px!important;letter-spacing:-2px!important}.home-tool-grid{grid-template-columns:1fr!important}.home-stats-grid{grid-template-columns:repeat(2,1fr)!important}.home-hero-stage.henry-stage{min-height:320px!important}}
 @media(max-width:520px){.home-hero h1{font-size:34px!important}.home-stats-grid{grid-template-columns:1fr 1fr!important}}
-\n\n/* ===== Henry layout correction: clean face, side speech bubble, no duplicate helper on home ===== */\n.henry-stage{\n  min-height:420px!important;\n  justify-content:flex-start!important;\n  padding-right:230px!important;\n  overflow:visible!important;\n}\n.henry-robot{\n  width:min(390px,78%)!important;\n  max-height:405px!important;\n  left:-8px!important;\n  object-position:center bottom!important;\n}\n.henry-wave{display:none!important}\n.henry-bubble{\n  right:4px!important;\n  top:38px!important;\n  width:215px!important;\n  padding:16px 17px 15px!important;\n  z-index:8!important;\n  animation:none!important;\n}\n.henry-bubble:after{\n  left:-13px!important;\n  bottom:auto!important;\n  top:84px!important;\n  transform:rotate(45deg)!important;\n}\n.henry-mini-one{left:2%!important;bottom:9%!important}\n.henry-mini-two{right:3%!important;bottom:5%!important}\nbody[data-view="dashboard"] .henry-help-toggle{display:none!important}\nbody[data-view="dashboard"] .henry-help-panel[hidden]{display:none!important}\nbody:not([data-view="dashboard"]) .henry-help-toggle{\n  min-width:0!important;width:58px!important;height:58px!important;border-radius:20px!important;padding:5px!important;display:block!important;\n}\nbody:not([data-view="dashboard"]) .henry-help-toggle img{width:48px!important;height:48px!important}\nbody:not([data-view="dashboard"]) .henry-help-toggle span,\nbody:not([data-view="dashboard"]) .henry-help-toggle>i{display:none!important}\n@media(max-width:1180px){\n  .henry-stage{padding-right:200px!important}\n  .henry-robot{width:360px!important;left:-14px!important}\n  .henry-bubble{width:195px!important;right:0!important;top:30px!important}\n}\n@media(max-width:980px){\n  .henry-stage{justify-content:center!important;padding-right:0!important;min-height:390px!important}\n  .henry-robot{width:360px!important;left:-55px!important}\n  .henry-bubble{right:2%!important;top:34px!important;width:205px!important}\n}\n@media(max-width:760px){\n  .henry-stage{min-height:350px!important;justify-content:center!important;padding-right:0!important}\n  .henry-robot{width:300px!important;max-height:320px!important;left:-45px!important}\n  .henry-bubble{right:0!important;top:20px!important;width:180px!important;padding:12px!important}\n  .henry-bubble p{font-size:9px!important}\n  .henry-mini-card{display:none!important}\n}\n@media(max-width:520px){\n  .henry-stage{min-height:315px!important}\n  .henry-robot{width:265px!important;left:-52px!important}\n  .henry-bubble{width:156px!important;top:12px!important;right:-4px!important}\n  .henry-bubble strong{font-size:13px!important}\n  .henry-bubble button{font-size:8px!important}\n}\n
+
+
+/* ===== FINAL HENRY POSITION FIX ===== */
+.henry-stage{
+  min-height:420px!important;
+  justify-content:flex-start!important;
+  align-items:flex-end!important;
+  padding-right:235px!important;
+  overflow:visible!important;
+}
+.henry-robot{
+  width:min(395px,78%)!important;
+  max-height:410px!important;
+  margin-left:-8px!important;
+  object-position:center bottom!important;
+}
+.henry-wave{display:none!important}
+.henry-bubble{
+  right:6px!important;
+  top:26px!important;
+  width:220px!important;
+  padding:16px 17px 15px!important;
+  z-index:8!important;
+  animation:none!important;
+}
+.henry-bubble:after{
+  left:-12px!important;
+  bottom:auto!important;
+  top:86px!important;
+  width:22px!important;
+  height:22px!important;
+  transform:rotate(45deg)!important;
+}
+.henry-mini-one{left:0!important;bottom:13%!important}
+.henry-mini-two{right:2%!important;bottom:3%!important}
+body[data-view="dashboard"] .henry-help-toggle{display:none!important}
+body[data-view="dashboard"] .henry-help-panel[hidden]{display:none!important}
+@media(max-width:1180px){
+  .henry-stage{padding-right:205px!important}
+  .henry-robot{width:365px!important;margin-left:-12px!important}
+  .henry-bubble{width:198px!important;right:0!important;top:24px!important}
+}
+@media(max-width:980px){
+  .henry-stage{justify-content:center!important;padding-right:0!important;min-height:390px!important}
+  .henry-robot{width:350px!important;margin-left:-44px!important}
+  .henry-bubble{right:2%!important;top:28px!important;width:205px!important}
+}
+@media(max-width:760px){
+  .henry-stage{min-height:350px!important;justify-content:center!important;padding-right:0!important}
+  .henry-robot{width:300px!important;max-height:320px!important;margin-left:-40px!important}
+  .henry-bubble{right:0!important;top:18px!important;width:178px!important;padding:12px!important}
+  .henry-bubble p{font-size:9px!important}
+  .henry-mini-card{display:none!important}
+}
+@media(max-width:520px){
+  .henry-stage{min-height:315px!important}
+  .henry-robot{width:265px!important;margin-left:-48px!important}
+  .henry-bubble{width:154px!important;top:10px!important;right:-4px!important}
+  .henry-bubble strong{font-size:13px!important}
+  .henry-bubble button{font-size:8px!important}
+}
+
+/* ================================================================
+   AULORA MERGE — interface inspirada no redesign do workspace Grok,
+   preservando o backend e os módulos originais do Aulora.
+   ================================================================ */
+:root{
+  --merge-bg:#06152d;
+  --merge-navy:#071a36;
+  --merge-surface:#0b244b;
+  --merge-surface-2:#0a2a58;
+  --merge-fg:#eef6ff;
+  --merge-muted:#8ea8c6;
+  --merge-cyan:#1ee4d0;
+  --merge-blue:#2d8fff;
+  --merge-purple:#8f5cff;
+  --merge-pink:#ff5a9a;
+}
+
+body{background:var(--merge-bg)!important}
+.app-shell{background:radial-gradient(circle at 78% 8%,rgba(45,107,255,.16),transparent 32%),radial-gradient(circle at 12% 92%,rgba(30,228,208,.07),transparent 28%),var(--merge-bg)!important}
+.sidebar{background:radial-gradient(circle at 30% 0%,rgba(10,201,224,.12),transparent 30%),linear-gradient(180deg,#06152e 0%,#071a36 52%,#05142b 100%)!important;border-right-color:rgba(84,150,231,.18)!important;padding-top:20px!important}
+.brand{padding:4px 8px 24px!important;gap:12px!important}.brand-mark{width:46px!important;height:46px!important;border-radius:14px!important;background:linear-gradient(145deg,#0cf4d0,#2088ff 58%,#7c4dff)!important;box-shadow:0 0 0 1px rgba(74,216,255,.28),0 0 28px rgba(31,170,255,.28)!important;color:#fff!important;font-size:22px!important}.brand strong{font-size:22px!important;letter-spacing:-.04em!important;color:#fff!important}.brand span{color:#92aac7!important;font-size:11px!important}
+.nav{gap:5px!important}.nav-item{border-radius:14px!important;padding:11px 13px!important;color:#b7c8de!important;font-size:14px!important}.nav-item>span:first-child{color:#91caff!important}.nav-item:hover{background:rgba(30,109,185,.17)!important;color:#fff!important;transform:translateX(2px)}.nav-item.active,.nav-parent.active{background:linear-gradient(90deg,rgba(20,225,206,.24),rgba(26,117,221,.16))!important;color:#fff!important;box-shadow:inset 0 0 0 1px rgba(42,226,224,.22)!important}
+.plan-mini{background:linear-gradient(155deg,rgba(10,48,91,.94),rgba(9,35,70,.95))!important;border-color:rgba(58,147,238,.28)!important;border-radius:16px!important}.plan-mini strong{color:#fff!important}.plan-mini small{color:#91a8c3!important}.plan-mini #planMiniBadge{color:#ffd75a!important}
+.status-card{background:rgba(6,28,62,.7)!important;border-color:rgba(58,147,238,.2)!important}.status-card strong{color:#d9e9fa!important}.status-card small{color:#829ab9!important}
+
+.topbar{height:72px!important;background:rgba(5,18,41,.92)!important;backdrop-filter:blur(18px)!important;border-bottom-color:rgba(65,139,224,.18)!important;padding:0 28px!important}.topbar-copy strong{font-size:15px!important;color:#fff!important}.topbar-copy span{font-size:12px!important;color:#8ea8c6!important}.topbar-actions{gap:10px!important}
+.ghost-button,.account-chip{background:rgba(12,38,76,.72)!important;color:#f1f7ff!important;border-color:rgba(84,154,235,.25)!important;border-radius:12px!important;min-height:42px!important}.ghost-button:hover,.account-chip:hover{background:rgba(20,58,110,.86)!important;border-color:rgba(62,207,223,.36)!important}
+.account-chip{padding:6px 10px!important;gap:8px!important}.account-chip #accountPlan{display:inline-flex!important;align-items:center!important;justify-content:center!important;padding:5px 9px!important;border-radius:999px!important;background:linear-gradient(135deg,rgba(25,239,209,.18),rgba(37,174,255,.15))!important;border:1px solid rgba(59,236,211,.28)!important;color:#66f0dd!important;font-size:10px!important;letter-spacing:.01em!important;text-transform:none!important;white-space:nowrap!important}.account-chip strong#accountName{color:#fff!important;font-size:13px!important;max-width:180px!important;text-transform:none!important;letter-spacing:0!important}.account-chevron{color:#7ca9d8!important}
+
+.content{max-width:1540px!important;padding:24px 28px 56px!important}
+
+/* HERO — o balão é uma coluna própria; não pode cobrir o rosto do Henry */
+.aulora-grok-hero{min-height:420px!important;padding:40px 42px!important;border-radius:28px!important;border:1px solid rgba(43,143,255,.4)!important;background:radial-gradient(circle at 74% 42%,rgba(18,226,222,.12),transparent 24%),radial-gradient(circle at 92% 8%,rgba(113,67,255,.32),transparent 34%),radial-gradient(circle at 40% 0%,rgba(45,107,255,.20),transparent 30%),linear-gradient(135deg,#071d47 0%,#092e62 46%,#151f68 100%)!important;box-shadow:0 28px 80px rgba(0,0,0,.32)!important;grid-template-columns:minmax(440px,1.03fr) minmax(540px,.97fr)!important;gap:26px!important;overflow:hidden!important}
+.aulora-grok-hero:after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.28;background-image:linear-gradient(rgba(46,157,255,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(46,157,255,.07) 1px,transparent 1px);background-size:46px 46px;mask-image:linear-gradient(to right,rgba(0,0,0,.8),transparent 82%)}
+.hero-copy{position:relative!important;z-index:4!important;max-width:640px!important}.kicker-row{display:flex!important;flex-wrap:wrap!important;gap:8px!important;align-items:center!important}.hero-kicker,.kicker{color:#6ceee5!important;background:rgba(16,111,178,.27)!important;border:1px solid rgba(44,174,255,.32)!important;padding:7px 12px!important;border-radius:999px!important;font-size:11px!important;font-weight:850!important;letter-spacing:.08em!important}.hero-live,.live-pill{display:inline-flex!important;align-items:center!important;gap:7px!important;background:rgba(11,81,96,.48)!important;border:1px solid rgba(61,244,204,.28)!important;color:#b9fff1!important;padding:6px 10px!important;border-radius:999px!important;font-size:11px!important;font-weight:700!important}.hero-live i,.live-pill i{width:7px!important;height:7px!important;border-radius:50%!important;background:#39efc7!important;box-shadow:0 0 10px #39efc7!important}
+.aulora-grok-hero h1{font-size:clamp(42px,4.1vw,62px)!important;line-height:.98!important;letter-spacing:-.048em!important;margin:24px 0 16px!important;color:#fff!important}.aulora-grok-hero h1 span{background:linear-gradient(90deg,#21efd4,#43d7ff 50%,#9a75ff)!important;-webkit-background-clip:text!important;background-clip:text!important;color:transparent!important}.aulora-grok-hero .home-hero-copy>p{color:#c6d5e8!important;font-size:15.5px!important;line-height:1.6!important;max-width:560px!important;margin-bottom:24px!important}.hero-actions{display:flex!important;gap:10px!important;flex-wrap:wrap!important;margin-bottom:20px!important}.home-primary,.home-secondary{border-radius:14px!important;padding:13px 18px!important;font-weight:850!important}.home-primary{background:linear-gradient(135deg,#13efd1,#28c3ff)!important;color:#031c34!important;box-shadow:0 15px 34px rgba(13,225,213,.25)!important}.home-secondary{background:rgba(7,27,68,.66)!important;color:#fff!important;border:1px solid rgba(84,162,255,.42)!important}.trust-row{display:flex!important;flex-wrap:wrap!important;gap:8px!important}.trust-row span{background:rgba(11,40,87,.62)!important;border:1px solid rgba(67,151,238,.26)!important;border-radius:999px!important;padding:7px 11px!important;color:#d8e7f7!important;font-size:12px!important;font-weight:650!important}.trust-row b{color:#21ead1!important}
+
+.henry-stage-clean{position:relative!important;z-index:5!important;min-height:385px!important;display:grid!important;grid-template-columns:minmax(280px,1fr) 225px!important;gap:12px!important;align-items:center!important;justify-content:stretch!important;padding:0!important;overflow:visible!important}
+.henry-stage-clean:before{display:none!important}.henry-visual{position:relative;min-height:385px;display:flex;align-items:flex-end;justify-content:center;isolation:isolate}.henry-glow{position:absolute;z-index:-1;width:390px;height:390px;left:50%;top:50%;transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(circle,rgba(38,213,255,.25),rgba(70,89,255,.12) 44%,transparent 70%)}
+.henry-stage-clean .henry-robot{position:relative!important;z-index:2!important;width:min(420px,100%)!important;max-height:405px!important;margin:0!important;left:auto!important;right:auto!important;object-fit:contain!important;object-position:center bottom!important;filter:drop-shadow(0 30px 36px rgba(0,0,0,.4)) drop-shadow(0 0 28px rgba(36,192,255,.26))!important;animation:henryFloat 5s ease-in-out infinite!important}
+.henry-message-column{position:relative;z-index:8;align-self:start;margin-top:35px;display:grid;gap:12px}.henry-stage-clean .henry-bubble{position:relative!important;inset:auto!important;width:auto!important;max-width:none!important;padding:16px 17px!important;border-radius:20px!important;background:rgba(250,252,255,.985)!important;color:#092445!important;border:1px solid rgba(117,197,255,.58)!important;box-shadow:0 18px 60px rgba(0,0,0,.32),0 0 34px rgba(86,137,255,.14)!important;animation:none!important}.henry-stage-clean .henry-bubble:after{content:""!important;position:absolute!important;left:-12px!important;top:54px!important;bottom:auto!important;width:22px!important;height:22px!important;background:#fff!important;clip-path:polygon(0 0,100% 50%,0 100%)!important;transform:none!important}.henry-stage-clean .henry-bubble-kicker{font-size:9px!important;color:#1674c9!important;letter-spacing:.12em!important}.henry-stage-clean .henry-bubble strong{font-size:18px!important;color:#092445!important;margin-top:5px!important}.henry-stage-clean .henry-bubble p{font-size:12px!important;line-height:1.48!important;color:#52677f!important;margin:6px 0 0!important}.henry-stage-clean .henry-bubble p b{color:#0d7fc6!important}.henry-help-hero-button{width:100%;min-height:44px;border:0;border-radius:13px;background:linear-gradient(135deg,#6b46ff,#8a3fff 55%,#24baff);color:#fff;font-size:12px;font-weight:900;box-shadow:0 12px 30px rgba(112,64,255,.34);cursor:pointer}.henry-help-hero-button:hover{transform:translateY(-2px);filter:brightness(1.08)}
+.henry-stage-clean .henry-mini-card{background:rgba(12,34,77,.93)!important;color:#eef6ff!important;border:1px solid rgba(88,160,255,.34)!important;border-radius:14px!important;padding:10px 12px!important;box-shadow:0 16px 40px rgba(0,0,0,.28)!important}.henry-stage-clean .henry-mini-one{left:-3%!important;bottom:16%!important;right:auto!important;top:auto!important}.henry-stage-clean .henry-mini-two{right:-2%!important;bottom:5%!important;left:auto!important;top:auto!important}.henry-stage-clean .henry-mini-card>span{background:linear-gradient(145deg,rgba(25,228,207,.25),rgba(72,102,255,.25))!important;color:#64f7e7!important}.henry-stage-clean .henry-mini-card strong{color:#fff!important}.henry-stage-clean .henry-mini-card small{color:#a8b9d1!important}
+
+/* Principal tool cards */
+.grok-tool-grid{grid-template-columns:repeat(5,minmax(0,1fr))!important;gap:14px!important;margin-top:18px!important}.grok-tool-grid .home-tool-card{min-height:190px!important;padding:19px 18px 17px!important;border-radius:20px!important;display:flex!important;flex-direction:column!important;gap:8px!important;box-shadow:0 18px 44px rgba(0,0,0,.2)!important}.grok-tool-grid .home-tool-card .tool-icon{width:48px!important;height:48px!important;border-radius:14px!important;display:grid!important;place-items:center!important;background:rgba(255,255,255,.12)!important;color:#fff!important;font-size:22px!important;margin-bottom:5px!important}.grok-tool-grid .home-tool-card strong{font-size:17px!important}.grok-tool-grid .home-tool-card small{font-size:12.5px!important;line-height:1.42!important;color:#d1deef!important}.grok-tool-grid .home-tool-card b{margin-top:auto!important;color:#7af1ff!important;font-size:13px!important}.grok-tool-grid .tool-plan{background:linear-gradient(160deg,#1558c8,#0d3f96)!important}.grok-tool-grid .tool-activity{background:linear-gradient(160deg,#0e96c7,#0871a4)!important}.grok-tool-grid .tool-exam{background:linear-gradient(160deg,#128f8a,#0b6470)!important}.grok-tool-grid .tool-report{background:linear-gradient(160deg,#6a46d6,#3d2d8a)!important}.grok-tool-grid .tool-inclusive{background:linear-gradient(160deg,#d43d78,#8a2a6b)!important}
+
+/* Real stats — sem números inventados */
+.grok-stats-row{grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:12px!important;margin-top:16px!important}.grok-stats-row article{position:relative!important;background:linear-gradient(145deg,#0a2a58,#0b2148)!important;border:1px solid rgba(69,147,234,.22)!important;border-radius:18px!important;padding:15px 18px!important;min-height:118px!important;box-shadow:0 14px 34px rgba(0,0,0,.18)!important}.grok-stats-row article:before{content:"";position:absolute;left:0;top:18px;bottom:18px;width:3px;border-radius:3px;background:linear-gradient(#1ee4d0,#2d8fff)}.grok-stats-row article:nth-child(2):before{background:linear-gradient(#21d6ff,#2179ff)}.grok-stats-row article:nth-child(3):before{background:linear-gradient(#1ee4aa,#21b8c8)}.grok-stats-row article:nth-child(4):before{background:linear-gradient(#9a72ff,#ff5a9a)}.grok-stats-row article span{color:#8fb6db!important;font-size:12px!important}.grok-stats-row article strong{font-size:32px!important;color:#fff!important;margin:5px 0 2px!important;letter-spacing:-.04em!important}.grok-stats-row article small{color:#748eae!important;font-size:11.5px!important}
+
+/* Modelos do Grok + materiais reais do Aulora */
+.dashboard-bottom-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:18px}.dashboard-panel{background:linear-gradient(180deg,rgba(9,35,73,.95),rgba(7,28,60,.97));border:1px solid rgba(67,139,221,.23);border-radius:22px;padding:18px;box-shadow:0 18px 45px rgba(0,0,0,.19)}.dashboard-panel-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px}.dashboard-panel-head h2{margin:5px 0 0;color:#fff;font-size:18px;letter-spacing:-.3px}.featured-model-grid,.dashboard-recent-list{display:grid;gap:9px}.featured-model-card,.dashboard-recent-card{width:100%;display:grid;grid-template-columns:42px 1fr 18px;align-items:center;gap:11px;text-align:left;border:1px solid rgba(78,143,221,.22);border-radius:14px;padding:11px 12px;background:linear-gradient(145deg,rgba(12,49,96,.88),rgba(10,38,78,.9));color:#fff;cursor:pointer;transition:.18s}.featured-model-card:hover,.dashboard-recent-card:hover{transform:translateY(-2px);border-color:rgba(63,220,235,.42);background:linear-gradient(145deg,rgba(15,62,119,.92),rgba(12,47,94,.95))}.featured-icon{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(145deg,rgba(24,225,206,.18),rgba(51,113,255,.25));color:#72f2e7;font-weight:900}.featured-model-card div{min-width:0}.featured-model-card strong,.featured-model-card small{display:block}.featured-model-card strong{font-size:13px}.featured-model-card small{font-size:10.5px;color:#91a9c7;margin-top:3px;line-height:1.35}.featured-model-card>b{color:#65dfff;font-size:16px}.dashboard-recent-card{grid-template-columns:1fr;gap:3px;padding:12px 13px}.dashboard-recent-card .recent-type{font-size:9px;text-transform:uppercase;letter-spacing:.09em;color:#4be5d2;font-weight:850}.dashboard-recent-card strong{font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.dashboard-recent-card small{color:#8fa7c4;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.dashboard-empty{min-height:166px;display:flex;align-items:center;justify-content:center;gap:12px;text-align:left;color:#8ea8c6;border:1px dashed rgba(78,143,221,.24);border-radius:15px;padding:18px}.dashboard-empty>span{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;background:rgba(30,228,208,.12);color:#44ead7}.dashboard-empty strong,.dashboard-empty small{display:block}.dashboard-empty strong{color:#fff;font-size:13px}.dashboard-empty small{font-size:10.5px;line-height:1.4;margin-top:4px}
+
+.grok-secondary-grid{margin-top:18px!important}.grok-secondary-grid .home-inclusive-panel{min-height:250px!important}.grok-secondary-grid .home-cloud-panel{min-height:250px!important}.abnt-shortcut{margin-top:14px;width:100%;border:1px solid rgba(94,157,235,.28);border-radius:12px;background:rgba(10,36,78,.62);color:#d9ecff;padding:10px 12px;font-weight:750;cursor:pointer}.abnt-shortcut:hover{border-color:#46d8e5;background:rgba(14,55,106,.8)}
+
+/* Helper: sem mini robô estranho na home. O painel abre pelo botão do hero. */
+body[data-view="dashboard"] .henry-help-toggle{display:none!important}body[data-view="dashboard"] .henry-help-panel:not([hidden]){display:block!important}body:not([data-view="dashboard"]) .henry-help-toggle{min-width:0!important;width:58px!important;height:58px!important;border-radius:20px!important;padding:5px!important;display:block!important}body:not([data-view="dashboard"]) .henry-help-toggle img{width:48px!important;height:48px!important}body:not([data-view="dashboard"]) .henry-help-toggle span,body:not([data-view="dashboard"]) .henry-help-toggle>i{display:none!important}
+
+/* Responsive */
+@media(max-width:1380px){.aulora-grok-hero{grid-template-columns:minmax(390px,1fr) minmax(480px,.95fr)!important;padding:36px 34px!important}.henry-stage-clean{grid-template-columns:minmax(245px,1fr) 210px!important}.henry-stage-clean .henry-robot{width:min(380px,100%)!important}.grok-tool-grid{grid-template-columns:repeat(3,1fr)!important}}
+@media(max-width:1120px){.aulora-grok-hero{grid-template-columns:1fr!important}.henry-stage-clean{grid-template-columns:minmax(300px,1fr) 240px!important;max-width:650px;margin:0 auto!important}.dashboard-bottom-grid{grid-template-columns:1fr!important}.grok-tool-grid{grid-template-columns:repeat(3,1fr)!important}}
+@media(max-width:980px){.sidebar{width:260px}.main-column{margin-left:260px;width:calc(100% - 260px)}.aulora-grok-hero{padding:30px 26px!important}.grok-stats-row{grid-template-columns:repeat(2,1fr)!important}}
+@media(max-width:800px){.sidebar{transform:translateX(-100%);transition:transform .2s ease}.sidebar.open{transform:translateX(0);box-shadow:24px 0 60px rgba(0,0,0,.4)}.main-column{margin-left:0!important;width:100%!important}.content{padding:16px 14px 100px!important}.topbar{padding:0 12px!important}.aulora-grok-hero{padding:26px 18px!important;grid-template-columns:1fr!important}.aulora-grok-hero h1{font-size:42px!important}.henry-stage-clean{grid-template-columns:minmax(230px,1fr) 190px!important;min-height:315px!important;gap:8px!important}.henry-visual{min-height:315px}.henry-stage-clean .henry-robot{width:300px!important;max-height:315px!important}.henry-message-column{margin-top:24px}.henry-stage-clean .henry-bubble{padding:13px!important}.henry-stage-clean .henry-bubble strong{font-size:15px!important}.henry-stage-clean .henry-bubble p{font-size:10.5px!important}.henry-mini-card{display:none!important}.grok-tool-grid{grid-template-columns:repeat(2,1fr)!important}.dashboard-bottom-grid{grid-template-columns:1fr!important}.account-chip strong#accountName{max-width:110px!important}.account-chip #accountPlan{font-size:9px!important;padding:4px 7px!important}}
+@media(max-width:560px){.topbar-copy span{display:none!important}.aulora-grok-hero h1{font-size:34px!important;letter-spacing:-.035em!important}.henry-stage-clean{grid-template-columns:1fr!important;min-height:auto!important}.henry-visual{min-height:270px}.henry-stage-clean .henry-robot{width:270px!important;max-height:275px!important}.henry-message-column{margin:0!important;max-width:100%!important}.henry-stage-clean .henry-bubble:after{display:none!important}.henry-help-hero-button{min-height:42px}.grok-tool-grid{grid-template-columns:1fr!important}.grok-stats-row{grid-template-columns:1fr 1fr!important}.dashboard-panel{padding:14px}.home-feature-grid.grok-secondary-grid{grid-template-columns:1fr!important}.account-chip #accountPlan{display:none!important}.account-chip strong#accountName{max-width:100px!important}}
+@media(max-width:390px){.grok-stats-row{grid-template-columns:1fr!important}.aulora-grok-hero{padding:22px 15px!important}.aulora-grok-hero h1{font-size:31px!important}.hero-trust-row{display:none!important}}

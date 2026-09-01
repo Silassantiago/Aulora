@@ -121,6 +121,14 @@
   $('#authDialog').addEventListener('click',e=>{if(e.target===$('#authDialog'))closeAuth();});
 
   function planName(user){return user?.plan==='pro'?'Pro':user?'Grátis':'Sem conta';}
+  function planChipName(user){return user?.plan==='pro'?'Plano Pro':user?'Plano Grátis':'Sem conta';}
+  function formatDisplayName(value){
+    return String(value||'').trim().replace(/\s+/g,' ').toLowerCase().replace(/(^|[\s-])([\p{L}])/gu,(m,p1,p2)=>p1+p2.toUpperCase());
+  }
+  function userDisplayName(user){
+    const formatted=formatDisplayName(user?.name||'');
+    return formatted || (user?.email||'Professor(a)');
+  }
   function applyUser(user){
     app.user=user||null; app.usage=user?.usage||null; app.billingEnabled=Boolean(user?.billing?.enabled);
     if(user){
@@ -129,13 +137,13 @@
     applyProfile(true); updateAccountUI();
   }
   function updateAccountUI(){
-    const user=app.user, plan=planName(user), isPro=user?.plan==='pro';
-    $('#accountPlan').textContent=plan; $('#accountName').textContent=user?(user.name||user.email):''; $('#profileShortcut').textContent=user?String(user.name||user.email||'A').trim().charAt(0).toUpperCase():'A';
+    const user=app.user, plan=planName(user), chipPlan=planChipName(user), isPro=user?.plan==='pro', displayName=userDisplayName(user);
+    $('#accountPlan').textContent=chipPlan; $('#accountName').textContent=user?displayName:''; $('#profileShortcut').textContent=user?String(displayName||user.email||'A').trim().charAt(0).toUpperCase():'A';
     $('#guestAuthActions').hidden=Boolean(user); $('#accountMenuWrap').hidden=!user; $('#profileShortcut').hidden=true;
     if(user){
-      const initial=String(user.name||user.email||'A').trim().charAt(0).toUpperCase();
-      $('#accountMenuAvatar').textContent=initial; $('#accountMenuName').textContent=user.name||'Professor(a)'; $('#accountMenuEmail').textContent=user.email;
-      $('#accountMenuPlan').textContent=plan; $('#accountMenuUsage').textContent=app.usage?`${app.usage.ai} / ${app.usage.limits.ai} gerações neste mês`:'';
+      const initial=String(displayName||user.email||'A').trim().charAt(0).toUpperCase();
+      $('#accountMenuAvatar').textContent=initial; $('#accountMenuName').textContent=displayName||'Professor(a)'; $('#accountMenuEmail').textContent=user.email;
+      $('#accountMenuPlan').textContent=chipPlan; $('#accountMenuUsage').textContent=app.usage?`${app.usage.ai} / ${app.usage.limits.ai} gerações neste mês`:'';
     } else { $('#accountMenu').hidden=true; $('#accountBtn').setAttribute('aria-expanded','false'); }
     $$('[data-guest-only]').forEach(el=>el.hidden=Boolean(user));
     $$('[data-pro-only]').forEach(option=>{ option.disabled=Boolean(user)&&!isPro || !user; option.classList.toggle('option-pro-locked',!isPro); });
@@ -143,7 +151,7 @@
     $('#planMiniBadge').textContent=user?plan.toUpperCase():'COMECE GRÁTIS'; $('#planMiniBadge').className=isPro?'plan-pro':user?'plan-free':'';
     $('#planMiniTitle').textContent=user?(isPro?'Aulora Pro ativo':'Aulora Grátis ativo'):'Crie sua conta gratuita';
     $('#planMiniUsage').textContent=user&&app.usage?`${app.usage.ai}/${app.usage.limits.ai} gerações inteligentes usadas neste mês.`:'Geração inteligente exige uma conta gratuita.';
-    $('#settingsAccountTitle').textContent=user?(user.name||user.email):'Você ainda não entrou';
+    $('#settingsAccountTitle').textContent=user?(displayName||user.email):'Você ainda não entrou';
     $('#settingsPlanBadge').textContent=plan.toUpperCase(); $('#settingsPlanBadge').className=`plan-badge ${isPro?'plan-pro':user?'plan-free':''}`;
     $('#settingsAccountText').textContent=user?`Conta: ${user.email}. Seus novos materiais são salvos também na nuvem.`:'Ainda não é cadastrado? Crie sua conta grátis para gerar materiais, salvar na nuvem e sincronizar entre dispositivos.';
     $('#settingsAiUsage').textContent=user&&app.usage?`${app.usage.ai} / ${app.usage.limits.ai}`:'—';
@@ -293,6 +301,16 @@
     toast('Modelo inclusivo aplicado. Complete disciplina, turma e tema e ajuste o que precisar.');
     setTimeout(()=>activityForm.elements.topic?.focus(),120);
   }));
+  $$('[data-featured-view]').forEach(btn=>btn.addEventListener('click',()=>{
+    const view=btn.dataset.featuredView; go(view);
+    const form=$(`#${view==='plan'?'planForm':view==='activity'?'activityForm':'examForm'}`); if(!form)return;
+    const values={topic:btn.dataset.topic||'',discipline:btn.dataset.discipline||'',grade:btn.dataset.grade||''};
+    Object.entries(values).forEach(([name,value])=>{const field=form.elements[name];if(field)field.value=value;});
+    if(view==='activity') saveActivityDraft();
+    setTimeout(()=>form.elements.topic?.focus(),120);
+    toast('Modelo carregado. Ajuste os detalhes e gere quando quiser.');
+  }));
+
   $('#profileShortcut').addEventListener('click',()=>go('settings'));
   const accountMenu=$('#accountMenu');
   $('#accountBtn').addEventListener('click',e=>{e.stopPropagation();const open=accountMenu.hidden;accountMenu.hidden=!open;$('#accountBtn').setAttribute('aria-expanded',String(open));});
@@ -570,8 +588,16 @@
   });
   $('#resetAppBtn').onclick=()=>{if(confirm('Apagar cache local, perfil local e rascunhos deste dispositivo? Materiais já sincronizados na nuvem não serão excluídos.')){Object.keys(localStorage).filter(k=>k.startsWith('aulora.')).forEach(k=>localStorage.removeItem(k));app.materials=[];app.profile={...DEFAULT_PROFILE};location.reload();}};
 
+  function setStat(id,value){const el=$(id);if(el)el.textContent=value;}
+  function renderDashboardRecent(){
+    const host=$('#dashboardRecentList'); if(!host)return;
+    const recent=app.materials.slice().sort((a,b)=>String(b.updatedAt||b.createdAt||'').localeCompare(String(a.updatedAt||a.createdAt||''))).slice(0,4);
+    if(!recent.length){host.innerHTML='<div class="dashboard-empty"><span>✦</span><div><strong>Sua biblioteca começa aqui</strong><small>Crie um plano, atividade, avaliação ou relatório e salve para aparecer neste painel.</small></div></div>';return;}
+    host.innerHTML=recent.map(m=>`<button type="button" class="dashboard-recent-card" data-dashboard-open="${esc(m.id)}"><span class="recent-type">${esc(m.typeLabel||'Material')}</span><strong>${esc(m.title)}</strong><small>${esc(m.subtitle||'')} ${m.updatedAt?`• ${esc(new Intl.DateTimeFormat('pt-BR').format(new Date(m.updatedAt)))}`:''}</small></button>`).join('');
+    $$('[data-dashboard-open]',host).forEach(btn=>btn.onclick=()=>openMaterial(btn.dataset.dashboardOpen));
+  }
   function updateStats(){
-    $('#statMaterials').textContent=app.materials.length;$('#statPlans').textContent=app.materials.filter(m=>m.type==='plan').length;$('#statActivities').textContent=app.materials.filter(m=>m.type==='activity').length;$('#statExams').textContent=app.materials.filter(m=>m.type==='exam').length;$('#statReports').textContent=app.materials.filter(m=>m.type==='report').length;$('#statAbnt').textContent=app.materials.filter(m=>['abnt','reference'].includes(m.type)).length;updateSettingsStats();
+    setStat('#statMaterials',app.materials.length);setStat('#statPlans',app.materials.filter(m=>m.type==='plan').length);setStat('#statActivities',app.materials.filter(m=>m.type==='activity').length);setStat('#statExams',app.materials.filter(m=>m.type==='exam').length);setStat('#statReports',app.materials.filter(m=>m.type==='report').length);setStat('#statAbnt',app.materials.filter(m=>['abnt','reference'].includes(m.type)).length);renderDashboardRecent();updateSettingsStats();
   }
   function updateSettingsStats(){
     if(!$('#settingsMaterialCount'))return;$('#settingsMaterialCount').textContent=app.materials.length;let bytes=0;try{bytes=new Blob([localStorage.getItem(materialCacheKey())||'']).size;}catch{}$('#settingsStorageSize').textContent=bytes<1024?`${bytes} B`:`${(bytes/1024).toFixed(1)} KB`;if($('#settingsCloudCount'))$('#settingsCloudCount').textContent=app.user?String(app.materials.length):'—';
@@ -598,7 +624,6 @@
     henryHelpPanel.hidden=!open;
     henryHelpToggle.setAttribute('aria-expanded',String(open));
   }
-  document.body.dataset.view=document.querySelector('.view.active')?.id?.replace('view-','')||'dashboard';
   setHenryGreeting();
   henryHelpToggle?.addEventListener('click',e=>{e.stopPropagation();setHenryHelp(henryHelpPanel?.hidden!==false);});
   $('#henryHelpClose')?.addEventListener('click',()=>setHenryHelp(false));
@@ -606,6 +631,8 @@
   $$('#henryHelp [data-help-go]').forEach(btn=>btn.addEventListener('click',()=>{go(btn.dataset.helpGo);setHenryHelp(false);}));
   document.addEventListener('click',e=>{if($('#henryHelp')&&!$('#henryHelp').contains(e.target))setHenryHelp(false);});
   document.addEventListener('keydown',e=>{if(e.key==='Escape')setHenryHelp(false);});
+
+  document.body.dataset.view='dashboard';
 
   const billingState=new URLSearchParams(location.search).get('billing');
   if(billingState){history.replaceState({},'',location.pathname+location.hash);setTimeout(()=>toast(billingState==='success'?'Pagamento concluído. Atualizando seu plano…':'Pagamento cancelado.'),300);}
