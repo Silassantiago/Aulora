@@ -18,3 +18,7 @@ A conta administrativa recebe acesso completo aos recursos do Aulora para gestã
 - Não compartilhe o `MERCADO_PAGO_ACCESS_TOKEN`.
 - Se quiser mais administradores, adicione os e-mails em `ADMIN_EMAILS`, separados por vírgula.
 - Remover um e-mail de `ADMIN_EMAILS` remove o acesso administrativo na próxima sessão/consulta da conta.
+
+
+## Admin principal
+A conta `silas.henrique.1@hotmail.com` é reconhecida como administradora principal pelo Worker mesmo se a variável `ADMIN_EMAILS` não estiver disponível em um deploy. `ADMIN_EMAILS` continua podendo ser usado para autorizar contas administrativas adicionais.
