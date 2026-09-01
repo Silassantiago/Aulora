@@ -107,3 +107,15 @@ Exemplo de corpo JSON para `POST /api/curriculum/source`:
 }
 ```
 O Aulora nunca deve inferir que segue um currículo municipal quando não há fonte oficial cadastrada.
+
+
+## Conta, senha e cópias por e-mail
+
+O Aulora agora possui menu de conta no cabeçalho, alteração de senha autenticada, encerramento de sessão e preferências de cópia por e-mail.
+
+Para ativar o envio real de e-mails, configure no Worker da Cloudflare:
+
+- `RESEND_API_KEY` como **Secret**.
+- `EMAIL_FROM` como variável/secret com um remetente autorizado, por exemplo `Aulora <noreply@seudominio.com>`.
+
+Sem essas duas configurações, as preferências continuam salvas, mas o sistema informa que o envio ainda não está configurado e não bloqueia a geração de materiais.

@@ -86,3 +86,15 @@ Atividades e avaliações podem gerar uma imagem de apoio ou um painel de três 
 
 ## Cadastro de fontes curriculares
 Existe o endpoint administrativo `POST /api/curriculum/source`, protegido pela variável secreta `CURRICULUM_ADMIN_TOKEN`. Cadastre somente trechos conferidos de documentos oficiais.
+
+
+## Conta, senha e cópias por e-mail
+
+O Aulora agora possui menu de conta no cabeçalho, alteração de senha autenticada, encerramento de sessão e preferências de cópia por e-mail.
+
+Para ativar o envio real de e-mails, configure no Worker da Cloudflare:
+
+- `RESEND_API_KEY` como **Secret**.
+- `EMAIL_FROM` como variável/secret com um remetente autorizado, por exemplo `Aulora <noreply@seudominio.com>`.
+
+Sem essas duas configurações, as preferências continuam salvas, mas o sistema informa que o envio ainda não está configurado e não bloqueia a geração de materiais.

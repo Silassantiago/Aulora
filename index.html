@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="theme-color" content="#17483d" />
+  <meta name="theme-color" content="#103f35" />
   <meta name="description" content="Aulora — planejamento de aulas, atividades, avaliações, materiais acadêmicos e organização docente em um só lugar." />
   <title>Aulora — Planeje. Crie. Ensine.</title>
   <link rel="manifest" href="manifest.webmanifest" />
@@ -66,8 +66,24 @@
             <button class="ghost-button compact-button" id="topLoginBtn" type="button">Entrar</button>
             <button class="primary-button compact-button" id="topSignupBtn" type="button">Criar conta grátis</button>
           </div>
-          <button class="account-chip" id="accountBtn" type="button" hidden><span id="accountPlan"></span><strong id="accountName"></strong></button>
-          <button class="avatar" id="profileShortcut" title="Abrir perfil" hidden>A</button>
+          <div class="account-menu-wrap" id="accountMenuWrap" hidden>
+            <button class="account-chip account-menu-trigger" id="accountBtn" type="button" aria-haspopup="menu" aria-expanded="false">
+              <span id="accountPlan"></span><strong id="accountName"></strong><span class="account-chevron" aria-hidden="true">⌄</span>
+            </button>
+            <div class="account-menu" id="accountMenu" role="menu" hidden>
+              <div class="account-menu-head">
+                <span class="account-menu-avatar" id="accountMenuAvatar">A</span>
+                <div><strong id="accountMenuName">Conta</strong><small id="accountMenuEmail"></small></div>
+              </div>
+              <div class="account-menu-plan"><span id="accountMenuPlan">Grátis</span><small id="accountMenuUsage">0 / 5 gerações</small></div>
+              <button type="button" role="menuitem" data-account-action="profile"><span>⚙</span><div><strong>Perfil e dados</strong><small>Escola, cidade e preferências</small></div></button>
+              <button type="button" role="menuitem" data-account-action="password"><span>🔐</span><div><strong>Alterar senha</strong><small>Atualize sua senha com segurança</small></div></button>
+              <button type="button" role="menuitem" data-account-action="email"><span>✉</span><div><strong>Cópias por e-mail</strong><small>Materiais e avisos da conta</small></div></button>
+              <div class="account-menu-separator"></div>
+              <button type="button" role="menuitem" class="account-menu-danger" data-account-action="logout"><span>↪</span><div><strong>Sair da conta</strong><small>Encerrar esta sessão</small></div></button>
+            </div>
+          </div>
+          <button class="avatar legacy-avatar" id="profileShortcut" title="Abrir perfil" hidden>A</button>
         </div>
       </header>
 
@@ -76,6 +92,7 @@
           <div class="hero-card">
             <div>
               <span class="eyebrow">CENTRAL DO PROFESSOR</span>
+              <div class="hero-badge"><span>✦</span> Planejamento, inclusão e avaliações em um só lugar</div>
               <h1 id="dashboard-heading">Menos tempo preparando.<br />Mais tempo ensinando.</h1>
               <p>Planeje aulas, gere atividades e avaliações, organize materiais e prepare estruturas acadêmicas em um único ambiente.</p>
               <div class="hero-actions">
@@ -85,6 +102,10 @@
               </div>
             </div>
             <div class="hero-visual" aria-hidden="true">
+              <div class="hero-orbit orbit-one"></div><div class="hero-orbit orbit-two"></div>
+              <div class="hero-chip hero-chip-one"><span>✓</span> Provas</div>
+              <div class="hero-chip hero-chip-two"><span>✦</span> Inclusão</div>
+              <div class="hero-chip hero-chip-three"><span>▤</span> Planos</div>
               <div class="paper paper-back"></div>
               <div class="paper paper-front">
                 <span>AULORA</span>
@@ -220,8 +241,8 @@
                 <label class="full">Evitar / considerar (opcional)<textarea name="accessNotes" rows="3" placeholder="Ex.: evitar excesso de texto; oferecer exemplo resolvido; não usar linguagem infantilizada; permitir resposta por desenho."></textarea></label>
 
                 <div class="form-section-title full"><span>3</span><div><strong>Estrutura e entrega</strong><small>Quantidade, formato e critérios.</small></div></div>
-                <label>Imagens na atividade<select name="imageMode"><option>Sem imagens</option><option selected>1 imagem de apoio pedagógico</option><option>Painel visual com 3 cenas</option></select><small class="field-hint">As figuras são geradas sem texto e entram na versão do aluno e do professor.</small></label>
-                <label>Quantidade de questões / tarefas<select name="count"><option>3</option><option>5</option><option selected>10</option><option value="15" data-pro-only>15 — Pro</option><option value="20" data-pro-only>20 — Pro</option></select><small class="field-hint">Grátis: até 10 • Pro: até 20. Para atividades inclusivas, menos tarefas pode ser mais adequado.</small></label>
+                <label>Imagens na atividade<select name="imageMode"><option>Sem imagens</option><option selected>1 imagem de apoio pedagógico</option><option>Imagens em até 3 questões</option><option>Imagem em todas as questões</option><option>Painel visual com 3 cenas</option></select><small class="field-hint">Quando solicitado, o Aulora só conclui o material se conseguir inserir as figuras na versão do aluno e do professor.</small></label>
+                <label>Quantidade de questões / tarefas<select name="count"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option selected>10</option><option value="15" data-pro-only>15 — Pro</option><option value="20" data-pro-only>20 — Pro</option></select><small class="field-hint">Escolha de 1 a 10 no Grátis • Pro também libera 15 e 20. Para atividades inclusivas, menos tarefas pode ser mais adequado.</small></label>
                 <label>Formato acadêmico<select name="format"><option>Mista</option><option>Objetivas</option><option>Discursivas</option><option>Verdadeiro ou falso</option><option>Adaptado ao tipo escolhido acima</option></select></label>
                 <label>Espaço para resposta<select name="answerSpace"><option value="1">Curto</option><option value="2" selected>Médio</option><option value="4">Amplo</option><option value="6">Muito amplo / desenho</option></select></label>
                 <label>Quantidade de alternativas<select name="optionCount"><option value="2">2 alternativas</option><option value="3" selected>3 alternativas</option><option value="4">4 alternativas</option></select></label>
@@ -258,8 +279,8 @@
                 <label class="full">Conteúdo avaliado<input name="topic" required placeholder="Ex.: Revolução Industrial" /></label>
                 <label>Data<input name="date" type="date" /></label>
                 <label>Duração prevista<select name="duration"><option>45 minutos</option><option selected>50 minutos</option><option>1 hora</option><option>1h30</option><option>2 aulas</option></select></label>
-                <label>Imagens na prova<select name="imageMode"><option>Sem imagens</option><option selected>1 imagem de apoio pedagógico</option><option>Painel visual com 3 cenas</option></select><small class="field-hint">A imagem é incluída na prova do aluno e no gabarito do professor.</small></label>
-                <label>Nº de questões<select name="count"><option>5</option><option selected>10</option><option value="15" data-pro-only>15 — Pro</option><option value="20" data-pro-only>20 — Pro</option></select><small class="field-hint">Grátis: até 10 questões • Pro: até 20</small></label>
+                <label>Imagens na prova<select name="imageMode"><option>Sem imagens</option><option selected>1 imagem de apoio pedagógico</option><option>Imagens em até 3 questões</option><option>Imagem em todas as questões</option><option>Painel visual com 3 cenas</option></select><small class="field-hint">Se escolher imagens, a prova só será concluída quando as figuras forem realmente inseridas na versão do aluno e do professor.</small></label>
+                <label>Nº de questões<select name="count"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option selected>10</option><option value="15" data-pro-only>15 — Pro</option><option value="20" data-pro-only>20 — Pro</option></select><small class="field-hint">Grátis: escolha de 1 a 10 questões • Pro: também 15 ou 20</small></label>
                 <label>Valor total<input name="totalPoints" type="number" min="1" max="100" step="0.5" value="10" /></label>
                 <label>Dificuldade<select name="difficulty"><option>Fácil</option><option selected>Intermediária</option><option>Avançada</option></select></label>
                 <label>Composição<select name="format"><option>70% objetivas + 30% discursivas</option><option>Somente objetivas</option><option>50% objetivas + 50% discursivas</option><option>Somente discursivas</option><option>Verdadeiro ou falso</option></select></label>
@@ -421,6 +442,21 @@
               </div>
               <div class="form-actions"><button class="primary-button" type="submit">Salvar perfil</button></div>
             </form>
+            <div class="form-card" id="securitySettingsCard">
+              <div class="card-heading"><div><span class="eyebrow">SEGURANÇA</span><h2>Acesso à conta</h2></div><span class="security-badge">Protegida</span></div>
+              <p class="muted-copy">E-mail da conta: <strong id="settingsAccountEmail">—</strong></p>
+              <div class="stack-actions"><button class="ghost-button" id="changePasswordBtn" type="button">🔐 Alterar senha</button><button class="ghost-button danger-text" id="logoutSettingsBtn" type="button">↪ Sair desta conta</button></div>
+            </div>
+            <form class="form-card" id="emailPrefsForm">
+              <div class="card-heading"><div><span class="eyebrow">E-MAIL</span><h2>Cópias e notificações</h2></div><span class="email-status-badge" id="emailDeliveryBadge">Verificando</span></div>
+              <p class="muted-copy">O Aulora pode enviar automaticamente uma cópia dos materiais para o e-mail da conta.</p>
+              <label class="toggle-row"><span><strong>Materiais gerados</strong><small>Enviar uma cópia assim que um plano, atividade, prova, relatório ou material acadêmico for gerado.</small></span><input type="checkbox" name="generated" checked /></label>
+              <label class="toggle-row"><span><strong>Materiais salvos ou editados</strong><small>Enviar uma cópia atualizada sempre que você salvar o material na biblioteca.</small></span><input type="checkbox" name="saved" checked /></label>
+              <label class="toggle-row"><span><strong>Relatórios pedagógicos por e-mail</strong><small>Desativado por padrão porque relatórios podem conter dados de estudantes. Ative somente se a rede/escola permitir esse envio.</small></span><input type="checkbox" name="reports" /></label>
+              <label class="toggle-row"><span><strong>Avisos de segurança</strong><small>Receber aviso quando a senha da conta for alterada.</small></span><input type="checkbox" name="security" checked /></label>
+              <div class="email-provider-note" id="emailProviderNote">O envio real depende do serviço de e-mail estar configurado pelo administrador do Aulora.</div>
+              <div class="form-actions"><button class="primary-button" type="submit">Salvar preferências</button><button class="ghost-button" id="sendTestEmailBtn" type="button">Enviar e-mail de teste</button></div>
+            </form>
             <div class="form-card">
               <div class="card-heading"><div><span class="eyebrow">DADOS</span><h2>Backup e armazenamento</h2></div></div>
               <p class="muted-copy" id="settingsStorageCopy">Sem entrar, os materiais ficam somente neste navegador. Com uma conta gratuita, o Aulora também mantém uma cópia sincronizada na nuvem.</p>
@@ -459,6 +495,21 @@
         <button class="primary-button" type="submit">Criar conta gratuita</button>
       </form>
       <p class="auth-foot">Plano gratuito: 5 gerações inteligentes/mês e até 25 materiais sincronizados.</p>
+    </div>
+  </dialog>
+
+  <dialog id="passwordDialog" class="auth-dialog password-dialog">
+    <div class="auth-shell">
+      <button class="icon-button auth-close" id="passwordCloseBtn" type="button" aria-label="Fechar">×</button>
+      <div class="auth-brand"><div class="brand-mark">A</div><div><strong>Alterar senha</strong><span>Confirme sua senha atual e escolha uma nova.</span></div></div>
+      <form id="passwordForm" class="auth-form active">
+        <label>Senha atual<input name="currentPassword" type="password" autocomplete="current-password" required minlength="8" /></label>
+        <label>Nova senha<input name="newPassword" type="password" autocomplete="new-password" required minlength="8" placeholder="Mínimo de 8 caracteres" /></label>
+        <label>Confirmar nova senha<input name="confirmPassword" type="password" autocomplete="new-password" required minlength="8" /></label>
+        <div class="auth-error" id="passwordError" role="alert" hidden></div>
+        <button class="primary-button" type="submit">Salvar nova senha</button>
+      </form>
+      <p class="auth-foot">Ao alterar a senha, as outras sessões da conta serão encerradas.</p>
     </div>
   </dialog>
 

@@ -37,14 +37,21 @@ function sanitizeData(raw = {}) {
 }
 function sanitizeHtml(html = '') {
   let s = String(html).slice(0, 90000);
-  const allowed = new Set(['div','h1','h2','h3','p','ul','ol','li','strong','em','span','table','thead','tbody','tr','th','td','br']);
+  const allowed = new Set(['div','h1','h2','h3','p','ul','ol','li','strong','em','span','table','thead','tbody','tr','th','td','br','figure','figcaption','img']);
   s = s.replace(/<!--[\s\S]*?-->/g, '');
   s = s.replace(/<\/([a-z0-9-]+)[^>]*>/gi, (m, tag) => allowed.has(tag.toLowerCase()) ? `</${tag.toLowerCase()}>` : '');
   s = s.replace(/<([a-z0-9-]+)([^>]*)>/gi, (m, tag, attrs) => {
     tag = tag.toLowerCase(); if (!allowed.has(tag)) return '';
     if (tag === 'br') return '<br>';
-    const match = String(attrs).match(/\sclass\s*=\s*(?:"([^"]*)"|'([^']*)')/i);
+    const rawAttrs=String(attrs);
+    const match = rawAttrs.match(/\sclass\s*=\s*(?:"([^"]*)"|'([^']*)')/i);
     const cls = cleanText(match?.[1] || match?.[2] || '', 120).replace(/[^a-zA-Z0-9_ -]/g, '').trim();
+    if(tag==='img'){
+      const srcMatch=rawAttrs.match(/\ssrc\s*=\s*(?:"([^"]*)"|'([^']*)')/i); const src=srcMatch?.[1]||srcMatch?.[2]||'';
+      if(!/^data:image\/(?:png|jpeg|jpg|webp);base64,[a-z0-9+/=]+$/i.test(src)) return '';
+      const altMatch=rawAttrs.match(/\salt\s*=\s*(?:"([^"]*)"|'([^']*)')/i); const alt=cleanText(altMatch?.[1]||altMatch?.[2]||'Imagem pedagógica',180).replace(/["<>]/g,'');
+      return `<img src="${src}" alt="${alt}"${cls?` class="${cls}"`:''}>`;
+    }
     return `<${tag}${cls ? ` class="${cls}"` : ''}>`;
   });
   return s;
@@ -110,6 +117,7 @@ async function ensureSchema(db) {
       plan TEXT NOT NULL DEFAULT 'free',
       plan_status TEXT NOT NULL DEFAULT 'active',
       profile_json TEXT NOT NULL DEFAULT '{}',
+      email_prefs_json TEXT NOT NULL DEFAULT '{}',
       stripe_customer_id TEXT,
       stripe_subscription_id TEXT,
       created_at TEXT NOT NULL,
@@ -184,6 +192,7 @@ async function ensureSchema(db) {
     ['plan', "TEXT NOT NULL DEFAULT 'free'"],
     ['plan_status', "TEXT NOT NULL DEFAULT 'active'"],
     ['profile_json', "TEXT NOT NULL DEFAULT '{}'"],
+    ['email_prefs_json', "TEXT NOT NULL DEFAULT '{}'"],
     ['stripe_customer_id', 'TEXT'],
     ['stripe_subscription_id', 'TEXT'],
     ['created_at', "TEXT NOT NULL DEFAULT ''"],
@@ -228,6 +237,48 @@ function safeProfile(value) {
     stage: cleanText(raw.stage, 100) || 'Anos finais do Ensino Fundamental'
   };
 }
+function safeEmailPrefs(value) {
+  let raw = value;
+  if (typeof value === 'string') { try { raw = JSON.parse(value); } catch { raw = {}; } }
+  raw = raw && typeof raw === 'object' ? raw : {};
+  return { generated: raw.generated !== false, saved: raw.saved !== false, security: raw.security !== false, reports: raw.reports === true };
+}
+function emailDeliveryEnabled(env) { return Boolean(env.RESEND_API_KEY && env.EMAIL_FROM); }
+function htmlEscapeEmail(value) { return String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function utf8Base64(value) {
+  const bytes = new TextEncoder().encode(String(value || '')); let binary = '';
+  for (let i=0;i<bytes.length;i+=0x8000) binary += String.fromCharCode(...bytes.subarray(i,i+0x8000));
+  return btoa(binary);
+}
+function materialEmailDocument(title, html) {
+  return `<!doctype html><html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscapeEmail(title)}</title><style>body{font-family:Arial,sans-serif;max-width:820px;margin:36px auto;padding:0 22px;color:#173b31;line-height:1.5}h1,h2,h3{color:#103f35}.question{margin:18px 0}.generated-figure{text-align:center}.generated-figure img{max-width:100%;height:auto}.answer-key{border-top:2px solid #d6e5df;margin-top:30px;padding-top:20px}.response-line{height:26px;border-bottom:1px solid #bbb}</style></head><body>${html}</body></html>`;
+}
+async function resendEmail(env, { to, subject, html, attachmentName, attachmentHtml, tag='aulora' }) {
+  if (!emailDeliveryEnabled(env) || !isEmail(to)) return { sent:false, reason:'not-configured' };
+  const payload = { from: String(env.EMAIL_FROM), to:[to], subject:cleanText(subject,180), html:String(html||''), tags:[{name:'event',value:String(tag).replace(/[^a-zA-Z0-9_-]/g,'-').slice(0,256)}] };
+  if (attachmentHtml) {
+    const bytes = new TextEncoder().encode(attachmentHtml);
+    if (bytes.length <= 8 * 1024 * 1024) payload.attachments=[{filename:attachmentName || 'aulora-material.html',content:utf8Base64(attachmentHtml)}];
+  }
+  const response = await fetch('https://api.resend.com/emails', { method:'POST', headers:{ 'Authorization':`Bearer ${env.RESEND_API_KEY}`, 'Content-Type':'application/json', 'User-Agent':'Aulora/1.0' }, body:JSON.stringify(payload) });
+  const data = await response.json().catch(()=>({}));
+  if (!response.ok) throw new Error(data?.message || data?.error || `E-mail ${response.status}`);
+  return { sent:true, id:data?.id || '' };
+}
+async function sendMaterialCopy(env, user, material, event='generated') {
+  const prefs = safeEmailPrefs(user.email_prefs_json);
+  if ((event==='generated' && !prefs.generated) || (event!=='generated' && !prefs.saved) || (String(material.type||'')==='report' && !prefs.reports)) return {sent:false,reason:'preference'};
+  const title = cleanText(material.title || 'Material Aulora',180);
+  const type = cleanText(material.typeLabel || material.type || 'Material',80);
+  const verb = event==='generated' ? 'gerado' : 'salvo/atualizado';
+  const doc = materialEmailDocument(title, String(material.html || ''));
+  const body = `<div style="font-family:Arial,sans-serif;max-width:620px;margin:auto;color:#173b31"><div style="background:#103f35;color:#fff;padding:18px 22px;border-radius:16px 16px 0 0"><strong style="font-size:20px">Aulora</strong><div style="font-size:12px;opacity:.8">Planeje. Crie. Ensine.</div></div><div style="border:1px solid #dce9e4;border-top:0;padding:24px;border-radius:0 0 16px 16px"><h2 style="margin-top:0">Seu ${htmlEscapeEmail(type.toLowerCase())} foi ${verb}</h2><p><strong>${htmlEscapeEmail(title)}</strong></p><p>Uma cópia completa em HTML segue anexada. Você também pode acessar sua biblioteca no Aulora.</p><p style="font-size:12px;color:#697c74">Este e-mail foi enviado automaticamente conforme as preferências da sua conta.</p></div></div>`;
+  return resendEmail(env,{to:user.email,subject:`Aulora — ${title}`,html:body,attachmentName:`aulora-${String(type).toLowerCase().replace(/[^a-z0-9]+/gi,'-') || 'material'}.html`,attachmentHtml:doc,tag:`material-${event}`});
+}
+async function sendSecurityEmail(env, user, subject, message) {
+  const prefs=safeEmailPrefs(user.email_prefs_json); if(!prefs.security) return {sent:false,reason:'preference'};
+  return resendEmail(env,{to:user.email,subject,html:`<div style="font-family:Arial,sans-serif;max-width:620px;margin:auto"><h2 style="color:#103f35">Aulora</h2><p>${htmlEscapeEmail(message)}</p><p style="font-size:12px;color:#697c74">Se você não reconhece esta alteração, entre em contato com o suporte do Aulora.</p></div>`,tag:'security'});
+}
 async function usageFor(env, user) {
   const month = monthKey();
   const row = await env.DB.prepare('SELECT ai_count FROM aulora_usage_monthly WHERE user_id=? AND month=?').bind(user.id, month).first();
@@ -237,7 +288,8 @@ async function userPayload(env, user) {
   const usage = await usageFor(env, user);
   return {
     id: user.id, email: user.email, name: user.name, plan: user.plan, planStatus: user.plan_status,
-    profile: safeProfile(user.profile_json), usage,
+    profile: safeProfile(user.profile_json), emailPrefs: safeEmailPrefs(user.email_prefs_json), usage,
+    emailDelivery: { enabled: emailDeliveryEnabled(env) },
     billing: { enabled: Boolean(env.STRIPE_SECRET_KEY && env.STRIPE_PRICE_PRO), customer: Boolean(user.stripe_customer_id) }
   };
 }
@@ -339,13 +391,13 @@ PROIBIÇÕES:
 - Não escreva sequência formada apenas por números sem as etapas reais.
 - Não inclua opção religiosa, política ou moral sem relação necessária com o conteúdo pedagógico informado.
 
-Se imageMode não for 'Sem imagens', produza também no campo JSON imagePrompt uma descrição visual curta, segura e pedagógica, em português, SEM texto/letras dentro da figura. Se for 'Painel visual com 3 cenas', descreva uma única ilustração em três quadros coerentes com o tema. A imagem deve apoiar a compreensão, não entregar a resposta.
+Se imageMode não for 'Sem imagens', produza também no campo JSON imagePrompt uma descrição visual curta, segura e pedagógica, em português, SEM texto/letras dentro da figura. O servidor poderá gerar uma figura geral, figuras para até 3 questões ou uma figura por questão, conforme imageMode. As imagens devem apoiar a compreensão e nunca entregar a resposta. Se for 'Painel visual com 3 cenas', descreva uma única ilustração em três quadros coerentes com o tema.
 
 Ao final inclua <div class="answer-key"><h2>GABARITO / ORIENTAÇÕES DE CORREÇÃO</h2>...</div> com resposta correspondente a TODAS as tarefas. Se uma resposta for aberta, forneça critérios claros. Quando houver adaptação, inclua <div class="teacher-support"><strong>Sugestões de mediação</strong>...</div> com sugestões específicas ao tipo de tarefa, sem orientações clínicas genéricas.
 Dados:
 ${payload}`;
   if (kind === 'exam') return `${commonSystem()}
-Crie uma AVALIAÇÃO FINAL, pronta para revisão do professor, com exatamente ${d.count || 10} questões REAIS e ESPECÍFICAS sobre o tema informado e total de ${d.totalPoints || 10} pontos.${curriculum} Cada questão deve ficar dentro de <div class="question">. Distribua a pontuação de modo que a soma seja exatamente o total. Respeite disciplina, etapa/turma, formato e dificuldade. Se houver texto-base, use-o de forma efetiva. Se não houver, use conhecimento geral consolidado e apropriado ao nível escolar, sem inventar fontes ou dados. Questões objetivas devem ter exatamente 4 alternativas A-D plausíveis e somente uma correta; discursivas devem ter enunciado completo e critério de correção. Não escreva placeholders, colchetes para preencher, 'personalize', 'defina a alternativa', 'insira aqui' ou qualquer questão genérica do tipo 'fale sobre o tema'. Se imageMode não for 'Sem imagens', produza também no campo JSON imagePrompt uma descrição visual curta, segura e pedagógica, em português, SEM texto/letras dentro da figura. A imagem não pode revelar diretamente a resposta das questões. Se for painel, descreva três cenas em uma única imagem. Inclua <div class="answer-key"><h2>GABARITO / CRITÉRIOS DE CORREÇÃO</h2>...</div> com resposta correspondente a TODAS as questões e pontuação coerente.
+Crie uma AVALIAÇÃO FINAL, pronta para revisão do professor, com exatamente ${d.count || 10} questões REAIS e ESPECÍFICAS sobre o tema informado e total de ${d.totalPoints || 10} pontos.${curriculum} Cada questão deve ficar dentro de <div class="question">. Distribua a pontuação de modo que a soma seja exatamente o total. Respeite disciplina, etapa/turma, formato e dificuldade. Se houver texto-base, use-o de forma efetiva. Se não houver, use conhecimento geral consolidado e apropriado ao nível escolar, sem inventar fontes ou dados. Questões objetivas devem ter exatamente 4 alternativas A-D plausíveis e somente uma correta; discursivas devem ter enunciado completo e critério de correção. Não escreva placeholders, colchetes para preencher, 'personalize', 'defina a alternativa', 'insira aqui' ou qualquer questão genérica do tipo 'fale sobre o tema'. Se imageMode não for 'Sem imagens', produza também no campo JSON imagePrompt uma descrição visual curta, segura e pedagógica, em português, SEM texto/letras dentro da figura. O servidor poderá gerar uma figura geral, figuras para até 3 questões ou uma figura por questão, conforme imageMode. Nenhuma figura pode revelar diretamente a resposta. Se for painel, descreva três cenas em uma única imagem. Inclua <div class="answer-key"><h2>GABARITO / CRITÉRIOS DE CORREÇÃO</h2>...</div> com resposta correspondente a TODAS as questões e pontuação coerente.
 Dados:
 ${payload}`;
   if (kind === 'report') return `${commonSystem()}
@@ -396,9 +448,13 @@ function generatedMaterialValid(kind, html, d) {
   if (/<div>\s*[1-5]\s*<\/div>\s*<div>\s*[1-5]\s*<\/div>/i.test(text)) return false;
   if (/complete a tabela abaixo[^<]{0,120}<table/i.test(text) && /<td>\s*<\/td>/i.test(text)) return false;
   if (kind === 'report') {
-    if (!/Natureza do documento/i.test(text) || !/registro pedag[oó]gico/i.test(text)) return false;
-    if (/(?:CID|medica[cç][aã]o|prescrev|diagnosticamos|diagn[oó]stico confirmado)/i.test(text)) return false;
-    if (String(d.conditionMention || '').startsWith('Não mencionar') && /(?:TEA|TDAH|autis|dislex|disgraf|discalcul|defici[eê]ncia intelectual)/i.test(text)) return false;
+    // O aviso de natureza pedagógica é acrescentado pelo servidor; não rejeite um bom relatório
+    // apenas porque o modelo não repetiu uma frase exata.
+    if (/\b(?:CID|medica[cç][aã]o|prescrev|diagnosticamos|diagn[oó]stico confirmado)\b/i.test(text)) return false;
+    if (String(d.conditionMention || '').startsWith('Não mencionar') && /\b(?:TEA|TDAH|autis|dislex|disgraf|discalcul|defici[eê]ncia intelectual)\b/i.test(text)) return false;
+    // Exija algum conteúdo individualizado além de cabeçalhos.
+    const student = cleanText(d.studentName || '', 120);
+    if (student && !text.toLocaleLowerCase('pt-BR').includes(student.toLocaleLowerCase('pt-BR').split(/\s+/)[0])) return false;
   }
   if (kind === 'activity' || kind === 'exam') {
     const expected = Math.max(1, Math.min(20, Number(d.count) || 10));
@@ -436,10 +492,32 @@ async function runGeneration(env, kind, d, repair = false) {
 }
 async function generateEducationalImage(env, prompt, mode) {
   if (!prompt || !env.AI || mode === 'Sem imagens') return '';
-  const refined = `${cleanText(prompt, 1400)}. Ilustração pedagógica limpa, apropriada para ambiente escolar brasileiro, sem palavras, sem letras, sem números escritos, sem logotipos, sem marca d'água. Fundo claro, elementos fáceis de reconhecer.`;
+  const refined = `${cleanText(prompt, 1800)}. Ilustração pedagógica clara e objetiva para estudante brasileiro, apropriada à faixa escolar informada, sem palavras, sem letras, sem números escritos, sem logotipos e sem marca d'água. Fundo claro, composição simples, elementos fáceis de reconhecer. A imagem deve apoiar a compreensão sem revelar a resposta correta.`;
   const response = await env.AI.run(MODEL_IMAGE, { prompt: refined, steps: 4, seed: Math.floor(Math.random()*2147483647) });
-  if (!response?.image) return '';
-  return `data:image/jpeg;base64,${response.image}`;
+  if (!response?.image) throw new Error('O modelo de imagem não retornou uma figura.');
+  return `data:image/jpeg;charset=utf-8;base64,${response.image}`;
+}
+function stripHtmlForImagePrompt(value) {
+  return cleanText(String(value || '')
+    .replace(/<br\s*\/?\s*>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/\s+/g, ' '), 1100);
+}
+function extractQuestionTexts(html) {
+  const text = String(html || '');
+  const starts = [];
+  const re = /<div[^>]*class=["'][^"']*\bquestion\b[^"']*["'][^>]*>/gi;
+  let m;
+  while ((m = re.exec(text))) starts.push({ index: m.index, end: re.lastIndex });
+  return starts.map((item, i) => {
+    const next = starts[i + 1]?.index ?? text.search(/<div[^>]*class=["'][^"']*\banswer-key\b/i);
+    const stop = next >= 0 ? next : text.length;
+    return stripHtmlForImagePrompt(text.slice(item.end, stop));
+  });
 }
 function attachImage(html, dataUri, caption='Imagem de apoio pedagógico') {
   if (!dataUri) return html;
@@ -447,20 +525,83 @@ function attachImage(html, dataUri, caption='Imagem de apoio pedagógico') {
   const idx = html.indexOf('</h1>');
   return idx >= 0 ? html.slice(0, idx+5) + figure + html.slice(idx+5) : figure + html;
 }
+function attachImagesToQuestions(html, images) {
+  let position = 0;
+  return String(html || '').replace(/<div([^>]*class=["'][^"']*\bquestion\b[^"']*["'][^>]*)>/gi, (opening, attrs) => {
+    const item = images[position++];
+    if (!item?.uri) return opening;
+    const caption = item.caption || `Figura de apoio — questão ${position}`;
+    return `${opening}<figure class="generated-figure question-figure"><img src="${item.uri}" alt="${caption}"><figcaption>${caption}</figcaption></figure>`;
+  });
+}
+async function generateImageWithRetry(env, prompt, mode) {
+  let last;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try { return await generateEducationalImage(env, prompt, mode); }
+    catch (err) { last = err; console.warn('Aulora image attempt failed', attempt + 1, err?.message || err); }
+  }
+  throw last || new Error('Falha ao gerar figura.');
+}
+async function generateImagesForMaterial(env, html, d, basePrompt) {
+  const mode = cleanText(d.imageMode, 80) || 'Sem imagens';
+  if (mode === 'Sem imagens') return { html, imageGenerated: false, imageCount: 0 };
+  const expectedQuestions = Math.max(1, Math.min(20, Number(d.count) || 10));
+  if (mode === '1 imagem de apoio pedagógico' || mode === 'Painel visual com 3 cenas') {
+    const prompt = cleanText(basePrompt || `${d.discipline}: ${d.topic}`, 1600) + (mode === 'Painel visual com 3 cenas' ? '. Produza uma única imagem dividida visualmente em três cenas coerentes, sem texto escrito.' : '');
+    const uri = await generateImageWithRetry(env, prompt, mode);
+    return { html: attachImage(html, uri, mode === 'Painel visual com 3 cenas' ? 'Painel visual de apoio' : 'Imagem de apoio pedagógico'), imageGenerated: true, imageCount: 1 };
+  }
+
+  const questionTexts = extractQuestionTexts(html);
+  const requested = mode === 'Imagem em todas as questões' ? Math.min(expectedQuestions, 10) : Math.min(expectedQuestions, 3);
+  const prompts = [];
+  for (let i = 0; i < requested; i++) {
+    const qtext = questionTexts[i] || `${d.discipline} — ${d.topic}, questão ${i + 1}`;
+    prompts.push(`Crie uma figura de apoio para a questão ${i + 1} de uma ${d.discipline || 'atividade escolar'} sobre ${d.topic || 'o conteúdo informado'}, turma ${d.grade || 'escolar'}. Contexto da questão: ${qtext}. Não escreva alternativas nem revele qual resposta é correta.`);
+  }
+  const images = [];
+  for (let i = 0; i < prompts.length; i += 3) {
+    const batch = prompts.slice(i, i + 3);
+    const result = await Promise.all(batch.map((prompt, j) => generateImageWithRetry(env, prompt, mode).then(uri => ({ uri, caption: `Figura de apoio — questão ${i + j + 1}` }))));
+    images.push(...result);
+  }
+  if (images.length !== requested || images.some(x => !x.uri)) {
+    const err = new Error('Nem todas as figuras solicitadas foram geradas.');
+    err.code = 'IMAGE_GENERATION_FAILED';
+    throw err;
+  }
+  return { html: attachImagesToQuestions(html, images), imageGenerated: true, imageCount: images.length };
+}
+function ensureReportDisclaimer(html) {
+  const text = String(html || '');
+  if (/Natureza do documento/i.test(text)) return text;
+  return `${text}<div class="pedagogical-disclaimer"><strong>Natureza do documento:</strong> Este relatório constitui registro pedagógico elaborado a partir das observações informadas pelo educador. Não substitui avaliação, laudo ou diagnóstico clínico.</div>`;
+}
+
 async function generateAI(env, kind, d) {
   const meta = defaultMeta(kind, d);
   let data = await runGeneration(env, kind, d, false);
   let html = sanitizeHtml(data.html || '');
+  if (kind === 'report') html = ensureReportDisclaimer(html);
   if (!generatedMaterialValid(kind, html, d)) {
     data = await runGeneration(env, kind, d, true);
     html = sanitizeHtml(data.html || '');
+    if (kind === 'report') html = ensureReportDisclaimer(html);
   }
   if (!generatedMaterialValid(kind, html, d)) throw new Error('A geração não atingiu o padrão mínimo de qualidade');
-  let imageGenerated = false;
+  let imageGenerated = false, imageCount = 0;
   if ((kind === 'activity' || kind === 'exam') && d.imageMode && d.imageMode !== 'Sem imagens') {
-    try { const uri = await generateEducationalImage(env, cleanText(data.imagePrompt || `${d.discipline}: ${d.topic}`, 1400), d.imageMode); if (uri) { html = attachImage(html, uri, d.imageMode === 'Painel visual com 3 cenas' ? 'Painel visual de apoio' : 'Imagem de apoio pedagógico'); imageGenerated = true; } } catch (err) { console.warn('Aulora image generation failed', err?.message || err); }
+    try {
+      const imageResult = await generateImagesForMaterial(env, html, d, cleanText(data.imagePrompt || `${d.discipline}: ${d.topic}`, 1600));
+      html = imageResult.html; imageGenerated = imageResult.imageGenerated; imageCount = imageResult.imageCount;
+    } catch (err) {
+      console.error('Aulora required image generation failed', err?.message || err);
+      const wrapped = new Error('As figuras solicitadas não foram geradas. O Aulora não vai entregar a prova sem as imagens pedidas. Tente novamente em alguns segundos ou escolha menos imagens.');
+      wrapped.code = 'IMAGE_GENERATION_FAILED';
+      throw wrapped;
+    }
   }
-  return { title: cleanText(data.title || meta.title, 180), subtitle: cleanText(data.subtitle || meta.subtitle, 240), typeLabel: cleanText(data.typeLabel || meta.typeLabel, 80), html, imageGenerated };
+  return { title: cleanText(data.title || meta.title, 180), subtitle: cleanText(data.subtitle || meta.subtitle, 240), typeLabel: cleanText(data.typeLabel || meta.typeLabel, 80), html, imageGenerated, imageCount };
 }
 
 async function stripeRequest(env, path, params) {
@@ -483,13 +624,13 @@ async function verifyStripeSignature(rawBody, header, secret) {
   return signatures.some(s => s.length === expected.length && constantTimeEqual(new TextEncoder().encode(s), new TextEncoder().encode(expected)));
 }
 
-async function api(request, env, url) {
+async function api(request, env, url, ctx) {
   if (!env.DB) return json({ error: 'Banco de dados não configurado.' }, 503);
   await ensureSchema(env.DB);
   const path = url.pathname;
 
   if (path === '/api/health' && request.method === 'GET') {
-    return json({ ok: true, ai: Boolean(env.AI), db: true, billing: Boolean(env.STRIPE_SECRET_KEY && env.STRIPE_PRICE_PRO), auth: 'pbkdf2-sha256', authIterations: PASSWORD_KDF_ITERATIONS, service: 'Aulora' });
+    return json({ ok: true, ai: Boolean(env.AI), db: true, billing: Boolean(env.STRIPE_SECRET_KEY && env.STRIPE_PRICE_PRO), email: emailDeliveryEnabled(env), auth: 'pbkdf2-sha256', authIterations: PASSWORD_KDF_ITERATIONS, service: 'Aulora' });
   }
   if (path === '/api/auth/signup' && request.method === 'POST') {
     if (!mutationOriginAllowed(request)) return json({ error: 'Origem não autorizada.', code: 'ORIGIN_BLOCKED' }, 403);
@@ -506,8 +647,9 @@ async function api(request, env, url) {
       const hp = await hashPassword(password);
       signupStage = 'INSERT';
       const profile = JSON.stringify({ teacher: name, school: '', city: '', stage: 'Anos finais do Ensino Fundamental' });
-      await env.DB.prepare('INSERT INTO aulora_users(id,email,name,password_hash,password_salt,password_iterations,plan,plan_status,profile_json,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)')
-        .bind(id, email, name, hp.hash, hp.salt, hp.iterations, 'free', 'active', profile, ts, ts).run();
+      const emailPrefs = JSON.stringify({ generated:true, saved:true, security:true, reports:false });
+      await env.DB.prepare('INSERT INTO aulora_users(id,email,name,password_hash,password_salt,password_iterations,plan,plan_status,profile_json,email_prefs_json,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)')
+        .bind(id, email, name, hp.hash, hp.salt, hp.iterations, 'free', 'active', profile, emailPrefs, ts, ts).run();
       signupStage = 'CONFIRM';
       const user = await env.DB.prepare('SELECT * FROM aulora_users WHERE id=?').bind(id).first();
       if (!user) return json({ error: 'A conta foi gravada, mas não pôde ser confirmada. Tente entrar com o mesmo e-mail e senha.', code: 'SIGNUP_CONFIRM_FAILED' }, 500);
@@ -550,6 +692,28 @@ async function api(request, env, url) {
     if (token) await env.DB.prepare('DELETE FROM aulora_sessions WHERE token_hash=?').bind(bytesToHex(await sha256(token))).run();
     return json({ ok: true }, 200, { 'set-cookie': clearSessionCookie(request) });
   }
+  if (path === '/api/auth/change-password' && request.method === 'POST') {
+    if (!mutationOriginAllowed(request)) return json({ error: 'Origem não autorizada.' }, 403);
+    const auth = await requireUser(request, env); if (auth.response) return auth.response;
+    const body = await request.json().catch(() => ({}));
+    const currentPassword = String(body.currentPassword || ''), newPassword = String(body.newPassword || '');
+    if (newPassword.length < 8 || newPassword.length > 128) return json({ error:'A nova senha deve ter entre 8 e 128 caracteres.', code:'PASSWORD_INVALID' },400);
+    if (!(await verifyPassword(currentPassword, auth.user.password_salt, auth.user.password_hash, auth.user.password_iterations || PASSWORD_KDF_ITERATIONS))) return json({ error:'A senha atual está incorreta.', code:'CURRENT_PASSWORD_INVALID' },401);
+    const hp = await hashPassword(newPassword), ts=nowIso();
+    await env.DB.prepare('UPDATE aulora_users SET password_hash=?,password_salt=?,password_iterations=?,updated_at=? WHERE id=?').bind(hp.hash,hp.salt,hp.iterations,ts,auth.user.id).run();
+    await env.DB.prepare('DELETE FROM aulora_sessions WHERE user_id=?').bind(auth.user.id).run();
+    const session=await createSession(env.DB,auth.user.id,request);
+    const fresh=await env.DB.prepare('SELECT * FROM aulora_users WHERE id=?').bind(auth.user.id).first();
+    if (emailDeliveryEnabled(env)) { try { await sendSecurityEmail(env,fresh,'Aulora — sua senha foi alterada','A senha da sua conta Aulora foi alterada com sucesso.'); } catch(err){ console.warn('Aulora security email failed',err?.message||err); } }
+    return json({ok:true,user:await userPayload(env,fresh)},200,{'set-cookie':session.cookie});
+  }
+  if (path === '/api/email/test' && request.method === 'POST') {
+    if (!mutationOriginAllowed(request)) return json({ error:'Origem não autorizada.' },403);
+    const auth=await requireUser(request,env); if(auth.response)return auth.response;
+    if(!emailDeliveryEnabled(env)) return json({error:'O envio de e-mail ainda não foi configurado pelo administrador.',code:'EMAIL_NOT_CONFIGURED'},503);
+    try { await resendEmail(env,{to:auth.user.email,subject:'Aulora — e-mail de teste',html:'<div style="font-family:Arial,sans-serif"><h2 style="color:#103f35">Aulora</h2><p>Pronto! As cópias por e-mail estão funcionando nesta conta.</p></div>',tag:'test'}); return json({ok:true}); }
+    catch(err){ console.error('Aulora test email failed',err); return json({error:'Não foi possível enviar o e-mail de teste agora.',code:'EMAIL_SEND_FAILED'},502); }
+  }
   if (path === '/api/me' && request.method === 'GET') {
     const user = await currentUser(request, env);
     return json({ user: user ? await userPayload(env, user) : null });
@@ -557,9 +721,11 @@ async function api(request, env, url) {
   if (path === '/api/me' && request.method === 'PUT') {
     if (!mutationOriginAllowed(request)) return json({ error: 'Origem não autorizada.' }, 403);
     const auth = await requireUser(request, env); if (auth.response) return auth.response;
-    const body = await request.json().catch(() => ({})); const profile = safeProfile(body.profile || {});
+    const body = await request.json().catch(() => ({}));
+    const profile = body.profile === undefined ? safeProfile(auth.user.profile_json) : safeProfile(body.profile || {});
+    const emailPrefs = body.emailPrefs === undefined ? safeEmailPrefs(auth.user.email_prefs_json) : safeEmailPrefs(body.emailPrefs);
     const name = cleanText(body.name || profile.teacher || auth.user.name, 120);
-    await env.DB.prepare('UPDATE aulora_users SET name=?, profile_json=?, updated_at=? WHERE id=?').bind(name, JSON.stringify(profile), nowIso(), auth.user.id).run();
+    await env.DB.prepare('UPDATE aulora_users SET name=?, profile_json=?, email_prefs_json=?, updated_at=? WHERE id=?').bind(name, JSON.stringify(profile), JSON.stringify(emailPrefs), nowIso(), auth.user.id).run();
     const user = await env.DB.prepare('SELECT * FROM aulora_users WHERE id=?').bind(auth.user.id).first();
     return json({ user: await userPayload(env, user) });
   }
@@ -585,7 +751,8 @@ async function api(request, env, url) {
     const values = [id, auth.user.id, type, cleanText(m.typeLabel, 80), title, cleanText(m.subtitle, 300), JSON.stringify(sanitizeData(m.data || {})).slice(0, 50000), sanitizeHtml(m.html || ''), created, ts];
     if (existing) await env.DB.prepare('UPDATE aulora_materials SET type=?,type_label=?,title=?,subtitle=?,data_json=?,html=?,updated_at=? WHERE id=? AND user_id=?').bind(type, values[3], title, values[5], values[6], values[7], ts, id, auth.user.id).run();
     else await env.DB.prepare('INSERT INTO aulora_materials(id,user_id,type,type_label,title,subtitle,data_json,html,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)').bind(...values).run();
-    return json({ ok: true, id, updatedAt: ts });
+    if (ctx && emailDeliveryEnabled(env)) ctx.waitUntil(sendMaterialCopy(env,auth.user,{type,typeLabel:values[3],title,html:values[7]},existing?'updated':'saved').catch(err=>console.warn('Aulora saved email failed',err?.message||err)));
+    return json({ ok: true, id, updatedAt: ts, emailQueued: emailDeliveryEnabled(env) && safeEmailPrefs(auth.user.email_prefs_json).saved });
   }
   if (path === '/api/materials' && request.method === 'DELETE' && url.searchParams.get('all') === '1') {
     if (!mutationOriginAllowed(request)) return json({ error: 'Origem não autorizada.' }, 403);
@@ -642,9 +809,13 @@ async function api(request, env, url) {
       }
       const output = await generateAI(env, kind, d);
       await env.DB.prepare(`INSERT INTO aulora_usage_monthly(user_id,month,ai_count) VALUES(?,?,1) ON CONFLICT(user_id,month) DO UPDATE SET ai_count=ai_count+1`).bind(auth.user.id, usage.month).run();
-      const after = await usageFor(env, auth.user); return json({ ...output, usage: after });
+      if (ctx && emailDeliveryEnabled(env)) ctx.waitUntil(sendMaterialCopy(env,auth.user,{type:kind,typeLabel:output.typeLabel,title:output.title,html:output.html},'generated').catch(err=>console.warn('Aulora generated email failed',err?.message||err)));
+      const after = await usageFor(env, auth.user); return json({ ...output, usage: after, emailQueued: emailDeliveryEnabled(env) && safeEmailPrefs(auth.user.email_prefs_json).generated });
     } catch (err) {
-      console.error('Aulora generation error', err); return json({ error: 'A geração não foi concluída. Tente novamente; se persistir, use menos questões ou escolha uma imagem de apoio.', code: 'GENERATION_RETRY' }, 503);
+      console.error('Aulora generation error', err);
+      if (err?.code === 'IMAGE_GENERATION_FAILED') return json({ error: cleanText(err.message, 500), code: 'IMAGE_GENERATION_FAILED' }, 503);
+      if (kind === 'report') return json({ error: 'Não foi possível concluir o relatório pedagógico agora. Suas observações continuam salvas no rascunho. Tente novamente em alguns segundos.', code: 'REPORT_GENERATION_FAILED' }, 503);
+      return json({ error: 'A geração não foi concluída. Tente novamente; se persistir, reduza a quantidade de questões ou imagens.', code: 'GENERATION_RETRY' }, 503);
     }
   }
 
@@ -701,10 +872,10 @@ async function api(request, env, url) {
 }
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
     if (url.pathname.startsWith('/api/')) {
-      try { return await api(request, env, url); }
+      try { return await api(request, env, url, ctx); }
       catch (err) { console.error('Aulora API error', err); return json({ error: 'Erro interno do Aulora.' }, 500); }
     }
     return env.ASSETS.fetch(request);

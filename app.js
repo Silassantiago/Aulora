@@ -131,7 +131,12 @@
   function updateAccountUI(){
     const user=app.user, plan=planName(user), isPro=user?.plan==='pro';
     $('#accountPlan').textContent=plan; $('#accountName').textContent=user?(user.name||user.email):''; $('#profileShortcut').textContent=user?String(user.name||user.email||'A').trim().charAt(0).toUpperCase():'A';
-    $('#guestAuthActions').hidden=Boolean(user); $('#accountBtn').hidden=!user; $('#profileShortcut').hidden=!user;
+    $('#guestAuthActions').hidden=Boolean(user); $('#accountMenuWrap').hidden=!user; $('#profileShortcut').hidden=true;
+    if(user){
+      const initial=String(user.name||user.email||'A').trim().charAt(0).toUpperCase();
+      $('#accountMenuAvatar').textContent=initial; $('#accountMenuName').textContent=user.name||'Professor(a)'; $('#accountMenuEmail').textContent=user.email;
+      $('#accountMenuPlan').textContent=plan; $('#accountMenuUsage').textContent=app.usage?`${app.usage.ai} / ${app.usage.limits.ai} gerações neste mês`:'';
+    } else { $('#accountMenu').hidden=true; $('#accountBtn').setAttribute('aria-expanded','false'); }
     $$('[data-guest-only]').forEach(el=>el.hidden=Boolean(user));
     $$('[data-pro-only]').forEach(option=>{ option.disabled=Boolean(user)&&!isPro || !user; option.classList.toggle('option-pro-locked',!isPro); });
     [$('#activityForm'),$('#examForm')].forEach(form=>{ if(form && !isPro && Number(form.elements.count?.value||0)>10) form.elements.count.value='10'; });
@@ -150,6 +155,12 @@
     $('#settingsStorageCopy').textContent=user?'Seus materiais ficam no banco do Aulora e também em cache neste navegador. Você pode baixar um backup a qualquer momento.':'Sem entrar, os materiais ficam somente neste navegador. Com uma conta gratuita, o Aulora também mantém uma cópia sincronizada na nuvem.';
     $$('.smart-action').forEach(btn=>btn.classList.toggle('locked',!user));
     const text=$('#smartBannerText'); if(text)text.textContent=user?`${app.usage?.ai||0} de ${app.usage?.limits?.ai||0} gerações inteligentes usadas neste mês. Seus materiais podem ser salvos na nuvem.`:'Entre com uma conta gratuita para gerar materiais e acessá-los em outros dispositivos. O modo local continua disponível sem cadastro.';
+    if($('#settingsAccountEmail')) $('#settingsAccountEmail').textContent=user?user.email:'—';
+    if($('#securitySettingsCard')) $('#securitySettingsCard').hidden=!user;
+    if($('#emailPrefsForm')) {
+      $('#emailPrefsForm').hidden=!user;
+      if(user){ const prefs=user.emailPrefs||{generated:true,saved:true,security:true,reports:false}; const f=$('#emailPrefsForm'); f.elements.generated.checked=prefs.generated!==false; f.elements.saved.checked=prefs.saved!==false; f.elements.reports.checked=prefs.reports===true; f.elements.security.checked=prefs.security!==false; const enabled=Boolean(user.emailDelivery?.enabled); $('#emailDeliveryBadge').textContent=enabled?'ATIVO':'CONFIGURAR'; $('#emailDeliveryBadge').className=`email-status-badge ${enabled?'active':'pending'}`; $('#emailProviderNote').textContent=enabled?'Cópias serão enviadas para '+user.email+'.':'Preferências salvas. O administrador ainda precisa configurar o serviço de envio para as mensagens saírem de verdade.'; $('#sendTestEmailBtn').disabled=!enabled; }
+    }
     updateSettingsStats();
   }
   async function loadAccount(){
@@ -198,9 +209,32 @@
     }
     catch(err){setAuthError('signup',`${err.message}${err.code?` [${err.code}]`:''}`);}finally{hideLoading();}
   });
-  $('#logoutBtn').addEventListener('click',async()=>{
+  async function performLogout(){
     try{await apiFetch('/api/auth/logout',{method:'POST'});}catch{}
     app.user=null;app.usage=null;app.materials=loadJson(GUEST_STORAGE_KEY,[]);app.profile=loadJson(PROFILE_KEY,DEFAULT_PROFILE);applyProfile(true);updateAccountUI();updateStats();renderMaterials();toast('Você saiu da conta.');
+  }
+  $('#logoutBtn').addEventListener('click',performLogout);
+  $('#logoutSettingsBtn').addEventListener('click',performLogout);
+
+  const passwordDialog=$('#passwordDialog');
+  function openPasswordDialog(){ if(!app.user){openAuth('login');return;} $('#passwordError').hidden=true; $('#passwordError').textContent=''; $('#passwordForm').reset(); passwordDialog.showModal(); }
+  function closePasswordDialog(){if(passwordDialog.open)passwordDialog.close();}
+  $('#passwordCloseBtn').addEventListener('click',closePasswordDialog);
+  passwordDialog.addEventListener('click',e=>{if(e.target===passwordDialog)closePasswordDialog();});
+  $('#changePasswordBtn').addEventListener('click',openPasswordDialog);
+  $('#passwordForm').addEventListener('submit',async e=>{
+    e.preventDefault();const d=formData(e.currentTarget),err=$('#passwordError');err.hidden=true;
+    if(d.newPassword!==d.confirmPassword){err.textContent='A confirmação não é igual à nova senha.';err.hidden=false;return;}
+    if(d.newPassword===d.currentPassword){err.textContent='Escolha uma senha nova diferente da atual.';err.hidden=false;return;}
+    try{const r=await apiFetch('/api/auth/change-password',{method:'POST',body:{currentPassword:d.currentPassword,newPassword:d.newPassword}});applyUser(r.user);closePasswordDialog();toast('Senha alterada com sucesso.');}
+    catch(ex){err.textContent=ex.message||'Não foi possível alterar a senha.';err.hidden=false;}
+  });
+  $('#emailPrefsForm').addEventListener('submit',async e=>{
+    e.preventDefault();if(!app.user)return;const f=e.currentTarget,emailPrefs={generated:f.elements.generated.checked,saved:f.elements.saved.checked,reports:f.elements.reports.checked,security:f.elements.security.checked};
+    try{const r=await apiFetch('/api/me',{method:'PUT',body:{emailPrefs}});applyUser(r.user);toast('Preferências de e-mail salvas.');}catch(ex){toast(ex.message||'Não foi possível salvar as preferências.');}
+  });
+  $('#sendTestEmailBtn').addEventListener('click',async()=>{
+    if(!app.user)return;try{await apiFetch('/api/email/test',{method:'POST'});toast('E-mail de teste enviado para '+app.user.email+'.');}catch(ex){toast(ex.code==='EMAIL_NOT_CONFIGURED'?'O envio de e-mail ainda não foi configurado no servidor.':(ex.message||'Falha ao enviar o e-mail de teste.'));}
   });
   $('#upgradeBtn').addEventListener('click',async()=>{
     if(!app.user){openAuth('signup');return;}
@@ -259,7 +293,10 @@
     setTimeout(()=>activityForm.elements.topic?.focus(),120);
   }));
   $('#profileShortcut').addEventListener('click',()=>go('settings'));
-  $('#accountBtn').addEventListener('click',()=>go('settings'));
+  const accountMenu=$('#accountMenu');
+  $('#accountBtn').addEventListener('click',e=>{e.stopPropagation();const open=accountMenu.hidden;accountMenu.hidden=!open;$('#accountBtn').setAttribute('aria-expanded',String(open));});
+  document.addEventListener('click',e=>{if(!$('#accountMenuWrap').contains(e.target)){accountMenu.hidden=true;$('#accountBtn').setAttribute('aria-expanded','false');}});
+  accountMenu.addEventListener('click',e=>{const btn=e.target.closest('[data-account-action]');if(!btn)return;const action=btn.dataset.accountAction;accountMenu.hidden=true;$('#accountBtn').setAttribute('aria-expanded','false');if(action==='profile'){go('settings');setTimeout(()=>$('#profileForm')?.scrollIntoView({behavior:'smooth',block:'center'}),80);}if(action==='password')openPasswordDialog();if(action==='email'){go('settings');setTimeout(()=>$('#emailPrefsForm')?.scrollIntoView({behavior:'smooth',block:'center'}),80);}if(action==='logout')performLogout();});
   $('#menuBtn').addEventListener('click',()=>$('#sidebar').classList.toggle('open'));
   document.addEventListener('click',e=>{ if(innerWidth<=800 && $('#sidebar').classList.contains('open') && !e.target.closest('#sidebar') && !e.target.closest('#menuBtn')) $('#sidebar').classList.remove('open'); });
 
@@ -348,7 +385,7 @@
   async function saveMaterial(material){
     material.updatedAt=nowIso(); const ix=app.materials.findIndex(x=>x.id===material.id); if(ix>=0)app.materials[ix]=material;else app.materials.unshift(material); persistMaterialCache(); updateStats(); renderMaterials();
     if(app.user){
-      try{await apiFetch('/api/materials',{method:'POST',body:{material}});toast('Material salvo e sincronizado na nuvem.');}
+      try{const result=await apiFetch('/api/materials',{method:'POST',body:{material}});toast(result.emailQueued?'Material salvo na nuvem. Uma cópia atualizada será enviada ao seu e-mail.':'Material salvo e sincronizado na nuvem.');}
       catch(err){toast(err.code==='MATERIAL_LIMIT'?'Limite da nuvem atingido. O material ficou salvo neste dispositivo.':`Material salvo localmente. Nuvem: ${err.message}`);}
     }else toast('Material salvo neste dispositivo. Entre para sincronizar na nuvem.');
   }
@@ -412,18 +449,22 @@
       go('settings');
       return;
     }
-    showLoading(kind==='plan'?'Criando o plano de aula…':kind==='activity'?'Criando a atividade…':kind==='exam'?'Montando a avaliação…':kind==='report'?'Redigindo o relatório pedagógico…':'Estruturando o trabalho…','O Aulora está gerando conteúdo específico para os dados informados.');
+    showLoading(kind==='plan'?'Criando o plano de aula…':kind==='activity'?'Criando a atividade…':kind==='exam'?'Montando a avaliação…':kind==='report'?'Redigindo o relatório pedagógico…':'Estruturando o trabalho…',(kind==='activity'||kind==='exam') && d.imageMode && d.imageMode!=='Sem imagens' ? 'Gerando conteúdo e figuras. Provas com várias imagens podem levar um pouco mais de tempo.' : 'O Aulora está gerando conteúdo específico para os dados informados.');
     try{
       const payload=await apiFetch('/api/generate',{method:'POST',body:{kind,data:d}});
       if(payload.usage){app.usage=payload.usage;if(app.user)app.user.usage=payload.usage;updateAccountUI();}
       const material=newMaterial(kind,payload.title||`${kind} — ${d.topic||d.title}`,payload.subtitle||'',d,payload.html||'',payload.typeLabel||({plan:'Plano de aula',activity:'Atividade',exam:'Avaliação',report:'Relatório pedagógico',abnt:'Acadêmico / ABNT'}[kind]));
-      bindPreview(previewFor(kind),material); toast('Material gerado. Revise, edite e salve quando estiver pronto.');
+      bindPreview(previewFor(kind),material); toast(payload.emailQueued?'Material gerado. Uma cópia está sendo enviada ao seu e-mail.':'Material gerado. Revise, edite e salve quando estiver pronto.');
     }catch(err){
       if(err.code==='AI_LIMIT'){
         toast('Seu limite mensal de gerações foi atingido. Nenhum conteúdo genérico foi colocado no lugar da prova.');
         go('settings');
       } else if(err.status===401 || err.code==='AUTH_REQUIRED'){
         app.user=null; updateAccountUI(); openAuth('login'); toast('Sua sessão expirou. Entre novamente para gerar.');
+      } else if(err.code==='IMAGE_GENERATION_FAILED'){
+        toast(err.message||'Não foi possível gerar as figuras solicitadas. Tente novamente.');
+      } else if(kind==='report' || err.code==='REPORT_GENERATION_FAILED'){
+        toast(err.message||'Não foi possível concluir o relatório pedagógico agora. O rascunho foi preservado. Tente novamente em alguns segundos.');
       } else {
         toast(err.message||'Não foi possível gerar o material agora. Tente novamente.');
       }
