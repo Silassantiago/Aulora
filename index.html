@@ -89,73 +89,133 @@
 
       <main class="content">
         <section class="view active" id="view-dashboard" aria-labelledby="dashboard-heading">
-          <div class="hero-card">
-            <div>
-              <span class="eyebrow">CENTRAL DO PROFESSOR</span>
-              <div class="hero-badge"><span>✦</span> Planejamento, inclusão e avaliações em um só lugar</div>
-              <h1 id="dashboard-heading">Menos tempo preparando.<br />Mais tempo ensinando.</h1>
-              <p>Planeje aulas, gere atividades e avaliações, organize materiais e prepare estruturas acadêmicas em um único ambiente.</p>
-              <div class="hero-actions">
-                <button class="primary-button" data-go="plan">Criar material</button>
-                <button class="ghost-button hero-inclusive-button" type="button" data-inclusive-preset="special">🌱 Educação especial</button>
-                <button class="ghost-button" data-go="materials">Abrir biblioteca</button>
+          <div class="home-hero">
+            <div class="home-hero-copy">
+              <div class="hero-kicker-row">
+                <span class="hero-kicker">AULORA PARA PROFESSORES</span>
+                <span class="hero-live"><i></i> Plataforma ativa</span>
+              </div>
+              <h1 id="dashboard-heading">Sua rotina docente,<br><span>em outro nível.</span></h1>
+              <p>Planeje, adapte, gere e organize materiais pedagógicos em um ambiente criado para economizar tempo sem perder qualidade.</p>
+              <div class="home-hero-actions">
+                <button class="home-primary" data-go="plan"><span>✦</span> Criar agora</button>
+                <button class="home-secondary" data-go="activity">Explorar atividades <span>→</span></button>
+              </div>
+              <div class="hero-trust-row">
+                <span><b>✓</b> Plano de aula</span>
+                <span><b>✓</b> Provas com imagens</span>
+                <span><b>✓</b> Educação inclusiva</span>
+                <span><b>✓</b> Relatórios</span>
               </div>
             </div>
-            <div class="hero-visual" aria-hidden="true">
-              <div class="hero-orbit orbit-one"></div><div class="hero-orbit orbit-two"></div>
-              <div class="hero-chip hero-chip-one"><span>✓</span> Provas</div>
-              <div class="hero-chip hero-chip-two"><span>✦</span> Inclusão</div>
-              <div class="hero-chip hero-chip-three"><span>▤</span> Planos</div>
-              <div class="paper paper-back"></div>
-              <div class="paper paper-front">
-                <span>AULORA</span>
-                <i></i><i></i><i></i><i class="short"></i>
-                <b>✓</b>
+
+            <div class="home-hero-stage" aria-hidden="true">
+              <div class="stage-glow stage-glow-a"></div>
+              <div class="stage-glow stage-glow-b"></div>
+              <div class="stage-card stage-main">
+                <div class="stage-top"><span class="stage-logo">A</span><div><strong>Nova atividade</strong><small>5º ano • Língua Portuguesa</small></div><span class="stage-status">PRONTO</span></div>
+                <div class="stage-pills"><span>10 questões</span><span>Com imagens</span><span>BNCC + local</span></div>
+                <div class="stage-preview">
+                  <div class="stage-image"><span>🖼</span></div>
+                  <div class="stage-lines"><i></i><i></i><i class="mid"></i><i class="short"></i></div>
+                </div>
+                <div class="stage-question"><b>1</b><div><i></i><i class="short"></i></div><span>A B C D</span></div>
+                <div class="stage-footer"><span>Versão do aluno</span><span>Gabarito do professor</span></div>
               </div>
+              <div class="stage-float stage-float-one"><span>🧩</span><div><strong>TEA / AEE</strong><small>Adaptação pronta</small></div></div>
+              <div class="stage-float stage-float-two"><span>✦</span><div><strong>Geração inteligente</strong><small>Conteúdo completo</small></div></div>
+              <div class="stage-float stage-float-three"><span>📄</span><div><strong>Word + PDF</strong><small>Pronto para imprimir</small></div></div>
             </div>
           </div>
 
-          <section class="inclusive-home" aria-labelledby="inclusive-home-title">
-            <div class="inclusive-home-head">
-              <div><span class="eyebrow">EDUCAÇÃO INCLUSIVA</span><h2 id="inclusive-home-title">Atividades adaptadas em um clique</h2><p>Escolha o perfil pedagógico e o Aulora já abre a atividade com as adaptações configuradas.</p></div>
-            </div>
-            <div class="inclusive-home-grid">
-              <button type="button" class="inclusive-home-card featured" data-inclusive-preset="special"><span>🌱</span><div><strong>Educação especial</strong><small>Menos escrita, múltiplas formas de resposta e mediação.</small></div><b>Abrir →</b></button>
-              <button type="button" class="inclusive-home-card" data-inclusive-preset="tea"><span>🧩</span><div><strong>TEA / autismo</strong><small>Linguagem literal, previsibilidade e baixa carga visual.</small></div><b>Abrir →</b></button>
-              <button type="button" class="inclusive-home-card" data-inclusive-preset="drawing"><span>🎨</span><div><strong>Desenho guiado</strong><small>Desenhar, pintar, completar e representar ideias.</small></div><b>Abrir →</b></button>
-              <button type="button" class="inclusive-home-card" data-inclusive-preset="association"><span>🔗</span><div><strong>Ligar / associar</strong><small>Pares, correspondências, símbolos e relações simples.</small></div><b>Abrir →</b></button>
-              <button type="button" class="inclusive-home-card" data-inclusive-preset="literacy"><span>🔤</span><div><strong>Alfabetização</strong><small>Comandos curtos, letras, palavras e apoio visual.</small></div><b>Abrir →</b></button>
-              <button type="button" class="inclusive-home-card" data-inclusive-preset="visual"><span>👁</span><div><strong>Visual e objetiva</strong><small>Pouco texto, uma instrução por bloco e escolhas claras.</small></div><b>Abrir →</b></button>
-            </div>
+          <div class="home-flow-strip">
+            <div><span>01</span><strong>Planeje</strong><small>Objetivos e metodologia</small></div>
+            <i></i>
+            <div><span>02</span><strong>Gere</strong><small>Atividades e avaliações</small></div>
+            <i></i>
+            <div><span>03</span><strong>Adapte</strong><small>Inclusão e acessibilidade</small></div>
+            <i></i>
+            <div><span>04</span><strong>Exporte</strong><small>Word, PDF e biblioteca</small></div>
+          </div>
+
+          <div class="home-section-head">
+            <div><span class="home-overline">FERRAMENTAS</span><h2>Tudo que você precisa, sem trocar de tela.</h2><p>Escolha uma ferramenta e comece de onde estiver.</p></div>
+            <button class="home-link-button" data-go="materials">Ver meus materiais <span>→</span></button>
+          </div>
+
+          <div class="home-tool-grid">
+            <button class="home-tool-card tool-plan" data-go="plan">
+              <span class="tool-number">01</span><span class="tool-icon">▤</span>
+              <strong>Plano de aula</strong><small>Objetivos, metodologia, recursos, inclusão e avaliação.</small><b>Planejar agora →</b>
+            </button>
+            <button class="home-tool-card tool-activity" data-go="activity">
+              <span class="tool-number">02</span><span class="tool-icon">✎</span>
+              <strong>Atividades</strong><small>Questões, imagens, gabaritos, desenho e múltiplos formatos.</small><b>Criar atividade →</b>
+            </button>
+            <button class="home-tool-card tool-exam" data-go="exam">
+              <span class="tool-number">03</span><span class="tool-icon">✓</span>
+              <strong>Avaliações</strong><small>Provas com pontuação, imagens e versão aluno/professor.</small><b>Montar prova →</b>
+            </button>
+            <button class="home-tool-card tool-report" data-go="reports">
+              <span class="tool-number">04</span><span class="tool-icon">📋</span>
+              <strong>Relatórios</strong><small>Pareceres, AEE, evolução, acompanhamento e família.</small><b>Gerar relatório →</b>
+            </button>
+            <button class="home-tool-card tool-abnt" data-go="abnt">
+              <span class="tool-number">05</span><span class="tool-icon">¶</span>
+              <strong>Acadêmico / ABNT</strong><small>Estrutura, referências e revisão de normalização.</small><b>Abrir módulo →</b>
+            </button>
+          </div>
+
+          <div class="home-feature-grid">
+            <section class="home-inclusive-panel">
+              <div class="inclusive-panel-copy">
+                <span class="home-overline light">EDUCAÇÃO INCLUSIVA</span>
+                <h2>Adapte sem começar do zero.</h2>
+                <p>Escolha o perfil pedagógico e o Aulora prepara a atividade com linguagem, mediação e estrutura adequadas.</p>
+                <div class="inclusive-pills">
+                  <button type="button" data-inclusive-preset="special">🌱 Educação especial</button>
+                  <button type="button" data-inclusive-preset="tea">🧩 TEA / autismo</button>
+                  <button type="button" data-inclusive-preset="drawing">🎨 Desenho guiado</button>
+                  <button type="button" data-inclusive-preset="association">🔗 Associação</button>
+                  <button type="button" data-inclusive-preset="literacy">🔤 Alfabetização</button>
+                  <button type="button" data-inclusive-preset="visual">👁 Visual</button>
+                </div>
+              </div>
+              <div class="inclusive-panel-art" aria-hidden="true">
+                <div class="inc-card inc-card-a"><span>🧩</span><strong>Instruções curtas</strong></div>
+                <div class="inc-card inc-card-b"><span>🎨</span><strong>Apoio visual</strong></div>
+                <div class="inc-card inc-card-c"><span>🌱</span><strong>Mediação</strong></div>
+              </div>
+            </section>
+
+            <section class="home-cloud-panel" id="smartBanner">
+              <div class="cloud-orb">✦</div>
+              <span class="home-overline">AULORA CLOUD</span>
+              <h3>Geração inteligente + biblioteca na nuvem</h3>
+              <p id="smartBannerText">Entre com uma conta gratuita para gerar materiais e acessá-los em outros dispositivos. O modo local continua disponível sem cadastro.</p>
+              <div class="cloud-footer"><span class="smart-badge" id="smartBadge">Verificando</span><button data-go="materials">Abrir biblioteca →</button></div>
+            </section>
+          </div>
+
+          <div class="home-section-head home-stats-head">
+            <div><span class="home-overline">SEU PAINEL</span><h2>Seu trabalho, organizado.</h2></div>
+          </div>
+          <div class="home-stats-grid">
+            <article><span>Materiais</span><strong id="statMaterials">0</strong><small>salvos na biblioteca</small></article>
+            <article><span>Planos</span><strong id="statPlans">0</strong><small>planos de aula</small></article>
+            <article><span>Atividades</span><strong id="statActivities">0</strong><small>atividades criadas</small></article>
+            <article><span>Avaliações</span><strong id="statExams">0</strong><small>provas montadas</small></article>
+            <article><span>Relatórios</span><strong id="statReports">0</strong><small>pareceres gerados</small></article>
+            <article><span>Acadêmicos</span><strong id="statAbnt">0</strong><small>documentos ABNT</small></article>
+          </div>
+
+          <section class="home-upgrade-strip">
+            <div class="upgrade-icon">✦</div>
+            <div><span>QUANDO QUISER IR ALÉM</span><strong>Mais gerações, mais materiais e mais liberdade no Aulora Pro.</strong></div>
+            <button data-go="settings">Ver meu plano <span>→</span></button>
           </section>
-
-          <div class="smart-banner" id="smartBanner">
-            <div class="smart-icon">✦</div>
-            <div><strong>Geração inteligente + biblioteca na nuvem</strong><small id="smartBannerText">Entre com uma conta gratuita para gerar materiais e acessá-los em outros dispositivos. O modo local continua disponível sem cadastro.</small></div>
-            <span class="smart-badge" id="smartBadge">Verificando</span>
-          </div>
-
-          <div class="section-heading">
-            <div><span class="eyebrow">ATALHOS</span><h2>O que você quer preparar hoje?</h2></div>
-          </div>
-
-          <div class="quick-grid">
-            <button class="quick-card" data-go="plan"><span class="quick-icon">▤</span><strong>Plano de aula</strong><small>Objetivos, metodologia, recursos, inclusão e avaliação.</small><em>Planejar →</em></button>
-            <button class="quick-card" data-go="activity"><span class="quick-icon">✎</span><strong>Atividade inclusiva</strong><small>Questões, desenho, associação, TEA, educação especial, gabarito e versão do aluno.</small><em>Criar →</em></button>
-            <button class="quick-card" data-go="exam"><span class="quick-icon">✓</span><strong>Avaliação</strong><small>Prova com pontuação, questões e critérios de correção.</small><em>Montar →</em></button>
-            <button class="quick-card" data-go="reports"><span class="quick-icon">📋</span><strong>Relatórios</strong><small>Pareceres pedagógicos, AEE, evolução, família e acompanhamento individual.</small><em>Gerar →</em></button>
-            <button class="quick-card" data-go="abnt"><span class="quick-icon">¶</span><strong>Acadêmico / ABNT</strong><small>Estrutura, referências e verificação de normalização.</small><em>Acessar →</em></button>
-          </div>
-
-          <div class="stats-grid">
-            <article class="stat-card"><span>Materiais salvos</span><strong id="statMaterials">0</strong></article>
-            <article class="stat-card"><span>Planos de aula</span><strong id="statPlans">0</strong></article>
-            <article class="stat-card"><span>Atividades</span><strong id="statActivities">0</strong></article>
-            <article class="stat-card"><span>Avaliações</span><strong id="statExams">0</strong></article>
-            <article class="stat-card"><span>Relatórios</span><strong id="statReports">0</strong></article>
-            <article class="stat-card"><span>Acadêmicos</span><strong id="statAbnt">0</strong></article>
-          </div>
         </section>
+
 
         <section class="view" id="view-plan">
           <div class="page-intro"><span class="eyebrow">PLANEJAMENTO</span><h1>Plano de aula</h1><p>Informe o contexto da turma. O Aulora pode gerar um planejamento completo ou montar um modelo local para edição.</p></div>
