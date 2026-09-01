@@ -46,9 +46,11 @@
       <div class="sidebar-bottom">
         <div class="plan-mini" id="planMini"><span id="planMiniBadge">COMECE GRÁTIS</span><strong id="planMiniTitle">Crie sua conta gratuita</strong><small id="planMiniUsage">5 gerações inteligentes por mês no plano gratuito.</small></div>
         <div class="status-card">
-          <div class="status-line"><span class="status-dot" id="aiDot"></span><strong id="aiStatus">Verificando serviços…</strong></div>
-          <small id="aiStatusDetail">Modelos manuais continuam disponíveis; geração inteligente exige conta.</small>
+          <div class="status-line"><span class="status-dot" id="aiDot"></span><strong>Serviços Aulora</strong></div>
+          <small id="aiStatus">Verificando serviços…</small>
+          <small id="aiStatusDetail">IA • Banco • Imagens • Relatórios</small>
         </div>
+        <div class="sidebar-product-footer"><span class="footer-dot"></span><div><strong>Aulora</strong><small>© 2026 — plataforma educacional</small></div></div>
       </div>
     </aside>
 
@@ -68,7 +70,7 @@
           </div>
           <div class="account-menu-wrap" id="accountMenuWrap" hidden>
             <button class="account-chip account-menu-trigger" id="accountBtn" type="button" aria-haspopup="menu" aria-expanded="false">
-              <span id="accountPlan"></span><strong id="accountName"></strong><span class="account-chevron" aria-hidden="true">⌄</span>
+              <span class="account-top-avatar" id="accountTopAvatar" aria-hidden="true">A</span><span id="accountPlan"></span><strong id="accountName"></strong><span class="account-chevron" aria-hidden="true">⌄</span>
             </button>
             <div class="account-menu" id="accountMenu" role="menu" hidden>
               <div class="account-menu-head">
@@ -127,83 +129,69 @@
             </div>
           </div>
 
-          <div class="home-tool-grid grok-tool-grid">
-            <button class="home-tool-card tool-plan" data-go="plan">
-              <span class="tool-icon">▤</span><strong>Plano de aula</strong><small>Crie planos completos alinhados ao contexto da turma.</small><b>Criar <span>→</span></b>
-            </button>
-            <button class="home-tool-card tool-activity" data-go="activity">
-              <span class="tool-icon">✎</span><strong>Atividade</strong><small>Exercícios, práticas, gabaritos e atividades com imagens.</small><b>Gerar <span>→</span></b>
-            </button>
-            <button class="home-tool-card tool-exam" data-go="exam">
-              <span class="tool-icon">✓</span><strong>Avaliação</strong><small>Provas, pontuação, critérios, gabarito e figuras.</small><b>Criar <span>→</span></b>
-            </button>
-            <button class="home-tool-card tool-report" data-go="reports">
-              <span class="tool-icon">▥</span><strong>Relatórios</strong><small>Pareceres, evolução e acompanhamento pedagógico.</small><b>Gerar <span>→</span></b>
-            </button>
-            <button class="home-tool-card tool-inclusive" data-inclusive-preset="special">
-              <span class="tool-icon">♥</span><strong>Educação Inclusiva</strong><small>Adaptações, acessibilidade, TEA, AEE e apoio visual.</small><b>Acessar <span>→</span></b>
-            </button>
+          <div class="home-tool-grid grok-tool-grid" aria-hidden="true">
+            <button class="home-tool-card tool-plan" data-go="plan"><span class="tool-icon">▤</span><strong>Plano de aula</strong></button>
+            <button class="home-tool-card tool-activity" data-go="activity"><span class="tool-icon">✎</span><strong>Atividade</strong></button>
+            <button class="home-tool-card tool-exam" data-go="exam"><span class="tool-icon">✓</span><strong>Avaliação</strong></button>
+            <button class="home-tool-card tool-report" data-go="reports"><span class="tool-icon">▥</span><strong>Relatórios</strong></button>
+            <button class="home-tool-card tool-inclusive" data-inclusive-preset="special"><span class="tool-icon">♥</span><strong>Educação Inclusiva</strong></button>
           </div>
 
-          <div class="home-stats-grid grok-stats-row">
-            <article><span>Materiais criados</span><strong id="statMaterials">0</strong><small>salvos na biblioteca</small></article>
-            <article><span>Atividades geradas</span><strong id="statActivities">0</strong><small>práticas e gabaritos</small></article>
-            <article><span>Avaliações</span><strong id="statExams">0</strong><small>provas montadas</small></article>
-            <article><span>Relatórios</span><strong id="statReports">0</strong><small>pareceres gerados</small></article>
+          <div class="reference-stats-row">
+            <article class="reference-stat stat-ai">
+              <span class="reference-stat-icon">♥</span>
+              <div class="reference-stat-copy"><strong id="statAiUsed">0</strong><b>Gerações este mês</b><small id="statAiLimit">Entre para acompanhar</small><span class="stat-progress"><i id="statAiProgress"></i></span></div>
+            </article>
+            <article class="reference-stat stat-materials">
+              <span class="reference-stat-icon">▰</span>
+              <div class="reference-stat-copy"><strong id="statMaterials">0</strong><b>Materiais salvos</b><small>na sua biblioteca</small></div>
+            </article>
+            <article class="reference-stat stat-exams">
+              <span class="reference-stat-icon">▣</span>
+              <div class="reference-stat-copy"><strong id="statExams">0</strong><b>Provas criadas</b><small>avaliações salvas</small></div>
+            </article>
+            <article class="reference-stat stat-state">
+              <span class="reference-stat-icon">✿</span>
+              <div class="reference-stat-copy"><strong id="statStateCount">0</strong><b>Estado cadastrado</b><small id="statStateName">Não informado</small></div>
+            </article>
           </div>
-          <span id="statPlans" hidden>0</span><span id="statAbnt" hidden>0</span>
+          <span id="statPlans" hidden>0</span><span id="statActivities" hidden>0</span><span id="statReports" hidden>0</span><span id="statAbnt" hidden>0</span>
 
-          <div class="dashboard-bottom-grid">
-            <section class="dashboard-panel featured-panel">
-              <div class="dashboard-panel-head">
-                <div><span class="home-overline">🔥 MODELOS EM DESTAQUE</span><h2>Prontos para usar ou personalizar</h2></div>
+          <div class="reference-dashboard-grid">
+            <section class="reference-panel reference-models-panel">
+              <div class="reference-panel-head">
+                <div><h2>Modelos em destaque</h2><p>Use nossos formulários prontos para criar materiais em segundos</p></div>
+                <button type="button" class="reference-view-all" data-go="plan">Ver todos <span>→</span></button>
               </div>
-              <div class="featured-model-grid">
-                <button type="button" class="featured-model-card" data-featured-view="plan" data-topic="Sistema Solar" data-discipline="Ciências" data-grade="7º ano">
-                  <span class="featured-icon">☀</span><div><strong>Sistema Solar — 7º ano</strong><small>Plano de aula com sondagem, estações e síntese.</small></div><b>→</b>
+              <div class="reference-model-grid">
+                <button type="button" class="reference-model model-plan" data-featured-view="plan" data-topic="" data-discipline="" data-grade="">
+                  <span class="model-icon">▤</span><strong>Plano de aula</strong><small>Crie planos completos com objetivos e BNCC</small><b>Usar modelo <span>→</span></b>
                 </button>
-                <button type="button" class="featured-model-card" data-featured-view="activity" data-topic="Interpretação de texto" data-discipline="Língua Portuguesa" data-grade="5º ano">
-                  <span class="featured-icon">A</span><div><strong>Interpretação de texto</strong><small>Atividade mista com texto-base e gabarito.</small></div><b>→</b>
+                <button type="button" class="reference-model model-activity" data-featured-view="activity" data-topic="" data-discipline="" data-grade="">
+                  <span class="model-icon">✎</span><strong>Atividade</strong><small>Exercícios e atividades personalizadas</small><b>Usar modelo <span>→</span></b>
                 </button>
-                <button type="button" class="featured-model-card" data-featured-view="exam" data-topic="Frações equivalentes" data-discipline="Matemática" data-grade="6º ano">
-                  <span class="featured-icon">½</span><div><strong>Frações equivalentes</strong><small>Avaliação com objetivas, discursivas e pontos.</small></div><b>→</b>
+                <button type="button" class="reference-model model-exam" data-featured-view="exam" data-topic="" data-discipline="" data-grade="">
+                  <span class="model-icon">✓</span><strong>Avaliação</strong><small>Provas com e sem imagens + gabarito</small><b>Usar modelo <span>→</span></b>
+                </button>
+                <button type="button" class="reference-model model-inclusive" data-inclusive-preset="special">
+                  <span class="model-icon">♥</span><strong>Educação Inclusiva</strong><small>Adapte para diferentes necessidades</small><b>Usar modelo <span>→</span></b>
                 </button>
               </div>
             </section>
 
-            <section class="dashboard-panel recent-panel">
-              <div class="dashboard-panel-head">
-                <div><span class="home-overline">◷ ÚLTIMOS MATERIAIS</span><h2>Seus conteúdos recentes</h2></div>
-                <button class="home-link-button" data-go="materials">Ver todos <span>→</span></button>
+            <section class="reference-panel reference-recent-panel">
+              <div class="reference-panel-head">
+                <div><h2>Últimos materiais</h2><p>Seus materiais mais recentes</p></div>
+                <button type="button" class="reference-view-all" data-go="materials">Ver todos <span>→</span></button>
               </div>
-              <div class="dashboard-recent-list" id="dashboardRecentList"></div>
+              <div class="dashboard-recent-list reference-recent-list" id="dashboardRecentList"></div>
             </section>
           </div>
 
-          <div class="home-feature-grid grok-secondary-grid">
-            <section class="home-inclusive-panel">
-              <div class="inclusive-panel-copy">
-                <span class="home-overline light">EDUCAÇÃO INCLUSIVA</span>
-                <h2>Adapte sem começar do zero.</h2>
-                <p>Escolha o perfil pedagógico e o Aulora prepara a atividade com linguagem, mediação e estrutura adequadas.</p>
-                <div class="inclusive-pills">
-                  <button type="button" data-inclusive-preset="special">🌱 Educação especial</button>
-                  <button type="button" data-inclusive-preset="tea">🧩 TEA / autismo</button>
-                  <button type="button" data-inclusive-preset="drawing">🎨 Desenho guiado</button>
-                  <button type="button" data-inclusive-preset="association">🔗 Associação</button>
-                  <button type="button" data-inclusive-preset="literacy">🔤 Alfabetização</button>
-                  <button type="button" data-inclusive-preset="visual">👁 Visual</button>
-                </div>
-              </div>
-            </section>
-
+          <div class="home-feature-grid grok-secondary-grid" aria-hidden="true">
             <section class="home-cloud-panel" id="smartBanner">
-              <div class="cloud-orb">✦</div>
-              <span class="home-overline">AULORA CLOUD</span>
-              <h3>IA, nuvem e exportação no mesmo lugar</h3>
-              <p id="smartBannerText">Entre com uma conta gratuita para gerar materiais e acessá-los em outros dispositivos.</p>
-              <div class="cloud-footer"><span class="smart-badge" id="smartBadge">Verificando</span><button data-go="materials">Abrir biblioteca →</button></div>
-              <button class="abnt-shortcut" type="button" data-go="abnt">¶ Acadêmico / ABNT <span>→</span></button>
+              <span class="smart-badge" id="smartBadge">Verificando</span>
+              <p id="smartBannerText">Serviços Aulora.</p>
             </section>
           </div>
         </section>
@@ -537,12 +525,24 @@
         <button type="button" id="henryHelpClose" aria-label="Fechar ajuda">×</button>
       </div>
       <div class="henry-help-body">
-        <p>Escolha uma opção e eu levo você direto ao lugar certo.</p>
-        <div class="henry-help-actions">
-          <button type="button" data-help-go="activity"><span>✎</span><div><strong>Criar atividade</strong><small>Regular, inclusiva ou com imagens</small></div></button>
-          <button type="button" data-help-go="exam"><span>✓</span><div><strong>Criar prova</strong><small>Avaliação com gabarito e figuras</small></div></button>
-          <button type="button" data-help-go="plan"><span>▤</span><div><strong>Plano de aula</strong><small>Objetivos, metodologia e avaliação</small></div></button>
-          <button type="button" data-help-go="reports"><span>📋</span><div><strong>Relatórios</strong><small>Pareceres e acompanhamento</small></div></button>
+        <div class="henry-ai-status"><span></span><strong>Henry IA</strong><small>Assistente educacional</small></div>
+        <div class="henry-chat" id="henryChat" role="log" aria-live="polite" aria-label="Conversa com Henry">
+          <div class="henry-chat-message assistant">
+            <span class="henry-chat-avatar">H</span>
+            <div><p>Olá! 👋 Pode me perguntar sobre o Aulora, planejamento, atividades, avaliações, inclusão ou relatórios. Vou responder aqui mesmo.</p></div>
+          </div>
+        </div>
+        <form class="henry-chat-form" id="henryChatForm">
+          <textarea id="henryChatInput" rows="2" maxlength="1600" placeholder="Pergunte ao Henry..." aria-label="Mensagem para Henry"></textarea>
+          <button type="submit" id="henryChatSend" aria-label="Enviar mensagem">➤</button>
+        </form>
+        <div class="henry-chat-note">As respostas são de apoio pedagógico e não substituem avaliação profissional ou normas oficiais da sua rede.</div>
+        <div class="henry-help-shortcuts-title">Atalhos do Aulora</div>
+        <div class="henry-help-actions henry-help-actions-compact">
+          <button type="button" data-help-go="activity"><span>✎</span><div><strong>Atividade</strong><small>Criar ou adaptar</small></div></button>
+          <button type="button" data-help-go="exam"><span>✓</span><div><strong>Avaliação</strong><small>Prova e gabarito</small></div></button>
+          <button type="button" data-help-go="plan"><span>▤</span><div><strong>Plano</strong><small>Planejamento</small></div></button>
+          <button type="button" data-help-go="reports"><span>📋</span><div><strong>Relatórios</strong><small>Pareceres</small></div></button>
         </div>
         <button class="henry-help-profile" type="button" data-help-go="settings">⚙ Perfil, senha e preferências</button>
       </div>

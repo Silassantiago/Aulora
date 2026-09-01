@@ -84,7 +84,7 @@
     let states=[];
     try{const data=await apiFetch('/api/locations/states',{cache:'force-cache'});states=data.states||[];}catch(err){console.warn('Estados indisponíveis',err);}
     const options='<option value="">Selecione o estado</option>'+states.map(s=>`<option value="${esc(s.sigla)}">${esc(s.nome)} (${esc(s.sigla)})</option>`).join('');
-    stateSelects.forEach(sel=>{const current=sel.value;sel.innerHTML=options;if(current)sel.value=current;sel.addEventListener('change',()=>loadMunicipalitiesForForm(sel.closest('form')));});
+    stateSelects.forEach(sel=>{const current=sel.value;sel.innerHTML=options;if(current)sel.value=current;sel.addEventListener('change',()=>{if(sel.value)localStorage.setItem('aulora.lastState',sel.value);loadMunicipalitiesForForm(sel.closest('form'));updateStats();});});
     $$('[data-city-select]').forEach(sel=>sel.addEventListener('change',()=>{const form=sel.closest('form');const opt=sel.selectedOptions[0];const hidden=$('[data-city-id]',form);if(hidden)hidden.value=opt?.dataset?.id||'';refreshCurriculumStatus(form);}));
     for(const form of $$('.generator-form')){const state=$('[data-state-select]',form);if(state?.value)await loadMunicipalitiesForForm(form);}
   }
@@ -139,6 +139,7 @@
   function updateAccountUI(){
     const user=app.user, plan=planName(user), chipPlan=planChipName(user), isPro=user?.plan==='pro', displayName=userDisplayName(user);
     $('#accountPlan').textContent=chipPlan; $('#accountName').textContent=user?displayName:''; $('#profileShortcut').textContent=user?String(displayName||user.email||'A').trim().charAt(0).toUpperCase():'A';
+    if($('#accountTopAvatar')) $('#accountTopAvatar').textContent=user?String(displayName||user.email||'A').trim().charAt(0).toUpperCase():'A';
     $('#guestAuthActions').hidden=Boolean(user); $('#accountMenuWrap').hidden=!user; $('#profileShortcut').hidden=true;
     if(user){
       const initial=String(displayName||user.email||'A').trim().charAt(0).toUpperCase();
@@ -148,7 +149,7 @@
     $$('[data-guest-only]').forEach(el=>el.hidden=Boolean(user));
     $$('[data-pro-only]').forEach(option=>{ option.disabled=Boolean(user)&&!isPro || !user; option.classList.toggle('option-pro-locked',!isPro); });
     [$('#activityForm'),$('#examForm')].forEach(form=>{ if(form && !isPro && Number(form.elements.count?.value||0)>10) form.elements.count.value='10'; });
-    $('#planMiniBadge').textContent=user?plan.toUpperCase():'COMECE GRÁTIS'; $('#planMiniBadge').className=isPro?'plan-pro':user?'plan-free':'';
+    $('#planMiniBadge').textContent=user?'PLANO ATIVO':'COMECE GRÁTIS'; $('#planMiniBadge').className=isPro?'plan-pro':user?'plan-free':'';
     $('#planMiniTitle').textContent=user?(isPro?'Aulora Pro ativo':'Aulora Grátis ativo'):'Crie sua conta gratuita';
     $('#planMiniUsage').textContent=user&&app.usage?`${app.usage.ai}/${app.usage.limits.ai} gerações inteligentes usadas neste mês.`:'Geração inteligente exige uma conta gratuita.';
     $('#settingsAccountTitle').textContent=user?(displayName||user.email):'Você ainda não entrou';
@@ -371,8 +372,8 @@
       const data=await apiFetch('/api/health',{cache:'no-store'}); if(!data.ok)throw new Error('offline');
       app.smartOnline=Boolean(data.ai&&data.db); app.billingEnabled=Boolean(data.billing);
       dot.classList.toggle('online',app.smartOnline);dot.classList.toggle('offline',!app.smartOnline);
-      status.textContent=app.smartOnline?'Serviços do Aulora ativos':'Modo local disponível';
-      detail.textContent=app.smartOnline?'Geração inteligente, conta e banco estão disponíveis.':'A geração inteligente está indisponível agora. Os modelos locais continuam funcionando.';
+      status.textContent=app.smartOnline?'IA ativa • Banco ativo':'Modo local disponível';
+      detail.textContent=app.smartOnline?'Imagens • Relatórios • Sincronização disponíveis':'A geração inteligente está indisponível agora. Os modelos locais continuam funcionando.';
       badge.textContent=app.user?(app.user.plan==='pro'?'Pro':'Grátis'):'Conta opcional'; badge.className=`smart-badge ${app.smartOnline?'online':'offline'}`;
     }catch{
       app.smartOnline=false; dot.classList.add('offline'); dot.classList.remove('online'); status.textContent='Modo local disponível'; detail.textContent='Não foi possível conectar aos serviços do Aulora agora.'; badge.textContent='Modo local'; badge.className='smart-badge offline';
@@ -588,16 +589,35 @@
   });
   $('#resetAppBtn').onclick=()=>{if(confirm('Apagar cache local, perfil local e rascunhos deste dispositivo? Materiais já sincronizados na nuvem não serão excluídos.')){Object.keys(localStorage).filter(k=>k.startsWith('aulora.')).forEach(k=>localStorage.removeItem(k));app.materials=[];app.profile={...DEFAULT_PROFILE};location.reload();}};
 
+  const STATE_NAMES={AC:'Acre',AL:'Alagoas',AP:'Amapá',AM:'Amazonas',BA:'Bahia',CE:'Ceará',DF:'Distrito Federal',ES:'Espírito Santo',GO:'Goiás',MA:'Maranhão',MT:'Mato Grosso',MS:'Mato Grosso do Sul',MG:'Minas Gerais',PA:'Pará',PB:'Paraíba',PR:'Paraná',PE:'Pernambuco',PI:'Piauí',RJ:'Rio de Janeiro',RN:'Rio Grande do Norte',RS:'Rio Grande do Sul',RO:'Rondônia',RR:'Roraima',SC:'Santa Catarina',SP:'São Paulo',SE:'Sergipe',TO:'Tocantins'};
   function setStat(id,value){const el=$(id);if(el)el.textContent=value;}
+  function currentState(){
+    const selected=$$('[data-state-select]').map(s=>s.value).find(Boolean);
+    return selected||localStorage.getItem('aulora.lastState')||'';
+  }
+  function relativeMaterialTime(value){
+    if(!value)return '';
+    const diff=Date.now()-new Date(value).getTime(); if(!Number.isFinite(diff))return '';
+    const mins=Math.max(0,Math.floor(diff/60000)); if(mins<60)return mins<2?'agora':`há ${mins} min`;
+    const hours=Math.floor(mins/60); if(hours<24)return `há ${hours}h`;
+    const days=Math.floor(hours/24); if(days<7)return `há ${days}d`;
+    return formatDateBR(String(value).slice(0,10));
+  }
   function renderDashboardRecent(){
     const host=$('#dashboardRecentList'); if(!host)return;
-    const recent=app.materials.slice().sort((a,b)=>String(b.updatedAt||b.createdAt||'').localeCompare(String(a.updatedAt||a.createdAt||''))).slice(0,4);
-    if(!recent.length){host.innerHTML='<div class="dashboard-empty"><span>✦</span><div><strong>Sua biblioteca começa aqui</strong><small>Crie um plano, atividade, avaliação ou relatório e salve para aparecer neste painel.</small></div></div>';return;}
-    host.innerHTML=recent.map(m=>`<button type="button" class="dashboard-recent-card" data-dashboard-open="${esc(m.id)}"><span class="recent-type">${esc(m.typeLabel||'Material')}</span><strong>${esc(m.title)}</strong><small>${esc(m.subtitle||'')} ${m.updatedAt?`• ${esc(new Intl.DateTimeFormat('pt-BR').format(new Date(m.updatedAt)))}`:''}</small></button>`).join('');
+    const recent=app.materials.slice().sort((a,b)=>String(b.updatedAt||b.createdAt||'').localeCompare(String(a.updatedAt||a.createdAt||''))).slice(0,3);
+    if(!recent.length){host.innerHTML='<div class="dashboard-empty reference-empty"><span>✦</span><div><strong>Sua biblioteca começa aqui</strong><small>Crie seu primeiro material para ele aparecer neste painel.</small></div></div>';return;}
+    const iconFor={plan:'▤',activity:'✎',exam:'✓',report:'▥',abnt:'¶',reference:'¶'};
+    const classFor={plan:'plan',activity:'activity',exam:'exam',report:'report',abnt:'abnt',reference:'abnt'};
+    host.innerHTML=recent.map(m=>{const type=classFor[m.type]||'material';const when=relativeMaterialTime(m.updatedAt||m.createdAt);return `<button type="button" class="reference-recent-card recent-${type}" data-dashboard-open="${esc(m.id)}"><span class="recent-icon">${iconFor[m.type]||'▣'}</span><span class="recent-main"><strong>${esc(m.title)}</strong><small>${esc(m.subtitle||m.typeLabel||'Material')}</small></span><span class="recent-pill">${esc(m.typeLabel||'Material')}</span><time>${esc(when)}</time><b>⋮</b></button>`}).join('');
     $$('[data-dashboard-open]',host).forEach(btn=>btn.onclick=()=>openMaterial(btn.dataset.dashboardOpen));
   }
   function updateStats(){
-    setStat('#statMaterials',app.materials.length);setStat('#statPlans',app.materials.filter(m=>m.type==='plan').length);setStat('#statActivities',app.materials.filter(m=>m.type==='activity').length);setStat('#statExams',app.materials.filter(m=>m.type==='exam').length);setStat('#statReports',app.materials.filter(m=>m.type==='report').length);setStat('#statAbnt',app.materials.filter(m=>['abnt','reference'].includes(m.type)).length);renderDashboardRecent();updateSettingsStats();
+    const exams=app.materials.filter(m=>m.type==='exam').length;
+    setStat('#statMaterials',app.materials.length);setStat('#statPlans',app.materials.filter(m=>m.type==='plan').length);setStat('#statActivities',app.materials.filter(m=>m.type==='activity').length);setStat('#statExams',exams);setStat('#statReports',app.materials.filter(m=>m.type==='report').length);setStat('#statAbnt',app.materials.filter(m=>['abnt','reference'].includes(m.type)).length);
+    const used=Number(app.usage?.ai||0), limit=Number(app.usage?.limits?.ai||0); setStat('#statAiUsed',used); if($('#statAiLimit')) $('#statAiLimit').textContent=app.user&&limit?`de ${limit} disponíveis`:'Entre para acompanhar'; if($('#statAiProgress')) $('#statAiProgress').style.width=limit?`${Math.min(100,(used/limit)*100)}%`:'0%';
+    const uf=currentState(); setStat('#statStateCount',uf?1:0); if($('#statStateName')) $('#statStateName').textContent=uf?(STATE_NAMES[uf]||uf):'Não informado';
+    renderDashboardRecent();updateSettingsStats();
   }
   function updateSettingsStats(){
     if(!$('#settingsMaterialCount'))return;$('#settingsMaterialCount').textContent=app.materials.length;let bytes=0;try{bytes=new Blob([localStorage.getItem(materialCacheKey())||'']).size;}catch{}$('#settingsStorageSize').textContent=bytes<1024?`${bytes} B`:`${(bytes/1024).toFixed(1)} KB`;if($('#settingsCloudCount'))$('#settingsCloudCount').textContent=app.user?String(app.materials.length):'—';
@@ -607,9 +627,14 @@
   $('#installBtn').addEventListener('click',async()=>{if(!app.deferredInstall)return;app.deferredInstall.prompt();await app.deferredInstall.userChoice;app.deferredInstall=null;$('#installBtn').hidden=true;});
   if('serviceWorker' in navigator && location.protocol.startsWith('http'))window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
 
-  // Henry Ribeiro — assistente de navegação do Aulora.
+  // Henry Ribeiro — assistente educacional com IA do Aulora.
   const henryHelpPanel=$('#henryHelpPanel');
   const henryHelpToggle=$('#henryHelpToggle');
+  const henryChat=$('#henryChat');
+  const henryChatForm=$('#henryChatForm');
+  const henryChatInput=$('#henryChatInput');
+  const henryChatSend=$('#henryChatSend');
+  const henryChatHistory=[];
   function henryGreeting(){
     const h=new Date().getHours();
     return h<12?'Olá, bom dia!':h<18?'Olá, boa tarde!':'Olá, boa noite!';
@@ -623,13 +648,60 @@
     if(!henryHelpPanel||!henryHelpToggle)return;
     henryHelpPanel.hidden=!open;
     henryHelpToggle.setAttribute('aria-expanded',String(open));
+    if(open)setTimeout(()=>henryChatInput?.focus(),80);
+  }
+  function appendHenryMessage(role,text,{pending=false}={}){
+    if(!henryChat)return null;
+    const row=document.createElement('div');
+    row.className=`henry-chat-message ${role}${pending?' pending':''}`;
+    const avatar=document.createElement('span');
+    avatar.className='henry-chat-avatar';
+    avatar.textContent=role==='assistant'?'H':'Você';
+    const bubble=document.createElement('div');
+    const p=document.createElement('p');
+    p.textContent=String(text||'');
+    bubble.appendChild(p); row.append(avatar,bubble); henryChat.appendChild(row);
+    henryChat.scrollTop=henryChat.scrollHeight;
+    return row;
+  }
+  function setHenryChatBusy(busy){
+    if(henryChatInput)henryChatInput.disabled=busy;
+    if(henryChatSend){henryChatSend.disabled=busy;henryChatSend.textContent=busy?'…':'➤';}
+  }
+  async function askHenry(message){
+    if(!app.user){
+      appendHenryMessage('assistant','Para conversar comigo pela IA, entre na sua conta do Aulora. A conversa usa a IA configurada no seu aplicativo.');
+      setTimeout(()=>openAuth('login'),250); return;
+    }
+    const clean=String(message||'').trim().slice(0,1600); if(!clean)return;
+    appendHenryMessage('user',clean);
+    const recent=henryChatHistory.slice(-8);
+    henryChatHistory.push({role:'user',content:clean});
+    const pending=appendHenryMessage('assistant','Pensando…',{pending:true});
+    setHenryChatBusy(true);
+    try{
+      const result=await apiFetch('/api/assistant',{method:'POST',body:{message:clean,history:recent}});
+      pending?.remove();
+      const reply=String(result.reply||'Não consegui formular uma resposta agora. Tente novamente.').trim();
+      appendHenryMessage('assistant',reply);
+      henryChatHistory.push({role:'assistant',content:reply});
+      if(henryChatHistory.length>16)henryChatHistory.splice(0,henryChatHistory.length-16);
+    }catch(err){
+      pending?.remove();
+      if(err.code==='AUTH_REQUIRED'){
+        appendHenryMessage('assistant','Sua sessão expirou. Entre novamente para continuar conversando comigo.');
+        setTimeout(()=>openAuth('login'),250);
+      }else appendHenryMessage('assistant',err.message||'A IA do Henry está indisponível agora. Tente novamente em alguns instantes.');
+    }finally{setHenryChatBusy(false);setTimeout(()=>henryChatInput?.focus(),30);}
   }
   setHenryGreeting();
   henryHelpToggle?.addEventListener('click',e=>{e.stopPropagation();setHenryHelp(henryHelpPanel?.hidden!==false);});
-  $('#henryHelpClose')?.addEventListener('click',()=>setHenryHelp(false));
-  $('#heroHelpBtn')?.addEventListener('click',()=>setHenryHelp(true));
+  $('#henryHelpClose')?.addEventListener('click',e=>{e.stopPropagation();setHenryHelp(false);});
+  $('#heroHelpBtn')?.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();setHenryHelp(true);});
+  henryChatForm?.addEventListener('submit',e=>{e.preventDefault();const value=henryChatInput?.value||'';if(!value.trim())return;if(henryChatInput)henryChatInput.value='';askHenry(value);});
+  henryChatInput?.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();henryChatForm?.requestSubmit();}});
   $$('#henryHelp [data-help-go]').forEach(btn=>btn.addEventListener('click',()=>{go(btn.dataset.helpGo);setHenryHelp(false);}));
-  document.addEventListener('click',e=>{if($('#henryHelp')&&!$('#henryHelp').contains(e.target))setHenryHelp(false);});
+  document.addEventListener('click',e=>{if($('#henryHelp')&&!$('#henryHelp').contains(e.target)&&e.target!==$('#heroHelpBtn'))setHenryHelp(false);});
   document.addEventListener('keydown',e=>{if(e.key==='Escape')setHenryHelp(false);});
 
   document.body.dataset.view='dashboard';

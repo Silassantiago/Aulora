@@ -786,6 +786,39 @@ async function api(request, env, url, ctx) {
     const id=crypto.randomUUID(), ts=nowIso(); await env.DB.prepare(`INSERT INTO aulora_curriculum_sources(id,scope,uf,municipality_ibge_id,municipality_name,title,source_url,source_excerpt,source_type,verified_at,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)`).bind(id,scope,cleanText(b.uf,2).toUpperCase(),cleanText(b.municipalityId,20),cleanText(b.municipalityName,120),cleanText(b.title,220),cleanText(b.sourceUrl,900),cleanText(b.sourceExcerpt,30000),cleanText(b.sourceType,40)||'curriculum',cleanText(b.verifiedAt,30)||ts.slice(0,10),ts).run(); return json({ok:true,id});
   }
 
+  if (path === '/api/assistant' && request.method === 'POST') {
+    if (!mutationOriginAllowed(request)) return json({ error: 'Origem não autorizada.' }, 403);
+    const auth = await requireUser(request, env); if (auth.response) return auth.response;
+    if (!env.AI) return json({ error: 'A IA do Henry não está configurada.', code: 'AI_NOT_CONFIGURED' }, 503);
+    const len = Number(request.headers.get('content-length') || 0); if (len > 18000) return json({ error: 'Mensagem muito grande.' }, 413);
+    const body = await request.json().catch(() => ({}));
+    const message = cleanText(body.message, 1600);
+    if (!message) return json({ error: 'Digite uma mensagem para o Henry.' }, 400);
+    const history = (Array.isArray(body.history) ? body.history : []).slice(-8).map(item => ({
+      role: item?.role === 'assistant' ? 'assistant' : 'user',
+      content: cleanText(item?.content, 1200)
+    })).filter(item => item.content);
+    const profile = safeProfile(auth.user.profile_json);
+    const teacherName = cleanText(auth.user.name || profile.teacher || '', 100);
+    const location = [cleanText(profile.city || profile.municipality || '', 100), cleanText(profile.state || '', 2).toUpperCase()].filter(Boolean).join(' / ');
+    const system = `Você é Henry Ribeiro, assistente educacional do Aulora. Responda em português do Brasil, de forma clara, cordial, prática e normalmente curta.\n\nSeu papel:\n- orientar o professor a usar os módulos do Aulora: Plano de aula, Atividade, Avaliação, Relatórios, Acadêmico/ABNT, Meus materiais, Perfil e dados;\n- tirar dúvidas pedagógicas e ajudar a estruturar ideias para aulas, exercícios, avaliações, inclusão e relatórios;\n- sugerir que o usuário abra o módulo apropriado quando quiser gerar/salvar um material completo;\n- não inventar códigos da BNCC, currículos municipais, leis, fontes ou recursos que não tenham sido fornecidos; se uma norma oficial específica for necessária, diga para conferir a fonte oficial/rede de ensino;\n- em educação inclusiva, ofereça adaptações pedagógicas, mas não faça diagnóstico clínico nem prescrição;\n- não diga que executou, salvou, enviou, publicou ou alterou algo se você apenas estiver conversando;\n- nunca peça senha, token, chave de API ou dado financeiro.\n\nProfessor: ${teacherName || 'usuário do Aulora'}${location ? `; localidade cadastrada: ${location}` : ''}.`;
+    try {
+      const result = await env.AI.run(MODEL_FAST, {
+        messages: [{ role: 'system', content: system }, ...history, { role: 'user', content: message }],
+        max_tokens: 700,
+        temperature: 0.35
+      });
+      let reply = result?.response ?? result?.choices?.[0]?.message?.content ?? '';
+      if (typeof reply !== 'string') reply = JSON.stringify(reply ?? '');
+      reply = cleanText(reply.replace(/^```(?:text|markdown)?\s*/i, '').replace(/\s*```$/, ''), 5000);
+      if (!reply) throw new Error('Resposta vazia da IA');
+      return json({ reply, model: 'henry-fast' });
+    } catch (err) {
+      console.error('Henry assistant error', err);
+      return json({ error: 'O Henry não conseguiu responder agora. Tente novamente em alguns instantes.', code: 'HENRY_AI_FAILED' }, 503);
+    }
+  }
+
   if (path === '/api/generate' && request.method === 'POST') {
     if (!mutationOriginAllowed(request)) return json({ error: 'Origem não autorizada.' }, 403);
     const auth = await requireUser(request, env); if (auth.response) return auth.response;
