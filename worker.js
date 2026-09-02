@@ -10,7 +10,8 @@ const FREE_AI_LIMIT = 2;
 const PRO_AI_LIMIT = 200;
 const FREE_MATERIAL_LIMIT = 3;
 const PRO_MATERIAL_LIMIT = 1000;
-const PASSWORD_KDF_ITERATIONS = 600000;
+const PASSWORD_KDF_ITERATIONS = 120000;
+const LEGACY_PASSWORD_KDF_ITERATIONS = [120000, 10000, 600000];
 const PRO_PIX_PRICE_CENTS = 1490;
 const PRO_PIX_DAYS = 30;
 const jsonHeaders = {
@@ -138,10 +139,26 @@ async function verifyPassword(password, salt, expected, iterations = PASSWORD_KD
   return constantTimeEqual(base64ToBytes(derived.hash), base64ToBytes(expected));
 }
 async function verifyStoredPassword(user, password) {
-  const storedIterations = Number(user?.password_iterations) || PASSWORD_KDF_ITERATIONS;
-  if (await verifyPassword(password, user.password_salt, user.password_hash, storedIterations)) return true;
-  if (storedIterations !== 10000 && await verifyPassword(password, user.password_salt, user.password_hash, 10000)) return true;
-  return false;
+  // Compatibilidade com contas criadas por versões anteriores do Aulora.
+  // Algumas bases antigas receberam a coluna password_iterations depois do hash já existir,
+  // então o valor gravado na coluna pode não representar a iteração usada originalmente.
+  const storedIterations = Number(user?.password_iterations) || 0;
+  const candidates = [...new Set([
+    PASSWORD_KDF_ITERATIONS,
+    10000,
+    storedIterations,
+    ...LEGACY_PASSWORD_KDF_ITERATIONS
+  ].filter(v => Number.isFinite(Number(v)) && Number(v) > 0).map(Number))];
+  for (const iterations of candidates) {
+    try {
+      if (await verifyPassword(password, user.password_salt, user.password_hash, iterations)) {
+        return { ok:true, iterations };
+      }
+    } catch (err) {
+      console.warn('Password verification attempt failed', { iterations, name: err?.name || 'Error' });
+    }
+  }
+  return { ok:false, iterations:0 };
 }
 function clientFingerprint(request) {
   const ip = request.headers.get('cf-connecting-ip') || request.headers.get('x-real-ip') || 'unknown';
@@ -171,7 +188,7 @@ async function ensureSchema(db) {
       name TEXT NOT NULL DEFAULT '',
       password_hash TEXT NOT NULL,
       password_salt TEXT NOT NULL,
-      password_iterations INTEGER NOT NULL DEFAULT 600000,
+      password_iterations INTEGER NOT NULL DEFAULT 120000,
       plan TEXT NOT NULL DEFAULT 'free',
       plan_status TEXT NOT NULL DEFAULT 'active',
       profile_json TEXT NOT NULL DEFAULT '{}',
@@ -291,7 +308,7 @@ async function ensureSchema(db) {
   }
   await addMissingColumns('aulora_users', [
     ['name', "TEXT NOT NULL DEFAULT ''"],
-    ['password_iterations', 'INTEGER NOT NULL DEFAULT 600000'],
+    ['password_iterations', 'INTEGER NOT NULL DEFAULT 120000'],
     ['plan', "TEXT NOT NULL DEFAULT 'free'"],
     ['plan_status', "TEXT NOT NULL DEFAULT 'active'"],
     ['profile_json', "TEXT NOT NULL DEFAULT '{}'"],
@@ -1202,8 +1219,10 @@ async function generateAI(env, kind, d) {
       continue;
     }
 
-    // Conteúdo genérico, método usado como assunto, desvio de fonte ou baixa especificidade não são mais entregues.
-    if (focus.templateLike || focus.methodAsContent || focus.sourceDrift || !focus.ageAppropriate || Number(focus.specificityScore||0) < 0.62) {
+    // O validador de foco é específico para atividades e avaliações. Planos, relatórios e ABNT
+    // usam validações próprias de estrutura/fatos e não podem ser reprovados por campos inexistentes
+    // neste validador (isso fazia planos válidos caírem sempre na etapa "quality").
+    if ((kind === 'activity' || kind === 'exam') && (focus.templateLike || focus.methodAsContent || focus.sourceDrift || !focus.ageAppropriate || Number(focus.specificityScore||0) < 0.62)) {
       lastReason = focus.reason || 'O material não atingiu especificidade e coerência pedagógica suficientes.';
       lastStage = 'quality';
       continue;
@@ -1395,8 +1414,11 @@ async function api(request, env, url, ctx) {
     const body = await request.json().catch(() => ({}));
     const email = cleanEmail(body.email), password = String(body.password || '');
     const user = await env.DB.prepare('SELECT * FROM aulora_users WHERE email=?').bind(email).first();
-    if (!user || !(await verifyStoredPassword(user,password))) return json({ error: 'E-mail ou senha incorretos.' }, 401);
-    if (Number(user.password_iterations || 0) < PASSWORD_KDF_ITERATIONS) {
+    if (!user) return json({ error: 'E-mail ou senha incorretos.' }, 401);
+    const passwordCheck = await verifyStoredPassword(user,password);
+    if (!passwordCheck.ok) return json({ error: 'E-mail ou senha incorretos.' }, 401);
+    // Regrava contas legadas no formato atual após autenticação válida.
+    if (Number(user.password_iterations || 0) !== PASSWORD_KDF_ITERATIONS || passwordCheck.iterations !== PASSWORD_KDF_ITERATIONS) {
       const upgraded = await hashPassword(password);
       await env.DB.prepare('UPDATE aulora_users SET password_hash=?,password_salt=?,password_iterations=?,updated_at=? WHERE id=?').bind(upgraded.hash,upgraded.salt,upgraded.iterations,nowIso(),user.id).run();
       user.password_hash = upgraded.hash; user.password_salt = upgraded.salt; user.password_iterations = upgraded.iterations;
@@ -1417,7 +1439,8 @@ async function api(request, env, url, ctx) {
     const body = await request.json().catch(() => ({}));
     const currentPassword = String(body.currentPassword || ''), newPassword = String(body.newPassword || '');
     if (newPassword.length < 10 || newPassword.length > 128) return json({ error:'A nova senha deve ter entre 10 e 128 caracteres.', code:'PASSWORD_INVALID' },400);
-    if (!(await verifyStoredPassword(auth.user,currentPassword))) return json({ error:'A senha atual está incorreta.', code:'CURRENT_PASSWORD_INVALID' },401);
+    const currentCheck = await verifyStoredPassword(auth.user,currentPassword);
+    if (!currentCheck.ok) return json({ error:'A senha atual está incorreta.', code:'CURRENT_PASSWORD_INVALID' },401);
     const hp = await hashPassword(newPassword), ts=nowIso();
     await env.DB.prepare('UPDATE aulora_users SET password_hash=?,password_salt=?,password_iterations=?,updated_at=? WHERE id=?').bind(hp.hash,hp.salt,hp.iterations,ts,auth.user.id).run();
     await env.DB.prepare('DELETE FROM aulora_sessions WHERE user_id=?').bind(auth.user.id).run();
