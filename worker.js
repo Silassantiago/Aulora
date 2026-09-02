@@ -139,16 +139,16 @@ async function verifyPassword(password, salt, expected, iterations = PASSWORD_KD
   return constantTimeEqual(base64ToBytes(derived.hash), base64ToBytes(expected));
 }
 async function verifyStoredPassword(user, password) {
-  // Compatibilidade com contas criadas por versões anteriores do Aulora.
-  // Algumas bases antigas receberam a coluna password_iterations depois do hash já existir,
-  // então o valor gravado na coluna pode não representar a iteração usada originalmente.
+  // Tenta primeiro EXATAMENTE o custo gravado na conta. Isso evita executar PBKDF2 pesado
+  // várias vezes no mesmo request (principalmente contas que passaram pela fase de 600k).
   const storedIterations = Number(user?.password_iterations) || 0;
-  const candidates = [...new Set([
-    PASSWORD_KDF_ITERATIONS,
-    10000,
-    storedIterations,
-    ...LEGACY_PASSWORD_KDF_ITERATIONS
-  ].filter(v => Number.isFinite(Number(v)) && Number(v) > 0).map(Number))];
+  const candidates = [];
+  if (storedIterations > 0) candidates.push(storedIterations);
+  // Bancos muito antigos podem ter recebido a coluna depois do hash. Para esses casos,
+  // só usamos fallbacks leves. 600k só é tentado quando estiver explicitamente gravado.
+  for (const n of [PASSWORD_KDF_ITERATIONS, 10000]) {
+    if (!candidates.includes(n)) candidates.push(n);
+  }
   for (const iterations of candidates) {
     try {
       if (await verifyPassword(password, user.password_salt, user.password_hash, iterations)) {
@@ -156,6 +156,11 @@ async function verifyStoredPassword(user, password) {
       }
     } catch (err) {
       console.warn('Password verification attempt failed', { iterations, name: err?.name || 'Error' });
+      // Se o algoritmo gravado na conta falhou por erro de execução, não dispare uma sequência
+      // de KDFs pesados; deixe o login retornar falha controlada.
+      if (iterations === storedIterations && storedIterations >= 300000) {
+        return { ok:false, iterations:0, runtimeError:true };
+      }
     }
   }
   return { ok:false, iterations:0 };
@@ -1421,21 +1426,41 @@ async function api(request, env, url, ctx) {
     if (!mutationOriginAllowed(request)) return json({ error: 'Origem não autorizada.' }, 403);
     const body = await request.json().catch(() => ({}));
     const email = cleanEmail(body.email), password = String(body.password || '');
-    // Limite por navegador/IP + conta. Mais tolerante para uso real e suporte, sem abrir brute force.
-    const broadLimited = await enforceRateLimit(env, `login-ip:${clientFingerprint(request)}`, 60, 600, 'Muitas tentativas de acesso neste dispositivo. Aguarde alguns minutos e tente novamente.'); if (broadLimited) return broadLimited;
-    const accountLimited = await enforceRateLimit(env, `login-account:${clientFingerprint(request)}:${email}`, 20, 600, 'Muitas tentativas nesta conta. Aguarde alguns minutos ou use “Esqueci minha senha”.'); if (accountLimited) return accountLimited;
-    const user = await env.DB.prepare('SELECT * FROM aulora_users WHERE email=?').bind(email).first();
-    if (!user) return json({ error: 'E-mail ou senha incorretos.' }, 401);
-    const passwordCheck = await verifyStoredPassword(user,password);
-    if (!passwordCheck.ok) return json({ error: 'E-mail ou senha incorretos.' }, 401);
-    // Regrava contas legadas no formato atual após autenticação válida.
-    if (Number(user.password_iterations || 0) !== PASSWORD_KDF_ITERATIONS || passwordCheck.iterations !== PASSWORD_KDF_ITERATIONS) {
-      const upgraded = await hashPassword(password);
-      await env.DB.prepare('UPDATE aulora_users SET password_hash=?,password_salt=?,password_iterations=?,updated_at=? WHERE id=?').bind(upgraded.hash,upgraded.salt,upgraded.iterations,nowIso(),user.id).run();
-      user.password_hash = upgraded.hash; user.password_salt = upgraded.salt; user.password_iterations = upgraded.iterations;
+    // Chave v3: evita carregar bloqueios de versões anteriores durante esta migração de login.
+    const broadLimited = await enforceRateLimit(env, `login-v3-ip:${clientFingerprint(request)}`, 60, 600, 'Muitas tentativas de acesso neste dispositivo. Aguarde alguns minutos e tente novamente.'); if (broadLimited) return broadLimited;
+    const accountLimited = await enforceRateLimit(env, `login-v3-account:${clientFingerprint(request)}:${email}`, 20, 600, 'Muitas tentativas nesta conta. Aguarde alguns minutos ou use “Esqueci minha senha”.'); if (accountLimited) return accountLimited;
+    let stage = 'lookup';
+    try {
+      const user = await env.DB.prepare('SELECT * FROM aulora_users WHERE email=?').bind(email).first();
+      if (!user) return json({ error: 'E-mail ou senha incorretos.', code:'LOGIN_INVALID' }, 401);
+      stage = 'password';
+      const passwordCheck = await verifyStoredPassword(user,password);
+      if (passwordCheck.runtimeError) {
+        return json({ error: 'Sua conta usa uma proteção de senha de uma versão anterior. Use “Esqueci minha senha” para atualizar o acesso, ou tente novamente após a próxima atualização.', code:'PASSWORD_LEGACY_RUNTIME' }, 409);
+      }
+      if (!passwordCheck.ok) return json({ error: 'E-mail ou senha incorretos.', code:'LOGIN_INVALID' }, 401);
+      // Regrava contas legadas no formato atual após autenticação válida.
+      if (Number(user.password_iterations || 0) !== PASSWORD_KDF_ITERATIONS || passwordCheck.iterations !== PASSWORD_KDF_ITERATIONS) {
+        stage = 'upgrade';
+        const upgraded = await hashPassword(password);
+        await env.DB.prepare('UPDATE aulora_users SET password_hash=?,password_salt=?,password_iterations=?,updated_at=? WHERE id=?').bind(upgraded.hash,upgraded.salt,upgraded.iterations,nowIso(),user.id).run();
+        user.password_hash = upgraded.hash; user.password_salt = upgraded.salt; user.password_iterations = upgraded.iterations;
+      }
+      stage = 'session';
+      const session = await createSession(env.DB, user.id, request);
+      stage = 'payload';
+      let payload;
+      try { payload = await userPayload(env, user); }
+      catch (payloadErr) {
+        console.warn('Aulora login payload fallback', payloadErr?.message || payloadErr);
+        const admin = isAdminUser(user, env), pro = user.plan === 'pro' || admin;
+        payload = { id:user.id,email:user.email,name:user.name,plan:user.plan,planStatus:user.plan_status,isAdmin:admin,accountRole:admin?'admin':'user',profile:safeProfile(user.profile_json),emailPrefs:safeEmailPrefs(user.email_prefs_json),usage:{month:monthKey(),ai:0,limits:planLimits(user.plan,admin)},features:{images:pro,reports:pro,abnt:pro,henryAI:pro,exports:pro,emailCopies:pro,advancedInclusion:pro},emailDelivery:{enabled:pro&&emailDeliveryEnabled(env)},billing:{enabled:Boolean(env.MERCADO_PAGO_ACCESS_TOKEN),provider:'mercadopago',method:'pix_card',methods:['pix','card'],expiresAt:user.pro_expires_at||null,priceCents:PRO_PIX_PRICE_CENTS,periodDays:PRO_PIX_DAYS} };
+      }
+      return json({ user: payload }, 200, { 'set-cookie': session.cookie });
+    } catch (err) {
+      console.error('Aulora login failed', { stage, name:err?.name || 'Error', message:cleanText(err?.message,180) });
+      return json({ error: 'Não foi possível concluir o login agora. Tente novamente.', code:`LOGIN_${String(stage).toUpperCase()}_FAILED` }, 500);
     }
-    const session = await createSession(env.DB, user.id, request);
-    return json({ user: await userPayload(env, user) }, 200, { 'set-cookie': session.cookie });
   }
   if (path === '/api/auth/forgot-password' && request.method === 'POST') {
     if (!mutationOriginAllowed(request)) return json({ error:'Origem não autorizada.', code:'ORIGIN_BLOCKED' },403);
