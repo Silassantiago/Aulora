@@ -663,7 +663,27 @@
     </div>
   </div>
 
-  <div class="loading-overlay" id="loadingOverlay" hidden><div class="loading-card"><div class="spinner"></div><strong id="loadingTitle">Preparando seu material…</strong><span id="loadingText">Isso costuma levar alguns segundos.</span></div></div>
+  <div class="loading-overlay" id="loadingOverlay" hidden>
+    <div class="loading-card henry-loading-card" role="status" aria-live="polite" aria-busy="true">
+      <div class="henry-loading-visual" aria-hidden="true">
+        <span class="henry-loading-ring ring-one"></span>
+        <span class="henry-loading-ring ring-two"></span>
+        <img class="henry-loading-robot" src="henry-robot.png" alt="" />
+        <span class="henry-loading-spark spark-one">✦</span>
+        <span class="henry-loading-spark spark-two">✦</span>
+      </div>
+      <div class="henry-loading-copy">
+        <span class="henry-loading-kicker">HENRY ESTÁ TRABALHANDO</span>
+        <strong id="loadingTitle">Preparando seu material…</strong>
+        <span id="loadingText">Isso costuma levar alguns segundos.</span>
+        <div class="henry-loading-dots" aria-hidden="true"><i></i><i></i><i></i></div>
+        <div class="henry-loading-progress" aria-hidden="true"><span id="loadingProgressBar"></span></div>
+        <small id="loadingStep">Analisando as informações enviadas…</small>
+        <small class="henry-loading-wait">Por favor, aguarde mais um pouco. Mantenha esta página aberta — o resultado aparecerá automaticamente.</small>
+        <small class="henry-loading-time">Tempo nesta etapa: <b id="loadingElapsed">0s</b></small>
+      </div>
+    </div>
+  </div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <dialog id="authDialog" class="auth-dialog">

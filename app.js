@@ -486,10 +486,39 @@
   const saveExamDraft=initDraft(examForm,'exam','#examDraftStatus');
   const saveReportDraft=initDraft(reportForm,'report','#reportDraftStatus');
 
-  function showLoading(title='Preparando seu material…', text='Isso costuma levar alguns segundos.'){
-    $('#loadingTitle').textContent=title; $('#loadingText').textContent=text; $('#loadingOverlay').hidden=false;
+  let loadingTimer=null, loadingStartedAt=0;
+  const loadingStages=[
+    {at:0,text:'Analisando as informações enviadas…',progress:12},
+    {at:6,text:'Validando disciplina, conteúdo e referências…',progress:28},
+    {at:14,text:'Montando a estrutura pedagógica do material…',progress:46},
+    {at:24,text:'Criando questões, orientações e respostas…',progress:63},
+    {at:38,text:'Revisando coerência, nível da turma e formatação…',progress:78},
+    {at:55,text:'Fazendo a conferência final. Algumas gerações podem levar mais tempo…',progress:89},
+    {at:80,text:'Ainda trabalhando no seu material. Não feche esta página…',progress:94}
+  ];
+  function updateLoadingProgress(){
+    if(!loadingStartedAt)return;
+    const elapsed=Math.max(0,Math.floor((Date.now()-loadingStartedAt)/1000));
+    const elapsedEl=$('#loadingElapsed'),stepEl=$('#loadingStep'),bar=$('#loadingProgressBar');
+    if(elapsedEl)elapsedEl.textContent=`${elapsed}s`;
+    const stage=[...loadingStages].reverse().find(item=>elapsed>=item.at)||loadingStages[0];
+    if(stepEl)stepEl.textContent=stage.text;
+    if(bar)bar.style.width=`${stage.progress}%`;
   }
-  function hideLoading(){ $('#loadingOverlay').hidden=true; }
+  function showLoading(title='Preparando seu material…', text='Isso costuma levar alguns segundos.'){
+    const overlay=$('#loadingOverlay');
+    $('#loadingTitle').textContent=title; $('#loadingText').textContent=text;
+    loadingStartedAt=Date.now();
+    if($('#loadingProgressBar'))$('#loadingProgressBar').style.width='12%';
+    updateLoadingProgress();
+    clearInterval(loadingTimer);loadingTimer=setInterval(updateLoadingProgress,1000);
+    overlay.hidden=false;
+    document.body.classList.add('aulora-is-loading');
+  }
+  function hideLoading(){
+    clearInterval(loadingTimer);loadingTimer=null;loadingStartedAt=0;
+    $('#loadingOverlay').hidden=true;document.body.classList.remove('aulora-is-loading');
+  }
 
   async function checkSmartStatus(){
     const dot=$('#aiDot'), status=$('#aiStatus'), detail=$('#aiStatusDetail'), badge=$('#smartBadge');
