@@ -121,6 +121,41 @@
   $('#authCloseBtn').addEventListener('click',closeAuth);
   $('#authDialog').addEventListener('click',e=>{if(e.target===$('#authDialog'))closeAuth();});
 
+  const forgotPasswordDialog=$('#forgotPasswordDialog');
+  const resetPasswordDialog=$('#resetPasswordDialog');
+  let activeResetToken='';
+  function openForgotPassword(){
+    closeAuth();
+    const form=$('#forgotPasswordForm'); form?.reset();
+    const err=$('#forgotPasswordError'),ok=$('#forgotPasswordSuccess'); if(err){err.hidden=true;err.textContent='';} if(ok){ok.hidden=true;ok.textContent='';}
+    if(!forgotPasswordDialog.open)forgotPasswordDialog.showModal();
+  }
+  function closeForgotPassword(){if(forgotPasswordDialog?.open)forgotPasswordDialog.close();}
+  function openResetPassword(token){
+    activeResetToken=String(token||'').trim();
+    const err=$('#resetPasswordError'); if(err){err.hidden=true;err.textContent='';}
+    $('#resetPasswordForm')?.reset();
+    if(!resetPasswordDialog.open)resetPasswordDialog.showModal();
+  }
+  function closeResetPassword(){if(resetPasswordDialog?.open)resetPasswordDialog.close();}
+  $('#forgotPasswordBtn')?.addEventListener('click',openForgotPassword);
+  $('#forgotPasswordCloseBtn')?.addEventListener('click',closeForgotPassword);
+  $('#forgotBackToLoginBtn')?.addEventListener('click',()=>{closeForgotPassword();openAuth('login');});
+  forgotPasswordDialog?.addEventListener('click',e=>{if(e.target===forgotPasswordDialog)closeForgotPassword();});
+  $('#resetPasswordCloseBtn')?.addEventListener('click',closeResetPassword);
+  resetPasswordDialog?.addEventListener('click',e=>{if(e.target===resetPasswordDialog)closeResetPassword();});
+  $('#forgotPasswordForm')?.addEventListener('submit',async e=>{
+    e.preventDefault();const d=formData(e.currentTarget),err=$('#forgotPasswordError'),ok=$('#forgotPasswordSuccess');err.hidden=true;ok.hidden=true;
+    try{const r=await apiFetch('/api/auth/forgot-password',{method:'POST',body:d});ok.textContent=r.message||'Se houver uma conta com esse e-mail, enviaremos um link para redefinir a senha.';ok.hidden=false;e.currentTarget.querySelector('button[type="submit"]').disabled=true;setTimeout(()=>{e.currentTarget.querySelector('button[type="submit"]').disabled=false;},15000);}
+    catch(ex){err.textContent=ex.code==='EMAIL_NOT_CONFIGURED'?'A recuperação por e-mail ainda não foi ativada no servidor.':(ex.message||'Não foi possível solicitar a recuperação agora.');err.hidden=false;}
+  });
+  $('#resetPasswordForm')?.addEventListener('submit',async e=>{
+    e.preventDefault();const d=formData(e.currentTarget),err=$('#resetPasswordError');err.hidden=true;
+    if(d.newPassword!==d.confirmPassword){err.textContent='As duas senhas não são iguais.';err.hidden=false;return;}
+    try{const r=await apiFetch('/api/auth/reset-password',{method:'POST',body:{token:activeResetToken,newPassword:d.newPassword}});closeResetPassword();activeResetToken='';toast(r.message||'Senha redefinida.');setTimeout(()=>openAuth('login'),250);}
+    catch(ex){err.textContent=ex.message||'Não foi possível redefinir a senha.';err.hidden=false;}
+  });
+
   function planName(user){return user?.isAdmin?'Admin':user?.plan==='pro'?'Pro':user?'Básico':'Sem conta';}
   function planChipName(user){return user?.isAdmin?'Administrador':user?.plan==='pro'?'Plano Pro':user?'Plano Básico':'Sem conta';}
   function formatDisplayName(value){
@@ -1108,6 +1143,13 @@
   document.addEventListener('keydown',e=>{if(e.key==='Escape')setHenryHelp(false);});
 
   document.body.dataset.view='dashboard';
+
+  const resetMatch=String(location.hash||'').match(/^#reset=([^&]+)$/);
+  if(resetMatch){
+    try{activeResetToken=decodeURIComponent(resetMatch[1]);}catch{activeResetToken=resetMatch[1];}
+    history.replaceState({},'',location.pathname+location.search);
+    setTimeout(()=>openResetPassword(activeResetToken),180);
+  }
 
   const billingParams=new URLSearchParams(location.search);
   const billingState=billingParams.get('billing');

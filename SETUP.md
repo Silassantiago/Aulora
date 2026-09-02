@@ -138,3 +138,13 @@ Sem essas duas configurações, as preferências continuam salvas, mas o sistema
 ## Cartão de crédito / débito
 
 O cartão usa o Checkout Pro do Mercado Pago e o mesmo secret `MERCADO_PAGO_ACCESS_TOKEN`. Não é necessário colocar dados de cartão no frontend do Aulora. Consulte também `PAGAMENTOS.md`.
+
+
+## RECUPERAÇÃO DE SENHA
+
+O botão **Esqueci minha senha** usa o mesmo serviço de e-mail do Aulora. No Cloudflare, configure como secrets/variáveis de runtime:
+
+- `RESEND_API_KEY` — chave privada da conta Resend.
+- `EMAIL_FROM` — remetente verificado, por exemplo `Aulora <contato@seudominio.com.br>`.
+
+O link de redefinição expira em 30 minutos, é armazenado no D1 somente como hash e é invalidado após o primeiro uso. A redefinição encerra todas as sessões antigas da conta.

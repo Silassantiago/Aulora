@@ -712,6 +712,7 @@
       <form id="loginForm" class="auth-form active" data-auth-panel="login">
         <label>E-mail<input name="email" type="email" autocomplete="email" required placeholder="voce@exemplo.com" /></label>
         <label>Senha<input name="password" type="password" autocomplete="current-password" required minlength="8" placeholder="Sua senha" /></label>
+        <button class="auth-link-button" id="forgotPasswordBtn" type="button">Esqueci minha senha</button>
         <div class="auth-error" id="loginError" role="alert" hidden></div>
         <button class="primary-button" type="submit">Entrar no Aulora</button>
       </form>
@@ -732,6 +733,35 @@
         <button class="primary-button" type="submit">Criar conta Básica</button>
       </form>
       <p class="auth-foot">É necessário entrar para acessar o Aulora. O Básico permite 2 gerações/mês e até 3 materiais; o Pro libera os recursos profissionais.</p>
+    </div>
+  </dialog>
+
+  <dialog id="forgotPasswordDialog" class="auth-dialog password-dialog">
+    <div class="auth-shell">
+      <button class="icon-button auth-close" id="forgotPasswordCloseBtn" type="button" aria-label="Fechar">×</button>
+      <div class="auth-brand"><div class="brand-mark">A</div><div><strong>Esqueci minha senha</strong><span>Enviaremos um link seguro para o e-mail da sua conta.</span></div></div>
+      <form id="forgotPasswordForm" class="auth-form active">
+        <label>E-mail<input name="email" type="email" autocomplete="email" required placeholder="voce@exemplo.com" /></label>
+        <div class="auth-error" id="forgotPasswordError" role="alert" hidden></div>
+        <div class="auth-success" id="forgotPasswordSuccess" role="status" hidden></div>
+        <button class="primary-button" type="submit">Enviar link de recuperação</button>
+        <button class="auth-link-button" id="forgotBackToLoginBtn" type="button">Voltar para entrar</button>
+      </form>
+      <p class="auth-foot">Por segurança, o Aulora não informa se um e-mail está ou não cadastrado. O link expira em 30 minutos e só funciona uma vez.</p>
+    </div>
+  </dialog>
+
+  <dialog id="resetPasswordDialog" class="auth-dialog password-dialog">
+    <div class="auth-shell">
+      <button class="icon-button auth-close" id="resetPasswordCloseBtn" type="button" aria-label="Fechar">×</button>
+      <div class="auth-brand"><div class="brand-mark">A</div><div><strong>Criar nova senha</strong><span>Escolha uma senha nova para sua conta Aulora.</span></div></div>
+      <form id="resetPasswordForm" class="auth-form active">
+        <label>Nova senha<input name="newPassword" type="password" autocomplete="new-password" required minlength="10" maxlength="128" placeholder="Mínimo de 10 caracteres" /></label>
+        <label>Confirmar nova senha<input name="confirmPassword" type="password" autocomplete="new-password" required minlength="10" maxlength="128" /></label>
+        <div class="auth-error" id="resetPasswordError" role="alert" hidden></div>
+        <button class="primary-button" type="submit">Salvar nova senha</button>
+      </form>
+      <p class="auth-foot">Depois da redefinição, todas as sessões antigas da conta serão encerradas.</p>
     </div>
   </dialog>
 

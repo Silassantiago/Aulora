@@ -122,3 +122,13 @@ A conta administrativa é definida pela variável `ADMIN_EMAILS` no Worker. O ad
 
 ## Motor de variedade pedagógica
 Atividades e avaliações agora recebem uma variante interna única em cada geração. O Aulora combina perfis pedagógicos, contexto e operações cognitivas diferentes e mantém um histórico curto das últimas gerações da conta para reduzir repetição de enunciados e estruturas. O plano Pro também oferece perfis avançados e versões A/B/C de avaliações.
+
+
+## RECUPERAÇÃO DE SENHA
+
+O botão **Esqueci minha senha** usa o mesmo serviço de e-mail do Aulora. No Cloudflare, configure como secrets/variáveis de runtime:
+
+- `RESEND_API_KEY` — chave privada da conta Resend.
+- `EMAIL_FROM` — remetente verificado, por exemplo `Aulora <contato@seudominio.com.br>`.
+
+O link de redefinição expira em 30 minutos, é armazenado no D1 somente como hash e é invalidado após o primeiro uso. A redefinição encerra todas as sessões antigas da conta.

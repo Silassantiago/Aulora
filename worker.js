@@ -286,6 +286,15 @@ async function ensureSchema(db) {
       PRIMARY KEY(key_hash,bucket)
     )`),
     db.prepare(`CREATE INDEX IF NOT EXISTS idx_aulora_rate_limits_updated ON aulora_rate_limits(updated_at)`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS aulora_password_resets (
+      token_hash TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      expires_at TEXT NOT NULL,
+      used_at TEXT,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY(user_id) REFERENCES aulora_users(id) ON DELETE CASCADE
+    )`),
+    db.prepare(`CREATE INDEX IF NOT EXISTS idx_aulora_password_resets_user ON aulora_password_resets(user_id, created_at DESC)`),
     db.prepare(`CREATE TABLE IF NOT EXISTS aulora_admin_audit (
       id TEXT PRIMARY KEY,
       admin_user_id TEXT NOT NULL,
@@ -1355,7 +1364,7 @@ async function api(request, env, url, ctx) {
   const path = url.pathname;
 
   if (path === '/api/health' && request.method === 'GET') {
-    return json({ ok: true, ai: Boolean(env.AI), db: true, billing: Boolean(env.MERCADO_PAGO_ACCESS_TOKEN), paymentSecurity: { webhookSignature: Boolean(env.MERCADO_PAGO_WEBHOOK_SECRET), hostedCardCheckout: true }, email: emailDeliveryEnabled(env), adminConfigured: adminEmailSet(env).size > 0, auth: 'pbkdf2-sha256', authIterations: PASSWORD_KDF_ITERATIONS, service: 'Aulora' });
+    return json({ ok: true, ai: Boolean(env.AI), db: true, billing: Boolean(env.MERCADO_PAGO_ACCESS_TOKEN), paymentSecurity: { webhookSignature: Boolean(env.MERCADO_PAGO_WEBHOOK_SECRET), hostedCardCheckout: true }, email: emailDeliveryEnabled(env), passwordRecovery: emailDeliveryEnabled(env), adminConfigured: adminEmailSet(env).size > 0, auth: 'pbkdf2-sha256', authIterations: PASSWORD_KDF_ITERATIONS, service: 'Aulora' });
   }
   if (path === '/api/auth/signup' && request.method === 'POST') {
     if (!mutationOriginAllowed(request)) return json({ error: 'Origem não autorizada.', code: 'ORIGIN_BLOCKED' }, 403);
@@ -1410,9 +1419,11 @@ async function api(request, env, url, ctx) {
   }
   if (path === '/api/auth/login' && request.method === 'POST') {
     if (!mutationOriginAllowed(request)) return json({ error: 'Origem não autorizada.' }, 403);
-    const limited = await enforceRateLimit(env, `login:${clientFingerprint(request)}`, 10, 900, 'Muitas tentativas de login. Aguarde alguns minutos e tente novamente.'); if (limited) return limited;
     const body = await request.json().catch(() => ({}));
     const email = cleanEmail(body.email), password = String(body.password || '');
+    // Limite por navegador/IP + conta. Mais tolerante para uso real e suporte, sem abrir brute force.
+    const broadLimited = await enforceRateLimit(env, `login-ip:${clientFingerprint(request)}`, 60, 600, 'Muitas tentativas de acesso neste dispositivo. Aguarde alguns minutos e tente novamente.'); if (broadLimited) return broadLimited;
+    const accountLimited = await enforceRateLimit(env, `login-account:${clientFingerprint(request)}:${email}`, 20, 600, 'Muitas tentativas nesta conta. Aguarde alguns minutos ou use “Esqueci minha senha”.'); if (accountLimited) return accountLimited;
     const user = await env.DB.prepare('SELECT * FROM aulora_users WHERE email=?').bind(email).first();
     if (!user) return json({ error: 'E-mail ou senha incorretos.' }, 401);
     const passwordCheck = await verifyStoredPassword(user,password);
@@ -1425,6 +1436,58 @@ async function api(request, env, url, ctx) {
     }
     const session = await createSession(env.DB, user.id, request);
     return json({ user: await userPayload(env, user) }, 200, { 'set-cookie': session.cookie });
+  }
+  if (path === '/api/auth/forgot-password' && request.method === 'POST') {
+    if (!mutationOriginAllowed(request)) return json({ error:'Origem não autorizada.', code:'ORIGIN_BLOCKED' },403);
+    if (!emailDeliveryEnabled(env)) return json({ error:'A recuperação de senha por e-mail ainda não foi configurada pelo administrador.', code:'EMAIL_NOT_CONFIGURED' },503);
+    const limited = await enforceRateLimit(env, `forgot:${clientFingerprint(request)}`, 6, 3600, 'Muitas solicitações de recuperação. Aguarde um pouco e tente novamente.'); if (limited) return limited;
+    const body = await request.json().catch(()=>({}));
+    const email = cleanEmail(body.email);
+    // Resposta genérica para não revelar se um endereço possui conta.
+    const generic = { ok:true, message:'Se existir uma conta com esse e-mail, enviaremos um link para redefinir a senha.' };
+    if (!isEmail(email)) return json(generic);
+    const user = await env.DB.prepare('SELECT * FROM aulora_users WHERE email=?').bind(email).first();
+    if (!user) return json(generic);
+    const emailLimited = await enforceRateLimit(env, `forgot-email:${email}`, 3, 3600, 'Muitas solicitações para este e-mail. Aguarde antes de pedir outro link.'); if (emailLimited) return emailLimited;
+    try {
+      const tokenBytes = crypto.getRandomValues(new Uint8Array(32));
+      const token = bytesToBase64(tokenBytes).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/g,'');
+      const tokenHash = bytesToHex(await sha256(token));
+      const createdAt = nowIso();
+      const expiresAt = new Date(Date.now()+30*60*1000).toISOString();
+      await env.DB.prepare('DELETE FROM aulora_password_resets WHERE user_id=? OR expires_at<?').bind(user.id,createdAt).run();
+      await env.DB.prepare('INSERT INTO aulora_password_resets(token_hash,user_id,expires_at,used_at,created_at) VALUES(?,?,?,?,?)').bind(tokenHash,user.id,expiresAt,null,createdAt).run();
+      const resetUrl = `${url.origin}/#reset=${encodeURIComponent(token)}`;
+      const name = htmlEscapeEmail(user.name || 'professor(a)');
+      const html = `<div style="font-family:Arial,sans-serif;max-width:620px;margin:auto;color:#173b31"><h2 style="color:#103f35">Redefinir sua senha do Aulora</h2><p>Olá, ${name}.</p><p>Recebemos uma solicitação para criar uma nova senha para sua conta.</p><p style="margin:26px 0"><a href="${htmlEscapeEmail(resetUrl)}" style="background:#14cfc7;color:#052a32;text-decoration:none;font-weight:700;padding:13px 20px;border-radius:10px;display:inline-block">Criar nova senha</a></p><p>Este link expira em <strong>30 minutos</strong> e só pode ser usado uma vez.</p><p style="font-size:12px;color:#697c74">Se você não solicitou a redefinição, ignore este e-mail. Sua senha atual continuará válida.</p></div>`;
+      await resendEmail(env,{to:user.email,subject:'Aulora — redefina sua senha',html,tag:'password-reset'});
+    } catch(err) {
+      console.error('Aulora password reset email failed',err);
+      // Mantém resposta genérica para não expor a existência da conta.
+    }
+    return json(generic);
+  }
+  if (path === '/api/auth/reset-password' && request.method === 'POST') {
+    if (!mutationOriginAllowed(request)) return json({ error:'Origem não autorizada.', code:'ORIGIN_BLOCKED' },403);
+    const limited = await enforceRateLimit(env, `reset:${clientFingerprint(request)}`, 10, 3600, 'Muitas tentativas de redefinição. Solicite um novo link e tente novamente mais tarde.'); if (limited) return limited;
+    const body = await request.json().catch(()=>({}));
+    const token = String(body.token||'').trim();
+    const newPassword = String(body.newPassword||'');
+    if (!token || token.length < 20) return json({error:'Este link de redefinição é inválido ou expirou.',code:'RESET_TOKEN_INVALID'},400);
+    if (newPassword.length < 10 || newPassword.length > 128) return json({error:'A nova senha deve ter entre 10 e 128 caracteres.',code:'PASSWORD_INVALID'},400);
+    const tokenHash = bytesToHex(await sha256(token));
+    const row = await env.DB.prepare(`SELECT r.*,u.email,u.name,u.email_prefs_json FROM aulora_password_resets r JOIN aulora_users u ON u.id=r.user_id WHERE r.token_hash=? AND r.used_at IS NULL`).bind(tokenHash).first();
+    if (!row || new Date(row.expires_at).getTime() <= Date.now()) return json({error:'Este link de redefinição é inválido ou expirou. Solicite outro.',code:'RESET_TOKEN_INVALID'},400);
+    const hp = await hashPassword(newPassword), ts=nowIso();
+    await env.DB.batch([
+      env.DB.prepare('UPDATE aulora_users SET password_hash=?,password_salt=?,password_iterations=?,updated_at=? WHERE id=?').bind(hp.hash,hp.salt,hp.iterations,ts,row.user_id),
+      env.DB.prepare('UPDATE aulora_password_resets SET used_at=? WHERE token_hash=?').bind(ts,tokenHash),
+      env.DB.prepare('DELETE FROM aulora_sessions WHERE user_id=?').bind(row.user_id)
+    ]);
+    if (emailDeliveryEnabled(env)) {
+      try { await resendEmail(env,{to:row.email,subject:'Aulora — senha redefinida',html:`<div style="font-family:Arial,sans-serif;max-width:620px;margin:auto"><h2 style="color:#103f35">Senha redefinida</h2><p>A senha da sua conta Aulora foi alterada por meio do link de recuperação.</p><p style="font-size:12px;color:#697c74">Se você não fez esta alteração, entre em contato com o suporte do Aulora imediatamente.</p></div>`,tag:'password-reset-confirmed'}); } catch(err){ console.warn('Reset confirmation email failed',err?.message||err); }
+    }
+    return json({ok:true,message:'Senha redefinida. Agora você já pode entrar no Aulora.'});
   }
   if (path === '/api/auth/logout' && request.method === 'POST') {
     if (!mutationOriginAllowed(request)) return json({ error: 'Origem não autorizada.' }, 403);
