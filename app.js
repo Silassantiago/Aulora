@@ -656,7 +656,7 @@
       go('settings');
       return;
     }
-    showLoading(kind==='plan'?'Pesquisando e criando o plano…':kind==='activity'?'Pesquisando e criando a atividade…':kind==='exam'?'Pesquisando e montando a avaliação…':kind==='report'?'Redigindo o relatório pedagógico…':'Estruturando o trabalho…',['plan','activity','exam'].includes(kind)?((kind==='activity'||kind==='exam')&&d.imageMode&&d.imageMode!=='Sem imagens'?'Primeiro o Aulora consulta fontes de apoio e valida disciplina/tema; depois gera o conteúdo e as figuras.':'Primeiro o Aulora consulta fontes de apoio e valida disciplina/tema. Só depois gera o material.'):'O Aulora está gerando conteúdo específico para os dados informados.');
+    showLoading(kind==='plan'?'Validando e criando o plano…':kind==='activity'?'Validando e criando a atividade…':kind==='exam'?'Validando e montando a avaliação…':kind==='report'?'Redigindo o relatório pedagógico…':'Estruturando o trabalho…',['plan','activity','exam'].includes(kind)?((kind==='activity'||kind==='exam')&&d.imageMode&&d.imageMode!=='Sem imagens'?'Primeiro o Aulora valida se o conteúdo pertence à disciplina e usa apenas fontes aceitas; depois gera o conteúdo e as figuras.':'Primeiro o Aulora valida conteúdo, disciplina e fontes realmente disponíveis. Só depois gera o material.'):'O Aulora está gerando conteúdo específico para os dados informados.');
     try{
       const payload=await apiFetch('/api/generate',{method:'POST',body:{kind,data:d}});
       if(payload.usage){app.usage=payload.usage;if(app.user)app.user.usage=payload.usage;updateAccountUI();}
@@ -674,8 +674,10 @@
         app.user=null; updateAccountUI(); openAuth('login'); toast('Sua sessão expirou. Entre novamente para gerar.');
       } else if(err.code==='IMAGE_GENERATION_FAILED'){
         toast(err.message||'Não foi possível gerar as figuras solicitadas. Tente novamente.');
+      } else if(err.code==='TOPIC_NEEDS_CONTENT'){
+        toast(err.message||'Informe o conteúdo real da disciplina. Ex.: em Ciências, use “ecossistemas” e escolha “Interpretação de texto científico” como estratégia.');
       } else if(err.code==='RESEARCH_MISMATCH'){
-        toast(err.message||'A pesquisa não confirmou uma relação clara entre disciplina e tema. Especifique melhor o conteúdo ou cole um texto-base.');
+        toast(err.message||'As fontes disponíveis não confirmaram uma relação clara com o conteúdo. Especifique melhor o assunto ou cole um texto-base.');
       } else if(kind==='report' || err.code==='REPORT_GENERATION_FAILED'){
         toast(err.message||'Não foi possível concluir o relatório pedagógico agora. O rascunho foi preservado. Tente novamente em alguns segundos.');
       } else {
@@ -825,45 +827,118 @@
   if('serviceWorker' in navigator && location.protocol.startsWith('http'))window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
 
   function moneyBRL(cents){ return new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format((Number(cents)||0)/100); }
+  function adminDateTime(value){
+    if(!value)return '—'; const d=new Date(value); if(Number.isNaN(d.getTime()))return '—';
+    return new Intl.DateTimeFormat('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'}).format(d);
+  }
+  function adminStatusLabel(value){
+    const v=String(value||'').toLowerCase();
+    return ({approved:'Aprovado',pending:'Pendente',in_process:'Em análise',rejected:'Recusado',cancelled:'Cancelado',refunded:'Estornado'})[v]||value||'—';
+  }
+  let adminLoadedUsers=[];
+  let adminDashboardState={stats:null,dashboard:null};
+  function renderAdminHealth(stats){
+    const host=$('#adminHealthList');if(!host)return;
+    const i=stats?.integrations||{};
+    const rows=[
+      ['✦','Workers AI','Geração pedagógica e Henry IA',i.ai],
+      ['▦','Banco D1','Contas, materiais e histórico',i.database],
+      ['R$','Mercado Pago','Pix e cartão em produção',i.mercadoPago],
+      ['✓','Webhook seguro','Assinatura de notificações',i.webhook],
+      ['✉','E-mail','Cópias e avisos automáticos',i.email]
+    ];
+    host.innerHTML=rows.map(([icon,title,desc,ok])=>`<div class="admin-health-row"><span>${icon}</span><div><strong>${esc(title)}</strong><small>${esc(desc)}</small></div><b class="admin-health-status ${ok?'ok':''}">${ok?'ATIVO':'CONFIGURAR'}</b></div>`).join('');
+  }
+  function renderAdminTypes(items=[]){
+    const host=$('#adminMaterialTypes');if(!host)return;
+    if(!items.length){host.innerHTML='<div class="library-empty"><strong>Ainda não há materiais.</strong></div>';return;}
+    const max=Math.max(1,...items.map(x=>Number(x.total)||0));
+    const labels={plan:'Planos de aula',activity:'Atividades',exam:'Avaliações',report:'Relatórios',abnt:'Acadêmico / ABNT',reference:'Referências'};
+    host.innerHTML=items.slice(0,7).map(x=>`<div class="admin-type-row"><strong>${esc(labels[x.type]||x.label||x.type)}</strong><span>${Number(x.total)||0}</span><div class="admin-type-bar"><i style="width:${Math.max(5,Math.round((Number(x.total)||0)/max*100))}%"></i></div></div>`).join('');
+  }
+  function renderAdminFunnel(stats){
+    const host=$('#adminPlanFunnel');if(!host)return; const users=Math.max(1,Number(stats?.users)||0), basic=Number(stats?.basic)||0, pro=Number(stats?.pro)||0, approved=Number(stats?.approvedPayments)||0;
+    host.innerHTML=`
+      <div class="admin-funnel-row admin-funnel-basic"><strong>Contas Básicas</strong><span>${basic}</span><div class="admin-funnel-bar"><i style="width:${Math.max(3,Math.round(basic/users*100))}%"></i></div></div>
+      <div class="admin-funnel-row admin-funnel-pro"><strong>Pro ativos</strong><span>${pro}</span><div class="admin-funnel-bar"><i style="width:${Math.max(pro?3:0,Math.round(pro/users*100))}%"></i></div></div>
+      <div class="admin-funnel-row admin-funnel-pay"><strong>Pagamentos aprovados</strong><span>${approved}</span><div class="admin-funnel-bar"><i style="width:${Math.min(100,Math.max(approved?3:0,Math.round(approved/Math.max(1,users)*100)))}%"></i></div></div>`;
+  }
+  function renderAdminPayments(items=[]){
+    const host=$('#adminPaymentsList');if(!host)return;
+    if(!items.length){host.innerHTML='<div class="library-empty"><strong>Nenhum pagamento registrado.</strong><p>Quando Pix ou cartão forem usados, os registros aparecem aqui.</p></div>';return;}
+    host.innerHTML=items.map(p=>{const status=String(p.status||'').toLowerCase();return `<div class="admin-data-row"><span class="admin-data-icon">R$</span><div class="admin-data-main"><strong>${esc(formatDisplayName(p.name)||p.email||'Conta')}</strong><small>${esc(p.email||'')} • ID ${esc(String(p.id||'').slice(-12))}</small></div><div class="admin-data-meta"><strong>${moneyBRL(p.amountCents)}</strong><small class="admin-payment-status ${esc(status)}">${esc(adminStatusLabel(status))}</small><small>${esc(adminDateTime(p.createdAt))}</small></div></div>`}).join('');
+  }
+  function renderAdminActivity(items=[]){
+    const host=$('#adminActivityList');if(!host)return;
+    if(!items.length){host.innerHTML='<div class="library-empty"><strong>Nenhuma movimentação registrada ainda.</strong></div>';return;}
+    const icon={generation:'✦',material:'▤'};
+    host.innerHTML=items.map(a=>`<div class="admin-data-row"><span class="admin-data-icon">${icon[a.activityType]||'•'}</span><div class="admin-data-main"><strong>${esc(a.title||'Atividade no Aulora')}</strong><small>${esc(a.subtitle||a.refType||'')} • ${esc(formatDisplayName(a.name)||a.email||'Usuário')}</small></div><div class="admin-data-meta"><small>${esc(adminDateTime(a.createdAt))}</small></div></div>`).join('');
+  }
+  function renderAdminAudit(items=[]){
+    const host=$('#adminAuditList');if(!host)return;
+    if(!items.length){host.innerHTML='<div class="library-empty"><strong>Nenhuma ação administrativa registrada ainda.</strong></div>';return;}
+    const names={grant_pro:'Pro liberado',set_basic:'Plano alterado para Básico',reset_usage:'Consumo de IA zerado',logout_all:'Sessões encerradas'};
+    const icons={grant_pro:'◆',set_basic:'○',reset_usage:'↺',logout_all:'↪'};
+    host.innerHTML=items.map(a=>{let extra='';if(a.action==='grant_pro'&&a.detail?.days)extra=` • +${a.detail.days} dias`;return `<div class="admin-audit-row"><span>${icons[a.action]||'◈'}</span><div><strong>${esc(names[a.action]||a.action)}${esc(extra)}</strong><small>${esc(a.adminName||'Admin')} → ${esc(a.targetName||'conta')}</small></div><time>${esc(adminDateTime(a.createdAt))}</time></div>`}).join('');
+  }
   async function loadAdminDashboard(){
     if(!isAdmin())return;
-    const list=$('#adminUsersList');
-    if(list)list.innerHTML='<div class="library-empty"><strong>Carregando usuários…</strong></div>';
+    const list=$('#adminUsersList');if(list)list.innerHTML='<div class="library-empty"><strong>Carregando central administrativa…</strong></div>';
     try{
-      const [stats,users]=await Promise.all([apiFetch('/api/admin/stats',{cache:'no-store'}),loadAdminUsers(false)]);
-      $('#adminStatUsers').textContent=String(stats.users||0);
-      $('#adminStatPro').textContent=String(stats.pro||0);
-      $('#adminStatMaterials').textContent=String(stats.materials||0);
-      $('#adminStatRevenue').textContent=moneyBRL(stats.revenueCents||0);
+      const [stats,dashboard,users]=await Promise.all([apiFetch('/api/admin/stats',{cache:'no-store'}),apiFetch('/api/admin/dashboard',{cache:'no-store'}),loadAdminUsers(false)]);
+      adminDashboardState={stats,dashboard};
+      $('#adminStatUsers').textContent=String(stats.users||0); $('#adminStatNewUsers').textContent=`${stats.newUsers30||0} novos em 30 dias`;
+      $('#adminStatPro').textContent=String(stats.pro||0); $('#adminStatPlanMix').textContent=`${stats.basic||0} Básico • ${stats.admins||0} Admin`;
+      $('#adminStatAi').textContent=String(stats.aiThisMonth||0); $('#adminStatToday').textContent=`${stats.generationsToday||0} gerações hoje`;
+      $('#adminStatMaterials').textContent=String(stats.materials||0); $('#adminStatCurriculum').textContent=`${stats.curriculumSources||0} fontes curriculares`;
+      $('#adminStatRevenue').textContent=moneyBRL(stats.revenueCents||0); $('#adminStatPayments').textContent=`${stats.approvedPayments||0} pagamentos aprovados`;
+      renderAdminHealth(stats);renderAdminTypes(dashboard.materialTypes||[]);renderAdminFunnel(stats);renderAdminPayments(dashboard.payments||[]);renderAdminActivity(dashboard.activity||[]);renderAdminAudit(dashboard.audit||[]);
       return users;
-    }catch(err){if(list)list.innerHTML=`<div class="library-empty"><strong>Não foi possível carregar o painel.</strong><p>${esc(err.message||'Erro')}</p></div>`;}
+    }catch(err){if(list)list.innerHTML=`<div class="library-empty"><strong>Não foi possível carregar o painel.</strong><p>${esc(err.message||'Erro')}</p></div>`;toast(err.message||'Falha ao carregar Administração.');}
   }
   async function loadAdminUsers(showToast=false){
-    if(!isAdmin())return;
-    const q=$('#adminUserSearch')?.value?.trim()||'';
-    const data=await apiFetch(`/api/admin/users${q?`?q=${encodeURIComponent(q)}`:''}`,{cache:'no-store'});
-    const users=Array.isArray(data.users)?data.users:[]; const list=$('#adminUsersList'); if(!list)return users;
-    if(!users.length){list.innerHTML='<div class="library-empty"><strong>Nenhum usuário encontrado.</strong></div>';return users;}
+    if(!isAdmin())return [];
+    const q=$('#adminUserSearch')?.value?.trim()||'', plan=$('#adminUserPlanFilter')?.value||'all'; const params=new URLSearchParams();if(q)params.set('q',q);if(plan&&plan!=='all')params.set('plan',plan);
+    const data=await apiFetch(`/api/admin/users${params.toString()?`?${params}`:''}`,{cache:'no-store'});
+    const users=Array.isArray(data.users)?data.users:[];adminLoadedUsers=users; const list=$('#adminUsersList'); if(!list)return users;
+    if(!users.length){list.innerHTML='<div class="library-empty"><strong>Nenhum usuário encontrado.</strong><p>Altere a busca ou o filtro de plano.</p></div>';return users;}
     list.innerHTML=users.map(u=>{
-      const pro=u.plan==='pro', adminUser=Boolean(u.isAdmin); const expiry=u.proExpiresAt?new Date(u.proExpiresAt).toLocaleDateString('pt-BR'):'';
-      const planLabel=adminUser?'ADMIN':pro?'PRO':'BÁSICO';
-      const planSub=adminUser?'acesso completo':pro&&expiry?'até '+expiry:'gratuito';
-      return `<article class="admin-user-row" data-admin-user="${esc(u.id)}"><div class="admin-user-avatar">${esc(String(u.name||u.email||'A').trim().charAt(0).toUpperCase())}</div><div class="admin-user-main"><strong>${esc(formatDisplayName(u.name)||u.email)}</strong><small>${esc(u.email)}${adminUser?' • ADMIN':''}</small><span>Criado em ${u.createdAt?esc(new Date(u.createdAt).toLocaleDateString('pt-BR')):'—'}</span></div><div class="admin-user-plan"><b class="${pro||adminUser?'pro':''}">${planLabel}</b><small>${esc(planSub)}</small></div><div class="admin-user-actions"><button class="mini-button" data-admin-pro="${esc(u.id)}">+30 dias Pro</button><button class="mini-button danger-text" data-admin-basic="${esc(u.id)}">Definir Básico</button></div></article>`;
+      const pro=u.plan==='pro', adminUser=Boolean(u.isAdmin); const expiry=u.proExpiresAt?new Date(u.proExpiresAt).toLocaleDateString('pt-BR'):''; const planLabel=adminUser?'ADMIN':pro?'PRO':'BÁSICO';const planSub=adminUser?'acesso completo':pro&&expiry?'até '+expiry:'gratuito';
+      const controls=adminUser?`<button class="mini-button admin-more" data-admin-details="${esc(u.id)}">Detalhes</button>`:`<button class="mini-button" data-admin-pro="${esc(u.id)}" data-days="30">+30 Pro</button><button class="mini-button" data-admin-pro="${esc(u.id)}" data-days="90">+90 Pro</button><button class="mini-button admin-more" data-admin-details="${esc(u.id)}">Detalhes</button>`;
+      return `<article class="admin-user-row" data-admin-user="${esc(u.id)}"><div class="admin-user-avatar">${esc(String(u.name||u.email||'A').trim().charAt(0).toUpperCase())}</div><div class="admin-user-main"><strong>${esc(formatDisplayName(u.name)||u.email)}</strong><small>${esc(u.email)}${adminUser?' • ADMIN':''}</small><span>Criado ${esc(adminDateTime(u.createdAt))}</span></div><div class="admin-user-metrics"><span><small>IA / mês</small><b>${u.aiThisMonth||0}</b></span><span><small>Materiais</small><b>${u.materials||0}</b></span><span><small>Receita</small><b>${moneyBRL(u.approvedCents||0)}</b></span></div><div class="admin-user-plan"><b class="${adminUser?'admin-role':pro?'pro':''}">${planLabel}</b><small>${esc(planSub)}</small></div><div class="admin-user-actions">${controls}</div></article>`;
     }).join('');
-    $$('[data-admin-pro]',list).forEach(b=>b.onclick=()=>setAdminPlan(b.dataset.adminPro,'pro'));
-    $$('[data-admin-basic]',list).forEach(b=>b.onclick=()=>setAdminPlan(b.dataset.adminBasic,'free'));
-    if(showToast)toast(`${users.length} conta(s) carregada(s).`); return users;
+    $$('[data-admin-pro]',list).forEach(b=>b.onclick=()=>setAdminPlan(b.dataset.adminPro,'pro',Number(b.dataset.days)||30));
+    $$('[data-admin-details]',list).forEach(b=>b.onclick=()=>openAdminUserDetails(b.dataset.adminDetails));
+    if(showToast)toast(`${users.length} conta(s) carregada(s).`);return users;
   }
-  async function setAdminPlan(userId,plan){
-    if(!isAdmin())return;
-    const label=plan==='pro'?'adicionar 30 dias de Pro':'alterar para Básico';
-    if(!confirm(`Deseja ${label} nesta conta?`))return;
-    try{await apiFetch('/api/admin/user-plan',{method:'POST',body:{userId,plan,days:30}});toast(plan==='pro'?'Pro atualizado por 30 dias.':'Conta alterada para Básico.');await loadAdminDashboard();}
+  async function setAdminPlan(userId,plan,days=30){
+    if(!isAdmin())return;const label=plan==='pro'?`adicionar ${days} dias de Pro`:'alterar para Básico';if(!confirm(`Deseja ${label} nesta conta?`))return;
+    try{await apiFetch('/api/admin/user-plan',{method:'POST',body:{userId,plan,days}});toast(plan==='pro'?`Pro atualizado por ${days} dias.`:'Conta alterada para Básico.');await loadAdminDashboard();}
     catch(err){toast(err.message||'Não foi possível alterar o plano.');}
   }
-  $('#adminRefreshBtn')?.addEventListener('click',()=>loadAdminDashboard());
-  $('#adminUserSearchBtn')?.addEventListener('click',()=>loadAdminUsers(true));
-  $('#adminUserSearch')?.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();loadAdminUsers(true);}});
+  async function adminUserAction(userId,action){
+    const labels={reset_usage:'zerar o consumo de IA deste mês',logout_all:'encerrar todas as sessões desta conta'};if(!confirm(`Deseja ${labels[action]||'executar esta ação'}?`))return;
+    try{await apiFetch('/api/admin/user-action',{method:'POST',body:{userId,action}});toast(action==='reset_usage'?'Consumo de IA zerado.':'Sessões encerradas.');closeAdminUserDialog();await loadAdminDashboard();}catch(err){toast(err.message||'Ação não concluída.');}
+  }
+  function openAdminUserDetails(userId){
+    const u=adminLoadedUsers.find(x=>x.id===userId);if(!u)return;const dialog=$('#adminUserDialog');
+    $('#adminUserDialogName').textContent=formatDisplayName(u.name)||'Conta Aulora';$('#adminUserDialogEmail').textContent=u.email;
+    const expiry=u.proExpiresAt?new Date(u.proExpiresAt).toLocaleDateString('pt-BR'):'—';
+    $('#adminUserDetailGrid').innerHTML=`<article><small>Plano</small><strong>${u.isAdmin?'Administrador':u.plan==='pro'?'Pro':'Básico'}</strong></article><article><small>IA neste mês</small><strong>${u.aiThisMonth||0}</strong></article><article><small>Materiais</small><strong>${u.materials||0}</strong></article><article><small>Pagamentos</small><strong>${u.payments||0}</strong></article><article><small>Receita aprovada</small><strong>${moneyBRL(u.approvedCents||0)}</strong></article><article><small>Pro até</small><strong>${esc(expiry)}</strong></article><article><small>Cadastro</small><strong>${esc(adminDateTime(u.createdAt))}</strong></article><article><small>Última atualização</small><strong>${esc(adminDateTime(u.updatedAt))}</strong></article>`;
+    const actions=$('#adminUserDialogActions');
+    actions.innerHTML=u.isAdmin?`<button class="ghost-button" data-dialog-reset="${esc(u.id)}">Zerar uso IA</button>`:`<button class="primary-button" data-dialog-pro="${esc(u.id)}" data-days="30">+30 dias Pro</button><button class="ghost-button" data-dialog-pro="${esc(u.id)}" data-days="90">+90 dias Pro</button><button class="ghost-button" data-dialog-basic="${esc(u.id)}">Definir Básico</button><button class="ghost-button" data-dialog-reset="${esc(u.id)}">Zerar uso IA</button><button class="ghost-button danger-text" data-dialog-logout="${esc(u.id)}">Encerrar sessões</button>`;
+    $$('[data-dialog-pro]',actions).forEach(b=>b.onclick=()=>setAdminPlan(b.dataset.dialogPro,'pro',Number(b.dataset.days)||30));
+    $('[data-dialog-basic]',actions)?.addEventListener('click',()=>setAdminPlan(userId,'free',30)); $('[data-dialog-reset]',actions)?.addEventListener('click',()=>adminUserAction(userId,'reset_usage')); $('[data-dialog-logout]',actions)?.addEventListener('click',()=>adminUserAction(userId,'logout_all'));
+    if(!dialog.open)dialog.showModal();
+  }
+  function closeAdminUserDialog(){const d=$('#adminUserDialog');if(d?.open)d.close();}
+  function exportAdminUsers(){
+    if(!adminLoadedUsers.length){toast('Carregue os usuários antes de exportar.');return;}
+    const rows=[['Nome','E-mail','Perfil','Plano','Pro até','IA no mês','Materiais','Pagamentos','Receita aprovada','Criado em']];
+    adminLoadedUsers.forEach(u=>rows.push([formatDisplayName(u.name),u.email,u.isAdmin?'Administrador':'Usuário',u.isAdmin?'Admin':u.plan==='pro'?'Pro':'Básico',u.proExpiresAt||'',u.aiThisMonth||0,u.materials||0,u.payments||0,(Number(u.approvedCents||0)/100).toFixed(2).replace('.',','),u.createdAt||'']));
+    const csv='\ufeff'+rows.map(r=>r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(';')).join('\r\n');const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`aulora-usuarios-${new Date().toISOString().slice(0,10)}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  }
+  $('#adminRefreshBtn')?.addEventListener('click',()=>loadAdminDashboard()); $('#adminExportBtn')?.addEventListener('click',exportAdminUsers); $('#adminUserSearchBtn')?.addEventListener('click',()=>loadAdminUsers(true)); $('#adminUserPlanFilter')?.addEventListener('change',()=>loadAdminUsers(false)); $('#adminUserSearch')?.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();loadAdminUsers(true);}}); $('#adminUserDialogClose')?.addEventListener('click',closeAdminUserDialog); $('#adminUserDialog')?.addEventListener('click',e=>{if(e.target===$('#adminUserDialog'))closeAdminUserDialog();});
 
   // Henry Ribeiro — assistente educacional com IA do Aulora.
   const henryHelpPanel=$('#henryHelpPanel');

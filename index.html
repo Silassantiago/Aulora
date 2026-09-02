@@ -236,8 +236,8 @@
                 <label>Data da aula<input name="date" type="date" /></label>
                 <label class="full">Tema da aula<input name="topic" required placeholder="Ex.: Sistema Solar" /></label>
                 <label class="full">Texto-base / conteúdo trabalhado (opcional)<textarea name="sourceText" rows="5" placeholder="Cole um resumo, trecho do livro, material da escola ou conteúdo já trabalhado. O Aulora prioriza este texto na pesquisa e na geração."></textarea></label>
-                <div class="form-section-title full research-title"><span>⌕</span><div><strong>Pesquisa e precisão</strong><small>Antes de gerar, o Aulora pesquisa fontes de apoio, cruza com o texto-base e rejeita temas incompatíveis com a disciplina.</small></div></div>
-                <label>Profundidade da pesquisa<select name="researchDepth"><option selected>Pesquisa essencial automática</option><option data-pro-only>Pesquisa aprofundada — Pro</option><option>Usar somente texto-base / fontes curriculares</option></select></label>
+                <div class="form-section-title full research-title"><span>⌕</span><div><strong>Fontes e precisão</strong><small>O Aulora usa primeiro o texto do professor e fontes curriculares verificadas. Pesquisa externa só entra quando for escolhida e quando a fonte passar pela validação de relevância.</small></div></div>
+                <label>Fontes da geração<select name="researchDepth"><option selected>Fontes verificadas + texto do professor</option><option data-pro-only>Pesquisa externa complementar — fontes filtradas — Pro</option><option>Usar somente texto-base / fontes curriculares</option></select></label>
                 <label>Política factual<select name="factPolicy"><option selected>Não usar fatos específicos sem apoio</option><option data-pro-only>Máxima cautela factual — Pro</option></select><small class="field-hint">As fontes consultadas aparecem na versão do professor, nunca no material do aluno.</small></label>
                 <label>Duração<select name="duration"><option>45 minutos</option><option selected>50 minutos</option><option>1 hora</option><option>1h30</option><option>2 aulas</option><option>3 aulas</option></select></label>
                 <label>Modalidade<select name="modality"><option>Presencial</option><option>Híbrida</option><option>Remota</option></select></label>
@@ -288,15 +288,15 @@
                 <div class="curriculum-status full" data-curriculum-status>Selecione estado e município para consultar a base curricular cadastrada.</div>
                 <label>Etapa de ensino<select name="stage" data-profile="stage"><option>Educação Infantil</option><option>Anos iniciais do Ensino Fundamental</option><option selected>Anos finais do Ensino Fundamental</option><option>Ensino Médio</option><option>EJA</option><option>Outro</option></select></label>
                 <label>Dificuldade<select name="difficulty"><option>Bem acessível</option><option>Fácil</option><option selected>Intermediária</option><option>Avançada</option></select></label>
-                <label class="full">Conteúdo / tema<input name="topic" required placeholder="Ex.: Interpretação de texto" /></label>
-                <label class="full">Objetivo da atividade<textarea name="objective" rows="2" placeholder="Ex.: reconhecer personagens, ordenar acontecimentos e expressar compreensão por fala, marcação ou desenho."></textarea></label>
+                <label class="full">Conteúdo da disciplina <input name="topic" required placeholder="Ex.: em Ciências: ecossistemas, calor e temperatura, máquinas simples" /><small class="field-hint topic-help">Informe o assunto que será ensinado. “Interpretação de texto”, “leitura”, “estudo de caso” e “desenho” são formas de trabalhar o conteúdo e devem ser escolhidas nas opções abaixo.</small></label>
+                <label class="full">Objetivo da atividade<textarea name="objective" rows="2" placeholder="Ex.: identificar relações entre conceitos, aplicar o conteúdo em situações reais e explicar o raciocínio usado."></textarea></label>
                 <label class="full">Texto-base / conteúdo trabalhado<textarea name="sourceText" rows="6" placeholder="Cole um texto, resumo, situação-problema ou conceitos já trabalhados. Se a atividade for visual, descreva os elementos que podem ser representados."></textarea></label>
-                <div class="form-section-title full research-title"><span>⌕</span><div><strong>Pesquisa e precisão</strong><small>Antes de gerar, o Aulora pesquisa fontes de apoio, cruza com o texto-base e rejeita temas incompatíveis com a disciplina.</small></div></div>
-                <label>Profundidade da pesquisa<select name="researchDepth"><option selected>Pesquisa essencial automática</option><option data-pro-only>Pesquisa aprofundada — Pro</option><option>Usar somente texto-base / fontes curriculares</option></select></label>
+                <div class="form-section-title full research-title"><span>⌕</span><div><strong>Fontes e precisão</strong><small>O Aulora usa primeiro o texto do professor e fontes curriculares verificadas. Pesquisa externa só entra quando for escolhida e quando a fonte passar pela validação de relevância.</small></div></div>
+                <label>Fontes da geração<select name="researchDepth"><option selected>Fontes verificadas + texto do professor</option><option data-pro-only>Pesquisa externa complementar — fontes filtradas — Pro</option><option>Usar somente texto-base / fontes curriculares</option></select></label>
                 <label>Política factual<select name="factPolicy"><option selected>Não usar fatos específicos sem apoio</option><option data-pro-only>Máxima cautela factual — Pro</option></select><small class="field-hint">As fontes consultadas aparecem na versão do professor, nunca no material do aluno.</small></label>
 
                 <div class="form-section-title full ai-variety-title"><span>✦</span><div><strong>Modo de criação da IA</strong><small>Cada geração recebe uma combinação diferente de estratégia, contexto e operações cognitivas. Gere novamente com os mesmos dados para obter outra versão.</small></div></div>
-                <label>Estilo de criação<select name="generationStyle"><option selected>Variação automática — equilibrada</option><option data-pro-only>Investigativa / por evidências — Pro</option><option data-pro-only>Situação-problema — Pro</option><option data-pro-only>Estudo de caso — Pro</option><option data-pro-only>Aplicação prática — Pro</option><option data-pro-only>Interpretação e análise — Pro</option><option data-pro-only>Desafio / gamificada — Pro</option><option data-pro-only>Revisão e consolidação — Pro</option><option data-pro-only>Diagnóstica — Pro</option></select></label>
+                <label>Estilo de criação<select name="generationStyle"><option selected>Variação automática — equilibrada</option><option data-pro-only>Investigativa / por evidências — Pro</option><option data-pro-only>Situação-problema — Pro</option><option data-pro-only>Estudo de caso — Pro</option><option data-pro-only>Aplicação prática — Pro</option><option data-pro-only>Interpretação de texto científico / análise — Pro</option><option data-pro-only>Desafio / gamificada — Pro</option><option data-pro-only>Revisão e consolidação — Pro</option><option data-pro-only>Diagnóstica — Pro</option></select></label>
                 <label>Finalidade<select name="purpose"><option selected>Atividade de aula</option><option>Revisão</option><option>Fixação / prática</option><option data-pro-only>Diagnóstico de aprendizagem — Pro</option><option data-pro-only>Recuperação / reforço — Pro</option><option data-pro-only>Tarefa de casa — Pro</option><option data-pro-only>Desafio / aprofundamento — Pro</option><option data-pro-only>Projeto / investigação — Pro</option><option data-pro-only>AEE / apoio pedagógico — Pro</option></select></label>
                 <label>Contexto das tarefas<select name="contextMode"><option selected>Variar automaticamente</option><option data-pro-only>Cotidiano do estudante — Pro</option><option data-pro-only>Escola e comunidade — Pro</option><option data-pro-only>Ciência, tecnologia e sociedade — Pro</option><option data-pro-only>Dados, tabela ou gráfico — Pro</option><option data-pro-only>Observação / experimento — Pro</option><option data-pro-only>Texto, documento ou fonte — Pro</option><option data-pro-only>Projeto ou desafio — Pro</option></select></label>
                 <label>Nível cognitivo<select name="cognitiveMix"><option selected>Equilibrado</option><option data-pro-only>Compreender e explicar — Pro</option><option data-pro-only>Aplicar conhecimentos — Pro</option><option data-pro-only>Analisar e relacionar — Pro</option><option data-pro-only>Criar / produzir — Pro</option><option data-pro-only>Progressão do simples ao complexo — Pro</option></select></label>
@@ -348,7 +348,7 @@
                 <label>Município<select name="municipality" data-city-select required disabled><option value="">Selecione o estado</option></select><input type="hidden" name="municipalityId" data-city-id /></label>
                 <label class="full">Habilidade / objetivo curricular já conferido (opcional)<input name="curricularSkill" placeholder="Ex.: código/habilidade da BNCC ou do currículo local já conferido pelo professor" /></label>
                 <div class="curriculum-status full" data-curriculum-status>Selecione estado e município para consultar a base curricular cadastrada.</div>
-                <label class="full">Conteúdo avaliado<input name="topic" required placeholder="Ex.: Revolução Industrial" /></label>
+                <label class="full">Conteúdo da disciplina que será avaliado<input name="topic" required placeholder="Ex.: em Ciências: ecossistemas; em História: Revolução Industrial" /><small class="field-hint topic-help">Informe o assunto da disciplina. “Interpretação”, “simulado”, “revisão” e “estudo de caso” são formatos da prova e ficam nas opções abaixo.</small></label>
                 <label>Data<input name="date" type="date" /></label>
                 <label>Duração prevista<select name="duration"><option>45 minutos</option><option selected>50 minutos</option><option>1 hora</option><option>1h30</option><option>2 aulas</option></select></label>
                 <label>Imagens na prova<select name="imageMode"><option selected>Sem imagens</option><option value="1 imagem de apoio pedagógico" data-pro-only>1 imagem de apoio pedagógico — Pro</option><option value="Imagens em até 3 questões" data-pro-only>Imagens em até 3 questões — Pro</option><option value="Imagem em todas as questões" data-pro-only>Imagem em todas as questões — Pro</option><option value="Painel visual com 3 cenas" data-pro-only>Painel visual com 3 cenas — Pro</option></select><small class="field-hint">Básico: sem geração de imagens • Pro: provas com imagens inseridas e gabarito.</small></label>
@@ -357,15 +357,15 @@
                 <label>Dificuldade<select name="difficulty"><option>Fácil</option><option selected>Intermediária</option><option>Avançada</option></select></label>
                 <label>Composição<select name="format"><option>70% objetivas + 30% discursivas</option><option>Somente objetivas</option><option>50% objetivas + 50% discursivas</option><option>Somente discursivas</option><option>Verdadeiro ou falso</option></select></label>
                 <div class="form-section-title full ai-variety-title"><span>✦</span><div><strong>Perfil inteligente da avaliação</strong><small>O Aulora cria uma versão nova a cada geração, variando enunciados, situações, alternativas e operações cognitivas sem sair do conteúdo.</small></div></div>
-                <label>Perfil da prova<select name="examProfile"><option selected>Variação automática — prova equilibrada</option><option data-pro-only>Diagnóstica — Pro</option><option data-pro-only>Formativa — Pro</option><option data-pro-only>Somativa — Pro</option><option data-pro-only>Simulado — Pro</option><option data-pro-only>Recuperação — Pro</option><option data-pro-only>Situações-problema — Pro</option><option data-pro-only>Competências e aplicação — Pro</option><option data-pro-only>Interpretação e análise — Pro</option></select></label>
+                <label>Perfil da prova<select name="examProfile"><option selected>Variação automática — prova equilibrada</option><option data-pro-only>Diagnóstica — Pro</option><option data-pro-only>Formativa — Pro</option><option data-pro-only>Somativa — Pro</option><option data-pro-only>Simulado — Pro</option><option data-pro-only>Recuperação — Pro</option><option data-pro-only>Situações-problema — Pro</option><option data-pro-only>Competências e aplicação — Pro</option><option data-pro-only>Interpretação de texto/fonte sobre o conteúdo — Pro</option></select></label>
                 <label>Construção das questões<select name="questionDesign"><option selected>Alta variedade automática</option><option data-pro-only>Contextualizadas no cotidiano — Pro</option><option data-pro-only>Estudos de caso — Pro</option><option data-pro-only>Interpretação de dados/fontes — Pro</option><option data-pro-only>Aplicação prática — Pro</option><option data-pro-only>Progressão cognitiva — Pro</option></select></label>
                 <label>Versão da avaliação<select name="examVersion"><option selected>Versão única automática</option><option data-pro-only>Versão A — Pro</option><option data-pro-only>Versão B — Pro</option><option data-pro-only>Versão C — Pro</option></select><small class="field-hint">Mesmo conteúdo, mas com construção diferente para turmas ou aplicações distintas.</small></label>
                 <label>Variedade<select name="diversityMode"><option selected>Alta variedade</option><option>Equilibrada</option><option data-pro-only>Máxima variedade — Pro</option></select></label>
                 <label>Marcação das alternativas<select name="optionStyle"><option value="parentheses" selected>( &nbsp;&nbsp; ) A) Alternativa</option><option value="square">[ &nbsp;&nbsp; ] A) Alternativa</option><option value="plain">A) Alternativa</option></select><small class="field-hint">Define como o aluno marcará a resposta nas questões objetivas.</small></label>
                 <label>Espaço nas discursivas<select name="discursiveSpace"><option value="2">2 linhas</option><option value="4" selected>4 linhas</option><option value="6">6 linhas</option><option value="8">8 linhas</option></select></label>
                 <label class="full">Texto-base / conteúdo trabalhado<textarea name="sourceText" rows="7" placeholder="Cole o conteúdo, resumo ou texto-base que deve orientar a avaliação."></textarea></label>
-                <div class="form-section-title full research-title"><span>⌕</span><div><strong>Pesquisa e precisão</strong><small>Antes de gerar, o Aulora pesquisa fontes de apoio, cruza com o texto-base e rejeita temas incompatíveis com a disciplina.</small></div></div>
-                <label>Profundidade da pesquisa<select name="researchDepth"><option selected>Pesquisa essencial automática</option><option data-pro-only>Pesquisa aprofundada — Pro</option><option>Usar somente texto-base / fontes curriculares</option></select></label>
+                <div class="form-section-title full research-title"><span>⌕</span><div><strong>Fontes e precisão</strong><small>O Aulora usa primeiro o texto do professor e fontes curriculares verificadas. Pesquisa externa só entra quando for escolhida e quando a fonte passar pela validação de relevância.</small></div></div>
+                <label>Fontes da geração<select name="researchDepth"><option selected>Fontes verificadas + texto do professor</option><option data-pro-only>Pesquisa externa complementar — fontes filtradas — Pro</option><option>Usar somente texto-base / fontes curriculares</option></select></label>
                 <label>Política factual<select name="factPolicy"><option selected>Não usar fatos específicos sem apoio</option><option data-pro-only>Máxima cautela factual — Pro</option></select><small class="field-hint">As fontes consultadas aparecem na versão do professor, nunca no material do aluno.</small></label>
                 <label class="full">Habilidade / referência curricular (opcional)<input name="skill" placeholder="Informe apenas referências já conferidas" /></label>
                 <label class="full">Instruções da avaliação<textarea name="instructions" rows="3" placeholder="Ex.: responda de forma legível e revise antes de entregar."></textarea></label>
@@ -557,25 +557,74 @@
         </section>
 
         <section class="view" id="view-admin">
-          <div class="page-intro inline-intro">
-            <div><span class="eyebrow">ADMINISTRAÇÃO</span><h1>Painel do Aulora</h1><p>Visão geral de contas, planos, materiais e pagamentos. Senhas nunca são exibidas.</p></div>
-            <div class="header-actions"><button class="ghost-button" id="adminRefreshBtn" type="button">Atualizar painel</button></div>
+          <div class="page-intro inline-intro admin-page-intro">
+            <div><span class="eyebrow">CENTRAL DE GESTÃO</span><h1>Administração do Aulora</h1><p>Usuários, planos, receita, IA, materiais, integrações e atividade do sistema em um único painel. Senhas e dados de cartão nunca são exibidos.</p></div>
+            <div class="header-actions"><button class="ghost-button" id="adminExportBtn" type="button">⇩ Exportar usuários</button><button class="primary-button" id="adminRefreshBtn" type="button">↻ Atualizar painel</button></div>
           </div>
-          <div class="admin-stats-grid">
-            <article><span>Usuários</span><strong id="adminStatUsers">—</strong><small>contas cadastradas</small></article>
-            <article><span>Pro ativos</span><strong id="adminStatPro">—</strong><small>assinaturas/períodos ativos</small></article>
-            <article><span>Materiais</span><strong id="adminStatMaterials">—</strong><small>salvos no Aulora</small></article>
-            <article><span>Receita aprovada</span><strong id="adminStatRevenue">—</strong><small>pagamentos registrados</small></article>
+
+          <div class="admin-kpi-grid">
+            <article class="admin-kpi"><span class="admin-kpi-icon">👥</span><div><small>Contas cadastradas</small><strong id="adminStatUsers">—</strong><em id="adminStatNewUsers">— novos em 30 dias</em></div></article>
+            <article class="admin-kpi"><span class="admin-kpi-icon">◆</span><div><small>Pro ativos</small><strong id="adminStatPro">—</strong><em id="adminStatPlanMix">— Básico</em></div></article>
+            <article class="admin-kpi"><span class="admin-kpi-icon">✦</span><div><small>Uso da IA no mês</small><strong id="adminStatAi">—</strong><em id="adminStatToday">— gerações hoje</em></div></article>
+            <article class="admin-kpi"><span class="admin-kpi-icon">▤</span><div><small>Materiais salvos</small><strong id="adminStatMaterials">—</strong><em id="adminStatCurriculum">— fontes curriculares</em></div></article>
+            <article class="admin-kpi admin-kpi-money"><span class="admin-kpi-icon">R$</span><div><small>Receita aprovada</small><strong id="adminStatRevenue">—</strong><em id="adminStatPayments">— pagamentos aprovados</em></div></article>
           </div>
+
+          <div class="admin-overview-grid">
+            <div class="form-card admin-health-card">
+              <div class="card-heading"><div><span class="eyebrow">INFRAESTRUTURA</span><h2>Saúde das integrações</h2></div><span class="security-badge">TEMPO REAL</span></div>
+              <div class="admin-health-list" id="adminHealthList"><div class="admin-skeleton-line"></div></div>
+            </div>
+            <div class="form-card admin-content-card">
+              <div class="card-heading"><div><span class="eyebrow">CONTEÚDO</span><h2>Materiais por tipo</h2></div></div>
+              <div class="admin-type-list" id="adminMaterialTypes"><div class="admin-skeleton-line"></div></div>
+            </div>
+            <div class="form-card admin-funnel-card">
+              <div class="card-heading"><div><span class="eyebrow">CONVERSÃO</span><h2>Planos e pagamentos</h2></div></div>
+              <div class="admin-funnel" id="adminPlanFunnel"><div class="admin-skeleton-line"></div></div>
+            </div>
+          </div>
+
           <div class="form-card admin-users-card">
-            <div class="card-heading"><div><span class="eyebrow">USUÁRIOS</span><h2>Contas cadastradas</h2></div><span class="security-badge">ADMIN</span></div>
-            <div class="admin-toolbar"><input id="adminUserSearch" placeholder="Buscar por nome ou e-mail" /><button class="primary-button" id="adminUserSearchBtn" type="button">Buscar</button></div>
+            <div class="card-heading"><div><span class="eyebrow">USUÁRIOS</span><h2>Contas cadastradas</h2><p class="admin-card-note">Pesquise, filtre e faça suporte sem acessar senha ou dados financeiros sensíveis.</p></div><span class="security-badge">ADMIN</span></div>
+            <div class="admin-toolbar admin-toolbar-rich">
+              <div class="admin-search-box"><span>⌕</span><input id="adminUserSearch" placeholder="Buscar por nome ou e-mail" /></div>
+              <select id="adminUserPlanFilter" aria-label="Filtrar por plano"><option value="all">Todos os planos</option><option value="basic">Básico</option><option value="pro">Pro</option><option value="admin">Administradores</option></select>
+              <button class="primary-button" id="adminUserSearchBtn" type="button">Buscar</button>
+            </div>
             <div class="admin-users-list" id="adminUsersList"><div class="library-empty"><strong>Carregando usuários…</strong></div></div>
+          </div>
+
+          <div class="admin-bottom-grid">
+            <div class="form-card admin-payments-card">
+              <div class="card-heading"><div><span class="eyebrow">FINANCEIRO</span><h2>Pagamentos recentes</h2></div><span class="security-badge">MERCADO PAGO</span></div>
+              <div class="admin-data-list" id="adminPaymentsList"><div class="library-empty"><strong>Nenhum pagamento carregado.</strong></div></div>
+            </div>
+            <div class="form-card admin-activity-card">
+              <div class="card-heading"><div><span class="eyebrow">ATIVIDADE</span><h2>Movimentação recente</h2></div></div>
+              <div class="admin-data-list" id="adminActivityList"><div class="library-empty"><strong>Nenhuma atividade carregada.</strong></div></div>
+            </div>
+          </div>
+
+          <div class="form-card admin-audit-card">
+            <div class="card-heading"><div><span class="eyebrow">SEGURANÇA E CONTROLE</span><h2>Histórico administrativo</h2><p class="admin-card-note">Alterações de plano, zeragem de uso e encerramento de sessões ficam registradas aqui.</p></div></div>
+            <div class="admin-audit-list" id="adminAuditList"><div class="library-empty"><strong>Nenhuma ação administrativa registrada ainda.</strong></div></div>
           </div>
         </section>
       </main>
     </div>
   </div>
+
+  <dialog class="admin-user-dialog" id="adminUserDialog">
+    <div class="admin-user-dialog-shell">
+      <button class="dialog-close" id="adminUserDialogClose" type="button" aria-label="Fechar">×</button>
+      <span class="eyebrow">DETALHES DA CONTA</span>
+      <h2 id="adminUserDialogName">Usuário</h2>
+      <p id="adminUserDialogEmail"></p>
+      <div class="admin-detail-grid" id="adminUserDetailGrid"></div>
+      <div class="admin-dialog-actions" id="adminUserDialogActions"></div>
+    </div>
+  </dialog>
 
   <div class="henry-help" id="henryHelp">
     <button class="henry-help-toggle" id="henryHelpToggle" type="button" aria-expanded="false" aria-controls="henryHelpPanel" title="Abrir ajuda do Henry">

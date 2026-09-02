@@ -47,3 +47,13 @@ Depois da pesquisa, há duas barreiras automáticas:
 Se o tema estiver ambíguo ou incompatível com a disciplina, o Aulora deve pedir maior especificação em vez de fabricar conteúdo. As fontes consultadas aparecem apenas na versão do professor e são removidas da versão do aluno.
 
 Observação técnica: Workers AI não deve ser apresentado como navegador de internet por si só. Pesquisa web ampla exige um provedor de busca/tooling específico; esta versão usa fontes reais acessíveis sem uma chave adicional e não finge ter consultado a web quando não consultou.
+
+
+## Política de conteúdo e fontes — setembro de 2026
+
+- O campo **Conteúdo** representa o assunto da disciplina; formato/metodologia (interpretação, leitura, estudo de caso, desenho etc.) é tratado separadamente.
+- Combinações evidentemente incoerentes, como Ciências + “Interpretação de texto” sem conteúdo científico/texto-base, são bloqueadas antes da geração.
+- Texto-base do professor e fontes curriculares verificadas têm prioridade.
+- Pesquisa enciclopédica externa não é mais automática; quando o Pro solicita pesquisa complementar, cada fonte candidata passa por validação de relevância antes de entrar no prompt.
+- Fontes rejeitadas não aparecem no material. O Aulora não inventa uma fonte apenas para preencher a seção de pesquisa.
+- O controle de qualidade final rejeita material que transforme método em conteúdo, desvie de disciplina/fonte, seja genérico ou tenha baixa especificidade.

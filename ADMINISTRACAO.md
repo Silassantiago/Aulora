@@ -1,24 +1,23 @@
 # Administração do Aulora
 
-## Qual é o login do administrador?
+O painel administrativo é restrito às contas configuradas em `ADMIN_EMAILS` e ao administrador principal definido no Worker.
 
-O administrador usa **a própria conta normal do Aulora**. Não há usuário ou senha padrão no código.
+## Recursos do painel
 
-Configure no Worker da Cloudflare:
-
-`ADMIN_EMAILS=seu-email-da-conta@exemplo.com`
-
-Após entrar com esse mesmo e-mail e a senha que você cadastrou no Aulora, o menu **Administração** será liberado automaticamente.
-
-A conta administrativa recebe acesso completo aos recursos do Aulora para gestão e testes.
+- Visão geral de usuários, Básico, Pro e administradores.
+- Novas contas nos últimos 7 e 30 dias.
+- Uso agregado de IA no mês e gerações recentes.
+- Materiais salvos e distribuição por tipo.
+- Receita e pagamentos aprovados do Mercado Pago.
+- Estado das integrações: Workers AI, D1, Mercado Pago, webhook e e-mail.
+- Lista de pagamentos recentes sem exibir dados de cartão.
+- Atividade recente de gerações e materiais.
+- Busca e filtro por plano.
+- Exportação CSV da lista de usuários atualmente carregada.
+- Detalhes por conta: consumo de IA, materiais, pagamentos e receita aprovada.
+- Ações de suporte: +30/+90 dias de Pro, definir Básico, zerar consumo mensal de IA e encerrar sessões.
+- Auditoria das ações administrativas.
 
 ## Segurança
 
-- Não coloque senha de administrador no GitHub.
-- Não compartilhe o `MERCADO_PAGO_ACCESS_TOKEN`.
-- Se quiser mais administradores, adicione os e-mails em `ADMIN_EMAILS`, separados por vírgula.
-- Remover um e-mail de `ADMIN_EMAILS` remove o acesso administrativo na próxima sessão/consulta da conta.
-
-
-## Admin principal
-A conta `silas.henrique.1@hotmail.com` é reconhecida como administradora principal pelo Worker mesmo se a variável `ADMIN_EMAILS` não estiver disponível em um deploy. `ADMIN_EMAILS` continua podendo ser usado para autorizar contas administrativas adicionais.
+O painel não expõe senhas, hashes de senha, tokens de sessão, Access Token do Mercado Pago, segredo de webhook, número de cartão, CVV ou validade. Contas administrativas não podem ser rebaixadas para Básico pelo painel.
