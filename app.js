@@ -422,6 +422,8 @@
     const preset=inclusivePresets[btn.dataset.inclusivePreset]; if(!preset)return;
     go('activity');
     Object.entries(preset).forEach(([name,value])=>{const field=activityForm.elements[name];if(field)field.value=value;});
+    if($('#activityInclusiveQuick')) $('#activityInclusiveQuick').checked=true;
+    if($('#activityAdvancedOptions')){$('#activityAdvancedOptions').open=true;$('#activityAdvancedOptions').classList.add('inclusive-open');}
     $$('[data-inclusive-preset]').forEach(b=>b.classList.toggle('active',b===btn));
     saveActivityDraft();
     toast('Modelo inclusivo aplicado. Complete disciplina, turma e tema e ajuste o que precisar.');
@@ -485,6 +487,62 @@
   const saveActivityDraft=initDraft(activityForm,'activity','#activityDraftStatus');
   const saveExamDraft=initDraft(examForm,'exam','#examDraftStatus');
   const saveReportDraft=initDraft(reportForm,'report','#reportDraftStatus');
+
+  // Activity form: keep the common workflow simple and reveal complexity only on demand.
+  const activityAdvanced=$('#activityAdvancedOptions');
+  const activityInclusiveQuick=$('#activityInclusiveQuick');
+  const activityImagesQuick=$('#activityImagesQuick');
+  const activityCitySearch=$('#activityCitySearch');
+  function syncActivityQuickControls(){
+    if(!activityForm)return;
+    const imageMode=activityForm.elements.imageMode?.value||'Sem imagens';
+    if(activityImagesQuick)activityImagesQuick.checked=imageMode!=='Sem imagens';
+    const inclusive=Boolean((activityForm.elements.adaptationProfile?.value||'') || (activityForm.elements.activityType?.value||'')!=='Questões tradicionais' || (activityForm.elements.visualStyle?.value||'')!=='Padrão');
+    if(activityInclusiveQuick)activityInclusiveQuick.checked=inclusive;
+    activityAdvanced?.classList.toggle('inclusive-open',inclusive);
+  }
+  activityInclusiveQuick?.addEventListener('change',()=>{
+    if(activityInclusiveQuick.checked && !isPro()){
+      activityInclusiveQuick.checked=false; focusUpgrade('As adaptações avançadas de educação inclusiva fazem parte do Aulora Pro.'); return;
+    }
+    const on=activityInclusiveQuick.checked;
+    activityAdvanced?.classList.toggle('inclusive-open',on);
+    if(on){
+      if(activityAdvanced)activityAdvanced.open=true;
+      if(activityForm.elements.activityType)activityForm.elements.activityType.value='Mista inclusiva';
+      if(activityForm.elements.visualStyle)activityForm.elements.visualStyle.value='Baixa carga visual';
+      if(activityForm.elements.responseMode)activityForm.elements.responseMode.value='Múltiplas formas de resposta';
+      if(activityForm.elements.languageStyle)activityForm.elements.languageStyle.value='Frases curtas e diretas';
+    }else{
+      if(activityForm.elements.adaptationProfile)activityForm.elements.adaptationProfile.value='';
+      if(activityForm.elements.supportLevel)activityForm.elements.supportLevel.value='Independência predominante';
+      if(activityForm.elements.activityType)activityForm.elements.activityType.value='Questões tradicionais';
+      if(activityForm.elements.visualStyle)activityForm.elements.visualStyle.value='Padrão';
+      if(activityForm.elements.responseMode)activityForm.elements.responseMode.value='Escrita';
+      if(activityForm.elements.languageStyle)activityForm.elements.languageStyle.value='Padrão escolar';
+      if(activityForm.elements.interests)activityForm.elements.interests.value='';
+      if(activityForm.elements.accessNotes)activityForm.elements.accessNotes.value='';
+    }
+    saveActivityDraft();
+  });
+  activityImagesQuick?.addEventListener('change',()=>{
+    if(activityImagesQuick.checked && !isPro()){
+      activityImagesQuick.checked=false; focusUpgrade('Imagens pedagógicas geradas por IA fazem parte do Aulora Pro.'); return;
+    }
+    if(activityForm.elements.imageMode)activityForm.elements.imageMode.value=activityImagesQuick.checked?'1 imagem de apoio pedagógico':'Sem imagens';
+    saveActivityDraft();
+  });
+  activityForm?.elements.imageMode?.addEventListener('change',syncActivityQuickControls);
+  activityForm?.elements.adaptationProfile?.addEventListener('change',syncActivityQuickControls);
+  activityForm?.elements.activityType?.addEventListener('change',syncActivityQuickControls);
+  activityCitySearch?.addEventListener('input',()=>{
+    const select=activityForm?.querySelector('[data-city-select]'); if(!select)return;
+    const q=activityCitySearch.value.trim().toLocaleLowerCase('pt-BR');
+    [...select.options].forEach((opt,i)=>{ if(i===0){opt.hidden=false;return;} opt.hidden=Boolean(q)&&!opt.textContent.toLocaleLowerCase('pt-BR').includes(q); });
+  });
+  activityForm?.querySelector('[data-state-select]')?.addEventListener('change',()=>{if(activityCitySearch)activityCitySearch.value='';});
+  activityForm?.addEventListener('reset',()=>setTimeout(syncActivityQuickControls,20));
+  setTimeout(syncActivityQuickControls,0);
 
   let loadingTimer=null, loadingStartedAt=0;
   const loadingStages=[
@@ -649,7 +707,7 @@
     }
     return {html,key};
   }
-  function localActivity(d){const q=localQuestions(d,false);return `${learningHeader(d,`ATIVIDADE — ${d.topic}`)}<div class="activity-summary"><p><strong>Tema:</strong> ${esc(d.topic)}</p>${d.objective?`<p><strong>Objetivo:</strong> ${esc(d.objective)}</p>`:''}${d.skill?`<p><strong>Referência curricular:</strong> ${esc(d.skill)}</p>`:''}</div>${sourceBlock(d)}<div class="instructions"><strong>Orientações</strong><p>${esc(d.instructions||'Leia com atenção e responda às questões. Revise suas respostas antes de entregar.')}</p></div>${q.html}<div class="answer-key"><h2>GABARITO / ORIENTAÇÕES DE CORREÇÃO</h2><p class="teacher-note">Modelo local: personalize enunciados e alternativas antes de aplicar.</p>${q.key}${d.notes?`<h3>Observações</h3><p>${esc(d.notes)}</p>`:''}</div>`;}
+  function localActivity(d){const q=localQuestions(d,false);return `${learningHeader(d,`ATIVIDADE — ${d.topic}`)}<div class="activity-summary"><p><strong>Tema:</strong> ${esc(d.topic)}</p>${d.objective?`<p><strong>Objetivo:</strong> ${esc(d.objective)}</p>`:''}${(d.curricularSkill||d.skill)?`<p><strong>Referência curricular:</strong> ${esc(d.curricularSkill||d.skill)}</p>`:''}</div>${sourceBlock(d)}<div class="instructions"><strong>Orientações</strong><p>${esc(d.instructions||'Leia com atenção e responda às questões. Revise suas respostas antes de entregar.')}</p></div>${q.html}<div class="answer-key"><h2>GABARITO / ORIENTAÇÕES DE CORREÇÃO</h2><p class="teacher-note">Modelo local: personalize enunciados e alternativas antes de aplicar.</p>${q.key}${d.notes?`<h3>Observações</h3><p>${esc(d.notes)}</p>`:''}</div>`;}
   function localExam(d){const q=localQuestions(d,true);return `${learningHeader(d,`AVALIAÇÃO — ${d.topic}`,true)}${d.skill?`<p class="curricular-ref"><strong>Referência curricular:</strong> ${esc(d.skill)}</p>`:''}${sourceBlock(d)}<div class="instructions"><strong>Instruções</strong><p>${esc(d.instructions||'Leia cada questão com atenção. Responda de forma legível e revise antes de entregar.')}</p></div>${q.html}<div class="score-footer"><strong>Nota:</strong> ______ / ${esc(d.totalPoints||10)}</div><div class="answer-key"><h2>GABARITO / CRITÉRIOS DE CORREÇÃO</h2><p class="teacher-note">Modelo local: personalize as questões antes de aplicar.</p>${q.key}${d.notes?`<h3>Critérios adicionais</h3><p>${esc(d.notes)}</p>`:''}</div>`;}
   function localAbnt(d){
     return `<div class="cover"><div><strong>${esc(d.institution||'INSTITUIÇÃO')}</strong><br>${esc(d.course||'')}</div><div><strong>${esc(d.author)}</strong></div><div><strong>${esc(d.title).toUpperCase()}</strong></div><div>${esc(d.city||'CIDADE')}<br>${esc(d.year||'')}</div></div><h2>RESUMO</h2><p>[Apresente objetivo, método, resultados e conclusão de forma concisa, conforme as exigências da instituição.]</p><p><strong>Palavras-chave:</strong> ${esc(d.keywords||'palavra-chave 1; palavra-chave 2; palavra-chave 3')}.</p><h2>1 INTRODUÇÃO</h2><p>${esc(d.theme||'[Contextualize e delimite o tema, apresente o problema e a justificativa.]')}</p><h3>1.1 Objetivo geral</h3><p>${esc(d.objective||'[Defina o objetivo geral.]')}</p><h3>1.2 Objetivos específicos</h3><ul><li>[Objetivo específico 1]</li><li>[Objetivo específico 2]</li><li>[Objetivo específico 3]</li></ul><h2>2 REFERENCIAL TEÓRICO</h2><p>[Organize a discussão em subseções e cite somente fontes realmente consultadas.]</p><h2>3 METODOLOGIA</h2><p>[Descreva tipo de pesquisa, procedimentos, participantes/fontes e forma de análise.]</p><h2>4 RESULTADOS E DISCUSSÃO</h2><p>[Apresente os achados e discuta-os com base nas fontes utilizadas.]</p><h2>5 CONSIDERAÇÕES FINAIS</h2><p>[Retome o objetivo e sintetize os principais resultados e limitações.]</p><h2>REFERÊNCIAS</h2><p>[Inclua apenas as obras efetivamente citadas. Use o formatador de referências do Aulora como apoio.]</p><div class="abnt-note"><strong>Revisão final:</strong> confira margens, paginação, fonte, espaçamento, citações, notas, ilustrações, tabelas, referências e o manual institucional antes da entrega.</div>`;
