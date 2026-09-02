@@ -121,6 +121,11 @@ async function hmacSha256Hex(secret, message) {
   const signature = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(String(message)));
   return bytesToHex(new Uint8Array(signature));
 }
+async function hmacSha256Base64Key(keyBytes, message) {
+  const key = await crypto.subtle.importKey('raw', keyBytes, { name:'HMAC', hash:'SHA-256' }, false, ['sign']);
+  const signature = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(String(message)));
+  return bytesToBase64(new Uint8Array(signature));
+}
 async function sha256(value) {
   const data = typeof value === 'string' ? new TextEncoder().encode(value) : value;
   return new Uint8Array(await crypto.subtle.digest('SHA-256', data));
@@ -300,6 +305,16 @@ async function ensureSchema(db) {
       FOREIGN KEY(user_id) REFERENCES aulora_users(id) ON DELETE CASCADE
     )`),
     db.prepare(`CREATE INDEX IF NOT EXISTS idx_aulora_password_resets_user ON aulora_password_resets(user_id, created_at DESC)`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS aulora_auth_challenges (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      nonce TEXT NOT NULL,
+      expires_at TEXT NOT NULL,
+      used_at TEXT,
+      created_at TEXT NOT NULL
+    )`),
+    db.prepare(`CREATE INDEX IF NOT EXISTS idx_aulora_auth_challenges_user ON aulora_auth_challenges(user_id, created_at DESC)`),
+    db.prepare(`CREATE INDEX IF NOT EXISTS idx_aulora_auth_challenges_expiry ON aulora_auth_challenges(expires_at)`),
     db.prepare(`CREATE TABLE IF NOT EXISTS aulora_admin_audit (
       id TEXT PRIMARY KEY,
       admin_user_id TEXT NOT NULL,
@@ -1363,13 +1378,36 @@ async function syncMercadoPagoPayment(env, paymentId, expectedUserId = '') {
   }
   return { payment, status, granted, expiresAt, userId };
 }
+
+async function finishLogin(env, user, request) {
+  const session = await createSession(env.DB, user.id, request);
+  let payload;
+  try {
+    payload = await userPayload(env, user);
+  } catch (payloadErr) {
+    console.warn('Aulora login payload fallback', payloadErr?.message || payloadErr);
+    const admin = isAdminUser(user, env), pro = user.plan === 'pro' || admin;
+    payload = {
+      id:user.id,email:user.email,name:user.name,plan:user.plan,planStatus:user.plan_status,
+      isAdmin:admin,accountRole:admin?'admin':'user',
+      profile:safeProfile(user.profile_json),emailPrefs:safeEmailPrefs(user.email_prefs_json),
+      usage:{month:monthKey(),ai:0,limits:planLimits(user.plan,admin)},
+      features:{images:pro,reports:pro,abnt:pro,henryAI:pro,exports:pro,emailCopies:pro,advancedInclusion:pro},
+      emailDelivery:{enabled:pro&&emailDeliveryEnabled(env)},
+      billing:{enabled:Boolean(env.MERCADO_PAGO_ACCESS_TOKEN),provider:'mercadopago',method:'pix_card',
+        methods:['pix','card'],expiresAt:user.pro_expires_at||null,priceCents:PRO_PIX_PRICE_CENTS,periodDays:PRO_PIX_DAYS}
+    };
+  }
+  return json({ user: payload }, 200, { 'set-cookie': session.cookie });
+}
+
 async function api(request, env, url, ctx) {
   if (!env.DB) return json({ error: 'Banco de dados não configurado.' }, 503);
   await ensureSchema(env.DB);
   const path = url.pathname;
 
   if (path === '/api/health' && request.method === 'GET') {
-    return json({ ok: true, ai: Boolean(env.AI), db: true, billing: Boolean(env.MERCADO_PAGO_ACCESS_TOKEN), paymentSecurity: { webhookSignature: Boolean(env.MERCADO_PAGO_WEBHOOK_SECRET), hostedCardCheckout: true }, email: emailDeliveryEnabled(env), passwordRecovery: emailDeliveryEnabled(env), adminConfigured: adminEmailSet(env).size > 0, auth: 'pbkdf2-sha256', authIterations: PASSWORD_KDF_ITERATIONS, service: 'Aulora' });
+    return json({ ok: true, ai: Boolean(env.AI), db: true, billing: Boolean(env.MERCADO_PAGO_ACCESS_TOKEN), paymentSecurity: { webhookSignature: Boolean(env.MERCADO_PAGO_WEBHOOK_SECRET), hostedCardCheckout: true }, email: emailDeliveryEnabled(env), passwordRecovery: emailDeliveryEnabled(env), adminConfigured: adminEmailSet(env).size > 0, auth: 'pbkdf2-browser-challenge-hmac', authIterations: PASSWORD_KDF_ITERATIONS, service: 'Aulora' });
   }
   if (path === '/api/auth/signup' && request.method === 'POST') {
     if (!mutationOriginAllowed(request)) return json({ error: 'Origem não autorizada.', code: 'ORIGIN_BLOCKED' }, 403);
@@ -1422,6 +1460,70 @@ async function api(request, env, url, ctx) {
       return json({ error: `${friendly} Tente novamente.`, code }, 500);
     }
   }
+  if (path === '/api/auth/login-challenge' && request.method === 'POST') {
+    if (!mutationOriginAllowed(request)) return json({ error:'Origem não autorizada.', code:'ORIGIN_BLOCKED' },403);
+    const limited = await enforceRateLimit(env, `login-challenge-v1:${clientFingerprint(request)}`, 40, 600, 'Muitas tentativas de acesso. Aguarde alguns minutos e tente novamente.'); if (limited) return limited;
+    const body = await request.json().catch(()=>({}));
+    const email = cleanEmail(body.email);
+    const user = isEmail(email) ? await env.DB.prepare('SELECT id,email,password_salt,password_iterations FROM aulora_users WHERE email=?').bind(email).first() : null;
+
+    const challengeId = crypto.randomUUID();
+    const nonce = bytesToBase64(crypto.getRandomValues(new Uint8Array(24)));
+    const dummySalt = bytesToBase64(crypto.getRandomValues(new Uint8Array(16)));
+    const iterations = Math.max(1000, Math.min(1000000, Number(user?.password_iterations) || PASSWORD_KDF_ITERATIONS));
+    const salt = user?.password_salt || dummySalt;
+    const createdAt = nowIso();
+    const expiresAt = new Date(Date.now()+5*60*1000).toISOString();
+
+    // Só desafios de contas existentes são persistidos. A resposta externa tem o mesmo formato
+    // para não transformar este endpoint em uma lista de e-mails cadastrados.
+    if (user) {
+      await env.DB.prepare('DELETE FROM aulora_auth_challenges WHERE user_id=? OR expires_at<? OR used_at IS NOT NULL').bind(user.id,createdAt).run();
+      await env.DB.prepare('INSERT INTO aulora_auth_challenges(id,user_id,nonce,expires_at,used_at,created_at) VALUES(?,?,?,?,?,?)')
+        .bind(challengeId,user.id,nonce,expiresAt,null,createdAt).run();
+    }
+    return json({ challengeId, nonce, salt, iterations, algorithm:'PBKDF2-SHA256', proof:'HMAC-SHA256' });
+  }
+
+  if (path === '/api/auth/login-proof' && request.method === 'POST') {
+    if (!mutationOriginAllowed(request)) return json({ error:'Origem não autorizada.', code:'ORIGIN_BLOCKED' },403);
+    const body = await request.json().catch(()=>({}));
+    const email = cleanEmail(body.email);
+    const challengeId = cleanText(body.challengeId,80);
+    const proof = cleanText(body.proof,200);
+    const broadLimited = await enforceRateLimit(env, `login-proof-v1:${clientFingerprint(request)}`, 60, 600, 'Muitas tentativas de acesso neste dispositivo. Aguarde alguns minutos e tente novamente.'); if (broadLimited) return broadLimited;
+    const accountLimited = await enforceRateLimit(env, `login-proof-v1-account:${clientFingerprint(request)}:${email}`, 20, 600, 'Muitas tentativas nesta conta. Aguarde alguns minutos ou use “Esqueci minha senha”.'); if (accountLimited) return accountLimited;
+
+    let stage='challenge';
+    try {
+      const row = await env.DB.prepare(`
+        SELECT c.id challenge_id,c.nonce,c.expires_at,c.used_at,u.*
+        FROM aulora_auth_challenges c
+        JOIN aulora_users u ON u.id=c.user_id
+        WHERE c.id=? AND u.email=? AND c.used_at IS NULL AND c.expires_at>?
+      `).bind(challengeId,email,nowIso()).first();
+      if (!row || !proof) return json({ error:'E-mail ou senha incorretos.', code:'LOGIN_INVALID' },401);
+
+      stage='proof';
+      let received;
+      try { received = base64ToBytes(proof); } catch { received = new Uint8Array(); }
+      const expectedB64 = await hmacSha256Base64Key(base64ToBytes(row.password_hash), row.nonce);
+      const expected = base64ToBytes(expectedB64);
+      if (!constantTimeEqual(received,expected)) {
+        await env.DB.prepare('UPDATE aulora_auth_challenges SET used_at=? WHERE id=?').bind(nowIso(),challengeId).run();
+        return json({ error:'E-mail ou senha incorretos.', code:'LOGIN_INVALID' },401);
+      }
+
+      stage='consume';
+      await env.DB.prepare('UPDATE aulora_auth_challenges SET used_at=? WHERE id=? AND used_at IS NULL').bind(nowIso(),challengeId).run();
+      stage='session';
+      return await finishLogin(env,row,request);
+    } catch (err) {
+      console.error('Aulora login proof failed',{stage,name:err?.name||'Error',message:cleanText(err?.message,180)});
+      return json({ error:'Não foi possível concluir o login agora. Tente novamente.', code:`LOGIN_PROOF_${String(stage).toUpperCase()}_FAILED` },500);
+    }
+  }
+
   if (path === '/api/auth/login' && request.method === 'POST') {
     if (!mutationOriginAllowed(request)) return json({ error: 'Origem não autorizada.' }, 403);
     const body = await request.json().catch(() => ({}));
@@ -1447,16 +1549,7 @@ async function api(request, env, url, ctx) {
         user.password_hash = upgraded.hash; user.password_salt = upgraded.salt; user.password_iterations = upgraded.iterations;
       }
       stage = 'session';
-      const session = await createSession(env.DB, user.id, request);
-      stage = 'payload';
-      let payload;
-      try { payload = await userPayload(env, user); }
-      catch (payloadErr) {
-        console.warn('Aulora login payload fallback', payloadErr?.message || payloadErr);
-        const admin = isAdminUser(user, env), pro = user.plan === 'pro' || admin;
-        payload = { id:user.id,email:user.email,name:user.name,plan:user.plan,planStatus:user.plan_status,isAdmin:admin,accountRole:admin?'admin':'user',profile:safeProfile(user.profile_json),emailPrefs:safeEmailPrefs(user.email_prefs_json),usage:{month:monthKey(),ai:0,limits:planLimits(user.plan,admin)},features:{images:pro,reports:pro,abnt:pro,henryAI:pro,exports:pro,emailCopies:pro,advancedInclusion:pro},emailDelivery:{enabled:pro&&emailDeliveryEnabled(env)},billing:{enabled:Boolean(env.MERCADO_PAGO_ACCESS_TOKEN),provider:'mercadopago',method:'pix_card',methods:['pix','card'],expiresAt:user.pro_expires_at||null,priceCents:PRO_PIX_PRICE_CENTS,periodDays:PRO_PIX_DAYS} };
-      }
-      return json({ user: payload }, 200, { 'set-cookie': session.cookie });
+      return await finishLogin(env,user,request);
     } catch (err) {
       console.error('Aulora login failed', { stage, name:err?.name || 'Error', message:cleanText(err?.message,180) });
       return json({ error: 'Não foi possível concluir o login agora. Tente novamente.', code:`LOGIN_${String(stage).toUpperCase()}_FAILED` }, 500);

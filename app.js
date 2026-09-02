@@ -67,6 +67,31 @@
     return tpl.innerHTML;
   }
 
+  function b64ToBytes(value=''){
+    const bin=atob(String(value)); return Uint8Array.from(bin,c=>c.charCodeAt(0));
+  }
+  function bytesToB64(bytes){
+    let bin=''; for(const b of bytes)bin+=String.fromCharCode(b); return btoa(bin);
+  }
+  async function derivePasswordVerifier(password,saltB64,iterations){
+    if(!globalThis.crypto?.subtle)throw Object.assign(new Error('Seu navegador não oferece o recurso criptográfico necessário para entrar com segurança.'),{code:'WEB_CRYPTO_UNAVAILABLE'});
+    const passwordKey=await crypto.subtle.importKey('raw',new TextEncoder().encode(String(password)),'PBKDF2',false,['deriveBits']);
+    const bits=await crypto.subtle.deriveBits({name:'PBKDF2',salt:b64ToBytes(saltB64),iterations:Number(iterations)||120000,hash:'SHA-256'},passwordKey,256);
+    return new Uint8Array(bits);
+  }
+  async function makeLoginProof(verifierBytes,nonce){
+    const key=await crypto.subtle.importKey('raw',verifierBytes,{name:'HMAC',hash:'SHA-256'},false,['sign']);
+    const sig=await crypto.subtle.sign('HMAC',key,new TextEncoder().encode(String(nonce)));
+    return bytesToB64(new Uint8Array(sig));
+  }
+  async function secureLogin(email,password){
+    // O Worker envia somente sal, custo e um nonce de uso único. A senha não sai do navegador.
+    const challenge=await apiFetch('/api/auth/login-challenge',{method:'POST',body:{email}});
+    const verifier=await derivePasswordVerifier(password,challenge.salt,challenge.iterations);
+    const proof=await makeLoginProof(verifier,challenge.nonce);
+    return apiFetch('/api/auth/login-proof',{method:'POST',body:{email,challengeId:challenge.challengeId,proof}});
+  }
+
   async function apiFetch(url, options={}){
     const opts={credentials:'same-origin',...options};
     if(opts.body && typeof opts.body!=='string'){
@@ -293,8 +318,13 @@
   $('#freePlanSignupBtn').addEventListener('click',()=>app.user?toast('Sua conta gratuita já está ativa.'):openAuth('signup'));
   $('#loginForm').addEventListener('submit',async e=>{
     e.preventDefault();const d=formData(e.currentTarget);showLoading('Entrando no Aulora…','Validando sua conta.');
-    try{const r=await apiFetch('/api/auth/login',{method:'POST',body:d});applyUser(r.user);closeAuth();app.materials=loadJson(materialCacheKey(),[]);await syncCloudMaterials(false);await offerGuestImport();toast('Conta conectada.');}
-    catch(err){setAuthError('login',err.message);}finally{hideLoading();}
+    try{
+      const r=await secureLogin(d.email,d.password);
+      applyUser(r.user);closeAuth();app.materials=loadJson(materialCacheKey(),[]);
+      await syncCloudMaterials(false);await offerGuestImport();toast('Conta conectada.');
+    }catch(err){
+      setAuthError('login',`${err.message}${err.code&&err.code!=='LOGIN_INVALID'?` [${err.code}]`:''}`);
+    }finally{hideLoading();}
   });
   $('#signupForm').addEventListener('submit',async e=>{
     e.preventDefault();const d=formData(e.currentTarget);
